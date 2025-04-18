@@ -50,24 +50,27 @@ def insert_booking(data):
         conflict_count = cursor.fetchone()[0]
 
         if conflict_count > 0:
-            return "conflict"
+            return "conflict", None
+
+        # Generate booking_number
+        booking_number = f"BKG-{datetime.today().strftime('%Y%m%d')}-{data['room_id']:04d}"
 
         # Safe insert
         insert_query = """
         INSERT INTO bookings 
-        (first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests, booking_number)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(insert_query, (
             data['first_name'], data['last_name'], data['email'], data['phone'],
             data['room_id'], data['check_in'], data['check_out'],
-            data['num_guests'], data['total_price'], data['special_requests']
+            data['num_guests'], data['total_price'], data['special_requests'], booking_number
         ))
         conn.commit()
-        return "success"
+        return "success", booking_number
     except Exception as e:
         st.error(f"❌ Booking error: {e}")
-        return "error"
+        return "error", None
     finally:
         if conn.is_connected():
             cursor.close()
@@ -122,10 +125,11 @@ if st.button("✅ Confirm Booking"):
             "special_requests": special_requests
         }
 
-        status = insert_booking(booking)
+        status, booking_number = insert_booking(booking)
 
         if status == "conflict":
             st.error("🚫 This room is already booked for part of your selected dates.")
         elif status == "success":
             st.success(f"🎉 Booking confirmed for {room['room_type']} from {check_in} to {check_out}")
+            st.write(f"Your booking number is: {booking_number}")
             st.balloons()

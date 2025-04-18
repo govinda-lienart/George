@@ -13,10 +13,10 @@ if not openai_key:
     raise ValueError("❌ OPENAI_API_KEY is missing in your .env file")
 
 # File path to your hotel description .txt file
-hotel_info_path = "/Users/govinda-dashugolienart/.../Pycharm/udemy/hotel/chez_govinda/hotel_description/hotel_descriptions.txt"
+hotel_info_path = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_descriptions.txt"
 
 # Where to save the FAISS index
-faiss_index_dir = "/Users/govinda-dashugolienart/Pycharm/udemy/hotel/chez_govinda/hotel_description_vectordb5"
+faiss_index_dir = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_description_vectordb1"
 
 # Initialize embeddings
 embeddings = OpenAIEmbeddings(openai_api_key=openai_key)

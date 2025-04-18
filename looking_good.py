@@ -1,4 +1,4 @@
-# looking_good_v18.py (cleaned version without booking form)
+# looking_good_v19.py (cleaned version without booking form)
 
 import os
 import re
@@ -26,7 +26,7 @@ llm = ChatOpenAI(
 )
 
 # --- Load FAISS Vector Store ---
-faiss_index_dir = os.path.join(os.getcwd(), "hotel_description_vectordb6")
+faiss_index_dir = os.path.join(os.getcwd(), "hotel_description_vectordb1")
 embeddings = OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
 vectorstore = FAISS.load_local(
     folder_path=faiss_index_dir,

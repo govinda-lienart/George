@@ -1,9 +1,12 @@
+# calendar_app.py
+
 import streamlit as st
 import pandas as pd
 import mysql.connector
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
+from email_booker_app import send_confirmation_email
 
 # Load .env
 load_dotenv()
@@ -37,99 +40,71 @@ def insert_booking(data):
 
         # Check for date conflict
         conflict_query = """
-        SELECT COUNT(*) FROM bookings
-        WHERE room_id = %s AND NOT (
-            %s >= check_out OR %s <= check_in
-        )
+            SELECT * FROM bookings
+            WHERE room_id = %s AND (
+                (check_in <= %s AND check_out > %s) OR
+                (check_in < %s AND check_out >= %s)
+            )
         """
-        cursor.execute(conflict_query, (
-            data['room_id'],
-            data['check_in'],
-            data['check_out']
-        ))
-        conflict_count = cursor.fetchone()[0]
+        cursor.execute(conflict_query, (data['room_id'], data['check_in'], data['check_in'], data['check_out'], data['check_out']))
+        conflicts = cursor.fetchall()
 
-        if conflict_count > 0:
-            return "conflict", None
+        if conflicts:
+            return False, "This room is already booked for the selected dates."
 
-        # Generate booking_number
-        booking_number = f"BKG-{datetime.today().strftime('%Y%m%d')}-{data['room_id']:04d}"
-
-        # Safe insert
         insert_query = """
-        INSERT INTO bookings 
-        (first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests, booking_number)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO bookings (first_name, last_name, email, room_id, check_in, check_out, special_requests)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        cursor.execute(insert_query, (
-            data['first_name'], data['last_name'], data['email'], data['phone'],
-            data['room_id'], data['check_in'], data['check_out'],
-            data['num_guests'], data['total_price'], data['special_requests'], booking_number
-        ))
+        values = (
+            data['first_name'], data['last_name'], data['email'],
+            data['room_id'], data['check_in'], data['check_out'], data['special_requests']
+        )
+        cursor.execute(insert_query, values)
         conn.commit()
-        return "success", booking_number
+        booking_id = cursor.lastrowid
+        return True, booking_id
+
     except Exception as e:
-        st.error(f"❌ Booking error: {e}")
-        return "error", None
+        return False, str(e)
     finally:
         if conn.is_connected():
             cursor.close()
             conn.close()
 
-# --- Room Selection ---
+# --- Main UI ---
 rooms = get_rooms()
-room_options = {
-    f"{r['room_type']} – €{r['price']} (max {r['guest_capacity']} guests)": r
-    for r in rooms
-}
-selected_label = st.selectbox("🛏️ Choose your room", list(room_options.keys()))
-room = room_options[selected_label]
+if rooms:
+    room_names = [f"{room['room_name']} (id: {room['room_id']})" for room in rooms]
+    room_mapping = {f"{room['room_name']} (id: {room['room_id']})": room['room_id'] for room in rooms}
 
-# --- Guest Info ---
-st.subheader("📝 Guest Info")
-first_name = st.text_input("First name")
-last_name = st.text_input("Last name")
-email = st.text_input("Email")
-phone = st.text_input("Phone")
+    with st.form("booking_form"):
+        first_name = st.text_input("First Name")
+        last_name = st.text_input("Last Name")
+        email = st.text_input("Email")
+        selected_room = st.selectbox("Select a Room", room_names)
+        check_in = st.date_input("Check-in Date", min_value=datetime.today())
+        check_out = st.date_input("Check-out Date", min_value=datetime.today() + timedelta(days=1))
+        special_requests = st.text_area("Special Requests", placeholder="Optional")
+        submitted = st.form_submit_button("Book Now")
 
-# --- Stay Info ---
-st.subheader("📅 Stay Details")
-today = datetime.today().date()
-check_in = st.date_input("Check-in", min_value=today)
-check_out = st.date_input("Check-out", min_value=check_in + timedelta(days=1))
-num_guests = st.number_input("👥 Number of guests", min_value=1, max_value=room['guest_capacity'])
-special_requests = st.text_area("💬 Special requests (optional)")
-
-# --- Price ---
-nights = (check_out - check_in).days
-price = nights * room['price']
-st.info(f"💸 Total price for {nights} night(s): €{price}")
-
-# --- Confirm Booking ---
-if st.button("✅ Confirm Booking"):
-    if not first_name or not last_name or not email or not phone:
-        st.warning("Please complete all fields.")
-    elif check_out <= check_in:
-        st.error("❌ Check-out must be after check-in.")
-    else:
-        booking = {
+    if submitted:
+        booking_data = {
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
-            "phone": phone,
-            "room_id": room['room_id'],
+            "room_id": room_mapping[selected_room],
             "check_in": check_in,
             "check_out": check_out,
-            "num_guests": num_guests,
-            "total_price": price,
             "special_requests": special_requests
         }
 
-        status, booking_number = insert_booking(booking)
-
-        if status == "conflict":
-            st.error("🚫 This room is already booked for part of your selected dates.")
-        elif status == "success":
-            st.success(f"🎉 Booking confirmed for {room['room_type']} from {check_in} to {check_out}")
-            st.write(f"Your booking number is: {booking_number}")
-            st.balloons()
+        success, result = insert_booking(booking_data)
+        if success:
+            booking_id = result
+            send_confirmation_email(email, first_name, last_name, booking_id, check_in, check_out)
+            st.success(f"✅ Booking successful! A confirmation email has been sent. Your booking number is {booking_id}.")
+        else:
+            st.error(f"❌ Booking failed: {result}")
+else:
+    st.warning("No rooms available.")

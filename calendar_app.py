@@ -28,6 +28,9 @@ def get_rooms():
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM rooms")
         return cursor.fetchall()
+    except Exception as e:
+        st.error(f"Error retrieving rooms: {e}")
+        return []
     finally:
         if conn.is_connected():
             cursor.close()
@@ -38,7 +41,6 @@ def insert_booking(data):
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
-        # Check for date conflict
         conflict_query = """
             SELECT * FROM bookings
             WHERE room_id = %s AND (
@@ -46,7 +48,10 @@ def insert_booking(data):
                 (check_in < %s AND check_out >= %s)
             )
         """
-        cursor.execute(conflict_query, (data['room_id'], data['check_in'], data['check_in'], data['check_out'], data['check_out']))
+        cursor.execute(conflict_query, (
+            data['room_id'], data['check_in'], data['check_in'],
+            data['check_out'], data['check_out']
+        ))
         conflicts = cursor.fetchall()
 
         if conflicts:
@@ -75,8 +80,10 @@ def insert_booking(data):
 # --- Main UI ---
 rooms = get_rooms()
 if rooms:
-    room_names = [f"{room['room_name']} (id: {room['room_id']})" for room in rooms]
-    room_mapping = {f"{room['room_name']} (id: {room['room_id']})": room['room_id'] for room in rooms}
+    ROOM_NAME_KEY = "room_type"
+
+    room_names = [f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})" for room in rooms]
+    room_mapping = {f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": room['room_id'] for room in rooms}
 
     with st.form("booking_form"):
         first_name = st.text_input("First Name")
@@ -107,4 +114,4 @@ if rooms:
         else:
             st.error(f"❌ Booking failed: {result}")
 else:
-    st.warning("No rooms available.")
+    st.warning("No rooms available or failed to load room list.")

@@ -36,11 +36,16 @@ def get_rooms():
             cursor.close()
             conn.close()
 
+def generate_booking_number(booking_id):
+    today_str = datetime.today().strftime("%Y%m%d")
+    return f"BKG-{today_str}-{str(booking_id).zfill(4)}"
+
 def insert_booking(data):
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
+        # Check for date conflict
         conflict_query = """
             SELECT * FROM bookings
             WHERE room_id = %s AND (
@@ -57,6 +62,7 @@ def insert_booking(data):
         if conflicts:
             return False, "This room is already booked for the selected dates."
 
+        # Insert basic info first
         insert_query = """
             INSERT INTO bookings (first_name, last_name, email, room_id, check_in, check_out, special_requests)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -68,7 +74,16 @@ def insert_booking(data):
         cursor.execute(insert_query, values)
         conn.commit()
         booking_id = cursor.lastrowid
-        return True, booking_id
+
+        # Generate and update booking number
+        booking_number = generate_booking_number(booking_id)
+        update_query = """
+            UPDATE bookings SET booking_number = %s WHERE booking_id = %s
+        """
+        cursor.execute(update_query, (booking_number, booking_id))
+        conn.commit()
+
+        return True, booking_number
 
     except Exception as e:
         return False, str(e)
@@ -108,9 +123,9 @@ if rooms:
 
         success, result = insert_booking(booking_data)
         if success:
-            booking_id = result
-            send_confirmation_email(email, first_name, last_name, booking_id, check_in, check_out)
-            st.success(f"✅ Booking successful! A confirmation email has been sent. Your booking number is {booking_id}.")
+            booking_number = result
+            send_confirmation_email(email, first_name, last_name, booking_number, check_in, check_out)
+            st.success(f"✅ Booking confirmed! Your booking number is **{booking_number}**. A confirmation email has been sent.")
         else:
             st.error(f"❌ Booking failed: {result}")
 else:

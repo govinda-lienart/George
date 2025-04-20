@@ -1,3 +1,5 @@
+#email_booker_app.py
+
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText

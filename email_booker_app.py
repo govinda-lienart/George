@@ -30,12 +30,15 @@ def send_confirmation_email(to_email, first_name, last_name, booking_number):
     Your Hotel Team
     """
 
+    # Create email
     msg = MIMEMultipart()
-    msg['From'] = smtp_user
+    from_name = "Chez Govinda"
+    msg['From'] = f"{from_name} <{smtp_user}>"
     msg['To'] = to_email
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
 
+    # Send it
     try:
         server = smtplib.SMTP(smtp_host, smtp_port)
         server.starttls()
@@ -56,3 +59,4 @@ send_confirmation_email(
     last_name="Lienart",
     booking_number="BKG-YAHOO-TEST"
 )
+

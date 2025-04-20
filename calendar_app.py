@@ -1,5 +1,3 @@
-# calendar_app.py
-
 import streamlit as st
 import mysql.connector
 from datetime import datetime, timedelta
@@ -17,10 +15,6 @@ db_config = {
     "database": os.getenv("DB_NAME")
 }
 
-st.set_page_config(page_title="🛎️ Book Your Room", layout="centered")
-st.title("🏨 Book Your Stay")
-
-# --- DB Helpers ---
 def get_rooms():
     try:
         conn = mysql.connector.connect(**db_config)
@@ -31,9 +25,12 @@ def get_rooms():
         st.error(f"Error retrieving rooms: {e}")
         return []
     finally:
-        if conn.is_connected():
-            cursor.close()
-            conn.close()
+        try:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+        except:
+            pass
 
 def generate_booking_number(booking_id):
     today_str = datetime.today().strftime("%Y%m%d")
@@ -84,13 +81,19 @@ def insert_booking(data):
     except Exception as e:
         return False, str(e)
     finally:
-        if conn.is_connected():
-            cursor.close()
-            conn.close()
+        try:
+            if conn.is_connected():
+                cursor.close()
+                conn.close()
+        except:
+            pass
 
-# --- Main UI ---
-rooms = get_rooms()
-if rooms:
+def render_booking_form():
+    rooms = get_rooms()
+    if not rooms:
+        st.warning("No rooms available or failed to load room list.")
+        return
+
     ROOM_NAME_KEY = "room_type"
     ROOM_PRICE_KEY = "price"
 
@@ -118,8 +121,7 @@ if rooms:
     if submitted:
         room_info = room_mapping[selected_room]
         nights = (check_out - check_in).days
-        price_per_night = room_info["price"]
-        total_price = price_per_night * nights * num_guests
+        total_price = room_info["price"] * nights * num_guests
 
         booking_data = {
             "first_name": first_name,
@@ -139,15 +141,13 @@ if rooms:
         if success:
             booking_number, total_price, room_type = result
             send_confirmation_email(email, first_name, last_name, booking_number, check_in, check_out, total_price, num_guests, phone, room_type)
-            st.success(
-                f"✅ Booking confirmed!\n\n"
+            st.success("✅ Booking confirmed!")
+            st.info(
                 f"**Booking Number:** {booking_number}\n"
                 f"**Room Type:** {room_type}\n"
                 f"**Guests:** {num_guests}\n"
                 f"**Total Price:** €{total_price}\n\n"
-                f"A confirmation email has been sent."
+                f"A confirmation email has been sent to {email}."
             )
         else:
             st.error(f"❌ Booking failed: {result}")
-else:
-    st.warning("No rooms available or failed to load room list.")

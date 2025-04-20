@@ -23,26 +23,20 @@ def send_confirmation_email(to_email, first_name, last_name, booking_number, che
       <body>
         <p>Hello {first_name} {last_name},</p>
 
-        <p>Thank you for booking your stay with us!</p>
+        <p>Thank you for booking your stay at <strong>Chez Govinda</strong>!</p>
 
-        <p><strong>Your booking has been confirmed:</strong></p>
-        <ul>
-          <li><strong>Booking Number:</strong> {booking_number}</li>
-          <li><strong>Room Type:</strong> {room_type}</li>
-          <li><strong>Check-in:</strong> {check_in}</li>
-          <li><strong>Check-out:</strong> {check_out}</li>
-          <li><strong>Guests:</strong> {num_guests}</li>
-          <li><strong>Phone:</strong> {phone}</li>
-          <li><strong>Total Price:</strong> €{total_price}</li>
-        </ul>
+        <p><strong>Booking Details:</strong></p>
+        <p><strong>Booking Number:</strong> {booking_number}</p>
+        <p><strong>Room Type:</strong> {room_type}</p>
+        <p><strong>Guests:</strong> {num_guests}</p>
+        <p><strong>Phone:</strong> {phone}</p>
+        <p><strong>Total Price:</strong> €{total_price}</p>
+        <p><strong>Check-in:</strong> {check_in}<br>
+           <strong>Check-out:</strong> {check_out}</p>
 
-        <p>We're looking forward to hosting you!</p>
+        <p>If you have any questions or need to make changes, feel free to reply to this email.</p>
 
-        <p>If you have any questions or need to make changes,<br>
-        feel free to reply to this email.</p>
-
-        <p>Best regards,<br>
-        <strong>Chez Govinda Team</strong></p>
+        <p>Warm wishes from all of us at Chez Govinda 🌿</p>
       </body>
     </html>
     """

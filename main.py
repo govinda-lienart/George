@@ -1,11 +1,7 @@
-# looking_good_v19.py (cleaned version without booking form)
-
 import os
-import re
-import mysql.connector
 import streamlit as st
 from dotenv import load_dotenv
-import datetime
+from calendar_app import render_booking_form
 
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.vectorstores import FAISS
@@ -49,31 +45,25 @@ rooms(room_id, room_type, price, guest_capacity, description)
 room_availability(id, room_id, date, is_available)
 bookings(booking_id, first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests)
 
-Additional context:
-- Examples of room types include: "Economy Room", "Family Room", "Suite Room", "Romantic Room", "Double Room", "Single Room"
-- Dates are stored as 'YYYY-MM-DD'.
-- Room availability is marked with 1 for available, 0 for not available.
-
 Rules:
 - If the user asks for availability between two dates, return rooms from `room_availability` that are available on **all** dates in the range.
 - If the user asks for total price for a stay, calculate it as `price * number_of_nights`, using `DATEDIFF(check_out, check_in)`.
 - Always match rooms using `room_type`.
-- **If the user asks for a listing of room types, generate a query to select distinct room_type from the rooms table.**
-- **Crucial Rule:** You MUST ONLY return the raw MySQL query. Do not include any explanations, markdown formatting, or extra text.
+- If the user asks for a listing of room types, generate a query to select distinct room_type from the rooms table.
+- Crucial Rule: You MUST ONLY return the raw MySQL query. Do not include explanations, markdown formatting, or extra text.
 
 User: "{input}"
 """
 )
 
-# --- SQL Utilities ---
 def run_sql_query(query):
-    print(f"DEBUG: Executing SQL Query: {query}")
+    import mysql.connector
     try:
         conn = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT"),
             user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD") or '',
+            password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_NAME")
         )
         cursor = conn.cursor()
@@ -81,10 +71,9 @@ def run_sql_query(query):
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
-        print(f"DEBUG: SQL Query Result: {rows}")
         return rows
     except Exception as e:
-        print("DEBUG SQL ERROR:", e)
+        print("SQL ERROR:", e)
         return []
 
 def format_result_naturally(user_question, sql_result):
@@ -107,7 +96,6 @@ Your response:
     response = chain.invoke({"question": user_question, "result": rows_text})
     return response.content.strip()
 
-# --- Vector Search ---
 def run_vector_search(query):
     k = 5 if len(query.split()) < 6 else 3
     docs = vectorstore.similarity_search(query, k=k)
@@ -135,11 +123,9 @@ George's reply:
     response = chain.invoke({"context": context, "question": query})
     return response.content.strip()
 
-# --- ReAct Tools ---
 def react_sql_tool(q):
     sql_text = (sql_prompt | llm).invoke({"summary": st.session_state.chat_summary, "input": q}).content.strip()
     sql_query = sql_text.removeprefix("```sql").removesuffix("```").strip()
-    print(f"DEBUG: Generated SQL Query: {sql_query}")
     return format_result_naturally(q, run_sql_query(sql_query))
 
 def memory_tool(q):
@@ -163,12 +149,13 @@ react_agent = initialize_agent(
 )
 
 # --- Streamlit UI ---
-st.set_page_config(page_title="Chez Govinda - AI Hotel Assistant", page_icon="🏨")
-st.title("🏨 Chez Govinda — AI Hotel Assistant")
+st.set_page_config(page_title="Chez Govinda – AI Assistant", page_icon="🏨")
+st.title("🏨 Chez Govinda – AI Assistant")
 
 if "history" not in st.session_state: st.session_state.history = []
 if "chat_memory" not in st.session_state: st.session_state.chat_memory = []
 if "chat_summary" not in st.session_state: st.session_state.chat_summary = ""
+if "show_booking_form" not in st.session_state: st.session_state.show_booking_form = False
 
 def update_chat_summary():
     full = "\n".join(f"User: {u}\nAssistant: {a}" for u, a in st.session_state.chat_memory)
@@ -178,25 +165,25 @@ def update_chat_summary():
     st.session_state.chat_summary = result.content.strip()
 
 def handle_user_input(user_question):
-    with st.spinner("Thinking..."):
-        reply = react_agent.run(user_question)
+    if "book now" in user_question.lower():
+        st.session_state.show_booking_form = True
+        return "Sure! Here's the booking form 👇"
+    reply = react_agent.run(user_question)
     return reply
 
-user_question = st.chat_input("Ask about availability, policies, or anything else...")
+user_question = st.chat_input("Ask about availability, bookings, or anything else...")
 
 if user_question:
-    chatbot_response = handle_user_input(user_question)
-    if chatbot_response:
-        st.session_state.history.append(("You", user_question))
-        st.session_state.history.append(("Assistant", chatbot_response))
-        st.session_state.chat_memory.append((user_question, chatbot_response))
-        update_chat_summary()
+    response = handle_user_input(user_question)
+    st.session_state.history.append(("You", user_question))
+    st.session_state.history.append(("Assistant", response))
+    st.session_state.chat_memory.append((user_question, response))
+    update_chat_summary()
 
 for sender, msg in st.session_state.history:
     st.chat_message(sender.lower()).write(msg)
 
-# --- Debug Info ---
-with st.expander("🧠 Debug"):
-    st.json({
-        "summary": st.session_state.get("chat_summary"),
-    })
+if st.session_state.show_booking_form:
+    st.markdown("---")
+    st.subheader("📅 Booking Form")
+    render_booking_form()

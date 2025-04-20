@@ -1,7 +1,6 @@
 # calendar_app.py
 
 import streamlit as st
-import pandas as pd
 import mysql.connector
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -45,7 +44,6 @@ def insert_booking(data):
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
-        # Check for date conflict
         conflict_query = """
             SELECT * FROM bookings
             WHERE room_id = %s AND (
@@ -62,28 +60,26 @@ def insert_booking(data):
         if conflicts:
             return False, "This room is already booked for the selected dates."
 
-        # Insert basic info first
         insert_query = """
-            INSERT INTO bookings (first_name, last_name, email, room_id, check_in, check_out, special_requests)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO bookings 
+            (first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         values = (
-            data['first_name'], data['last_name'], data['email'],
-            data['room_id'], data['check_in'], data['check_out'], data['special_requests']
+            data['first_name'], data['last_name'], data['email'], data['phone'],
+            data['room_id'], data['check_in'], data['check_out'],
+            data['num_guests'], data['total_price'], data['special_requests']
         )
         cursor.execute(insert_query, values)
         conn.commit()
         booking_id = cursor.lastrowid
 
-        # Generate and update booking number
         booking_number = generate_booking_number(booking_id)
-        update_query = """
-            UPDATE bookings SET booking_number = %s WHERE booking_id = %s
-        """
+        update_query = "UPDATE bookings SET booking_number = %s WHERE booking_id = %s"
         cursor.execute(update_query, (booking_number, booking_id))
         conn.commit()
 
-        return True, booking_number
+        return True, (booking_number, data['total_price'], data['room_type'])
 
     except Exception as e:
         return False, str(e)
@@ -96,14 +92,23 @@ def insert_booking(data):
 rooms = get_rooms()
 if rooms:
     ROOM_NAME_KEY = "room_type"
+    ROOM_PRICE_KEY = "price"
 
     room_names = [f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})" for room in rooms]
-    room_mapping = {f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": room['room_id'] for room in rooms}
+    room_mapping = {
+        f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": {
+            "id": room["room_id"],
+            "type": room[ROOM_NAME_KEY],
+            "price": room[ROOM_PRICE_KEY]
+        } for room in rooms
+    }
 
     with st.form("booking_form"):
         first_name = st.text_input("First Name")
         last_name = st.text_input("Last Name")
         email = st.text_input("Email")
+        phone = st.text_input("Phone")
+        num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
         selected_room = st.selectbox("Select a Room", room_names)
         check_in = st.date_input("Check-in Date", min_value=datetime.today())
         check_out = st.date_input("Check-out Date", min_value=datetime.today() + timedelta(days=1))
@@ -111,21 +116,37 @@ if rooms:
         submitted = st.form_submit_button("Book Now")
 
     if submitted:
+        room_info = room_mapping[selected_room]
+        nights = (check_out - check_in).days
+        price_per_night = room_info["price"]
+        total_price = price_per_night * nights * num_guests
+
         booking_data = {
             "first_name": first_name,
             "last_name": last_name,
             "email": email,
-            "room_id": room_mapping[selected_room],
+            "phone": phone,
+            "room_id": room_info["id"],
+            "room_type": room_info["type"],
             "check_in": check_in,
             "check_out": check_out,
+            "num_guests": num_guests,
+            "total_price": total_price,
             "special_requests": special_requests
         }
 
         success, result = insert_booking(booking_data)
         if success:
-            booking_number = result
-            send_confirmation_email(email, first_name, last_name, booking_number, check_in, check_out)
-            st.success(f"✅ Booking confirmed! Your booking number is **{booking_number}**. A confirmation email has been sent.")
+            booking_number, total_price, room_type = result
+            send_confirmation_email(email, first_name, last_name, booking_number, check_in, check_out, total_price, num_guests, phone, room_type)
+            st.success(
+                f"✅ Booking confirmed!\n\n"
+                f"**Booking Number:** {booking_number}\n"
+                f"**Room Type:** {room_type}\n"
+                f"**Guests:** {num_guests}\n"
+                f"**Total Price:** €{total_price}\n\n"
+                f"A confirmation email has been sent."
+            )
         else:
             st.error(f"❌ Booking failed: {result}")
 else:

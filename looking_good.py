@@ -1,4 +1,4 @@
-# looking_good_v19.py (cleaned version without booking form)
+# looking_good_v19.py
 
 import os
 import re
@@ -49,17 +49,12 @@ rooms(room_id, room_type, price, guest_capacity, description)
 room_availability(id, room_id, date, is_available)
 bookings(booking_id, first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests)
 
-Additional context:
-- Examples of room types include: "Economy Room", "Family Room", "Suite Room", "Romantic Room", "Double Room", "Single Room"
-- Dates are stored as 'YYYY-MM-DD'.
-- Room availability is marked with 1 for available, 0 for not available.
-
 Rules:
 - If the user asks for availability between two dates, return rooms from `room_availability` that are available on **all** dates in the range.
 - If the user asks for total price for a stay, calculate it as `price * number_of_nights`, using `DATEDIFF(check_out, check_in)`.
 - Always match rooms using `room_type`.
-- **If the user asks for a listing of room types, generate a query to select distinct room_type from the rooms table.**
-- **Crucial Rule:** You MUST ONLY return the raw MySQL query. Do not include any explanations, markdown formatting, or extra text.
+- If the user asks for a listing of room types, generate a query to select distinct room_type from the rooms table.
+- Crucial Rule: You MUST ONLY return the raw MySQL query. Do not include explanations, markdown formatting, or extra text.
 
 User: "{input}"
 """
@@ -182,9 +177,16 @@ def handle_user_input(user_question):
         reply = react_agent.run(user_question)
     return reply
 
-user_question = st.chat_input("Ask about availability, policies, or anything else...")
+# --- Chat input ---
+user_question = st.chat_input("Ask about availability, booking, or anything else...")
 
-if user_question:
+# --- Intercept booking-related messages BEFORE chatbot runs ---
+trigger_form = False
+if user_question and re.search(r"\b(book|reserve|stay|room now|booking|make a reservation)\b", user_question.lower()):
+    trigger_form = True
+
+# --- Run ReAct only if NOT a booking form trigger ---
+if user_question and not trigger_form:
     chatbot_response = handle_user_input(user_question)
     if chatbot_response:
         st.session_state.history.append(("You", user_question))
@@ -192,10 +194,32 @@ if user_question:
         st.session_state.chat_memory.append((user_question, chatbot_response))
         update_chat_summary()
 
+# --- Display chat history ---
 for sender, msg in st.session_state.history:
     st.chat_message(sender.lower()).write(msg)
 
-# --- Debug Info ---
+# --- Inject booking form UI ---
+if trigger_form:
+    st.markdown("---")
+    st.subheader("📅 Booking Form")
+
+    with st.form("booking_form"):
+        first_name = st.text_input("First Name")
+        last_name = st.text_input("Last Name")
+        email = st.text_input("Email")
+        phone = st.text_input("Phone")
+        num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
+        selected_room = st.selectbox("Room Type", ["Single", "Double", "Economy", "Romantic"])
+        check_in = st.date_input("Check-in Date", min_value=datetime.date.today())
+        check_out = st.date_input("Check-out Date", min_value=datetime.date.today() + datetime.timedelta(days=1))
+        special_requests = st.text_area("Special Requests", placeholder="Optional")
+        submitted = st.form_submit_button("Confirm Booking")
+
+    if submitted:
+        st.success("✅ Booking submitted! (mocked for now)")
+        st.info("This is a placeholder. Real booking logic will be connected soon.")
+
+# --- Debug Summary ---
 with st.expander("🧠 Debug"):
     st.json({
         "summary": st.session_state.get("chat_summary"),

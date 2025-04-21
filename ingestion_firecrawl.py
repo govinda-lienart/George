@@ -30,12 +30,7 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 # Define the list of URLs to scrape
 urls_to_scrape = [
-    "https://sites.google.com/view/chez-govinda/home",
     "https://sites.google.com/view/chez-govinda/rooms",
-    "https://sites.google.com/view/chez-govinda/policy",
-    "https://sites.google.com/view/chez-govinda/enviroment",
-    "https://sites.google.com/view/chez-govinda/contactlocation",
-    "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities"
 ]
 
 # Function to clean text

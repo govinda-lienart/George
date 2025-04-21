@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import TextLoader, PDFMinerLoader
 from langchain.schema import Document
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -9,25 +9,28 @@ from langchain.prompts import PromptTemplate
 # Load environment variables
 load_dotenv()
 
-# Keys
+# Retrieve OpenAI API key
 openai_key = os.getenv("OPENAI_API_KEY")
 if not openai_key:
-    raise ValueError("❌ OPENAI_API_KEY is missing in .env")
+    raise ValueError("❌ Missing OPENAI_API_KEY")
 
-# ✅ Your full paths
+# Define file paths
 file_path = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_descriptions.txt"
-faiss_index_dir = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_description_vectordb3"
+faiss_index_dir = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_description_vectordb5"
 
-# Embedding and LLM setup
-embeddings = OpenAIEmbeddings(openai_api_key=openai_key)
+# Initialize embeddings and LLM
+embedding = OpenAIEmbeddings(openai_api_key=openai_key)
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, openai_api_key=openai_key)
 
-def auto_section_chunk(text):
+def auto_chunk_with_llm(text):
     prompt = PromptTemplate(
         input_variables=["text"],
         template="""
-Split the following hotel description into clear, labeled sections like 'Room Descriptions', 'Pet Policy', 'Check-in Details', etc.
-Each section should be separated with a clear title followed by its content.
+You are a smart document assistant.
+
+Split the hotel description below into meaningful sections such as "Room Descriptions", "Policies", "Amenities", etc.
+Each section should start with a title (on a separate line), followed by its full content.
+Do not modify or summarize any content. Just label and organize clearly.
 
 Text:
 {text}
@@ -35,10 +38,10 @@ Text:
 Output:
 """
     )
-    response = prompt | llm
-    result = response.invoke({"text": text}).content.strip()
+    response = (prompt | llm).invoke({"text": text}).content.strip()
 
-    raw_chunks = result.split("\n\n")
+    # Now parse the result into Document objects
+    raw_chunks = response.split("\n\n")
     documents = []
     for chunk in raw_chunks:
         lines = chunk.strip().split("\n")
@@ -54,18 +57,17 @@ def ingest_file():
     loader = TextLoader(file_path)
     raw_text = loader.load()[0].page_content
 
-    print("🧠 Using LLM to chunk the content by meaning...")
-    docs = auto_section_chunk(raw_text)
-    print(f"✅ Found {len(docs)} chunks:")
+    print("🧠 LLM chunking by semantic meaning...")
+    docs = auto_chunk_with_llm(raw_text)
+    print(f"✅ Created {len(docs)} smart chunks:")
     for d in docs:
         print(f"   - 📘 {d.metadata['section']}")
 
-    print("💾 Creating FAISS vectorstore...")
-    vectorstore = FAISS.from_documents(docs, embedding=embeddings)
+    print("💾 Saving to FAISS vector store...")
     os.makedirs(faiss_index_dir, exist_ok=True)
+    vectorstore = FAISS.from_documents(docs, embedding=embedding)
     vectorstore.save_local(faiss_index_dir)
-
-    print(f"✅ Done. Vector DB saved to: {faiss_index_dir}")
+    print(f"✅ Done! Saved at: {faiss_index_dir}")
 
 if __name__ == "__main__":
     ingest_file()

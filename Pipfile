@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 streamlit = "*"
 mysql-connector-python = "*"
+langgraph = "*"
 
 [dev-packages]
 

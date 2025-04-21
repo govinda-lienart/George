@@ -8,6 +8,8 @@ streamlit = "*"
 mysql-connector-python = "*"
 langgraph = "*"
 pinecone = "*"
+langchain-pinecone = "*"
+firecrawl-py = "*"
 
 [dev-packages]
 

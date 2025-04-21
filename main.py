@@ -1,11 +1,9 @@
-# main.py
-
 import os
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents import Tool, initialize_agent, AgentType
 from langchain_community.chat_models import ChatOpenAI
-from langchain_community.vectorstores import FAISS
+from langchain_pinecone import PineconeVectorStore
 from langchain.prompts import PromptTemplate
 from langchain_openai import OpenAIEmbeddings
 from chat_ui import render_header, render_chat_bubbles
@@ -21,11 +19,10 @@ llm = ChatOpenAI(
     openai_api_base="https://api.deepseek.com/v1"
 )
 
-# Load vector store
-vectorstore = FAISS.load_local(
-    folder_path="hotel_description_vectordb5",
-    embeddings=OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY")),
-    allow_dangerous_deserialization=True
+# Load Pinecone vector store
+vectorstore = PineconeVectorStore.from_existing_index(
+    index_name="george",
+    embedding=OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
 )
 
 # Prompt to convert user queries to SQL

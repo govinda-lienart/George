@@ -19,13 +19,13 @@ llm = ChatOpenAI(
     openai_api_base="https://api.deepseek.com/v1"
 )
 
-# Pinecone vector store
+# Vector store
 vectorstore = PineconeVectorStore.from_existing_index(
     index_name="george",
     embedding=OpenAIEmbeddings(openai_api_key=os.getenv("OPENAI_API_KEY"))
 )
 
-# SQL prompt for query generation
+# SQL Prompt
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -48,7 +48,7 @@ User: "{input}"
 """
 )
 
-# SQL executor
+# SQL runner
 def run_sql(query):
     import mysql.connector
     try:
@@ -68,7 +68,7 @@ def run_sql(query):
         cursor.close()
         conn.close()
 
-# SQL result summarizer
+# SQL summarizer
 def explain_sql(user_question, result):
     prompt = PromptTemplate(
         input_variables=["question", "result"],
@@ -83,51 +83,81 @@ Response:
     )
     return (prompt | llm).invoke({"question": user_question, "result": str(result)}).content.strip()
 
-# Vector-based RAG function (updated to k=10)
+# Helper to find matching doc source
+def find_source_link(docs, keyword):
+    for doc in docs:
+        source = doc.metadata.get("source", "")
+        if keyword.lower() in source.lower():
+            return source
+    return None
+
+# Vector Search
 def vector_search(query):
-    docs = vectorstore.similarity_search(query, k=10)
+    docs = vectorstore.similarity_search(query, k=30)
 
     if not docs:
         return "❌ I couldn’t find anything relevant in our documents."
 
-    # 🔍 Debug: Show what is actually retrieved
-    print("\n📥 Retrieved vector documents:")
-    for i, doc in enumerate(docs, start=1):
-        print(f"\n--- Document {i} ---\n{doc.page_content[:500]}\nSource: {doc.metadata.get('source')}")
+    if all(len(doc.page_content.strip()) < 50 for doc in docs):
+        return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
 
-    # Compose final prompt
-    context = "\n\n".join(doc.page_content for doc in docs)
+    # Deduplicate similar docs
+    seen = set()
+    unique_docs = []
+    for doc in docs:
+        if doc.page_content[:100] not in seen:
+            unique_docs.append(doc)
+            seen.add(doc.page_content[:100])
+    docs = unique_docs
+
+    # Boost sustainability-related results only if the query is about that
+    relevant_terms = ["eco", "green", "environment", "sustainab", "organic"]
+    boost_needed = any(term in query.lower() for term in relevant_terms)
+
+    if boost_needed:
+        docs = sorted(
+            docs,
+            key=lambda d: any(term in d.page_content.lower() for term in relevant_terms),
+            reverse=True
+        )
+
+    docs = docs[:10]  # Always trim to top 10
+
+    # Prompt setup
     prompt = PromptTemplate(
         input_variables=["context", "question"],
         template="""
 You are George, the friendly receptionist at Chez Govinda.
 
-Answer based **only** on the context below. Do not invent details.
+Answer the user's question in a warm and concise paragraph, using only the information below. Prioritize anything about sustainability or green practices when applicable.
 
 {context}
 
 User: {question}
 """
     )
+
+    context = "\n\n".join(doc.page_content for doc in docs)
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
-    # Collect and append source URLs
-    unique_sources = list(set(doc.metadata.get("source") for doc in docs if doc.metadata.get("source")))
-    sources = "\n".join(f"- [{src}]({src})" for src in unique_sources)
-    return f"{final_answer}\n\n📎 **Sources:**\n{sources}"
+    # Smart link addition
+    env_link = find_source_link(docs, "environment")
+    rooms_link = find_source_link(docs, "rooms")
 
-# Tools for agent
+    if env_link:
+        final_answer += f"\n\n🌱 You can read more about this on our [Environmental Commitment page]({env_link})."
+    elif rooms_link:
+        final_answer += f"\n\n🛏️ You can check out more details on our [Rooms page]({rooms_link})."
+
+    return final_answer
+
+# Tools setup
 tools = [
-    Tool(
-        name="sql",
-        func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({"summary": st.session_state.chat_summary, "input": q}).content.strip())),
-        description="Bookings, prices, availability."
-    ),
+    Tool(name="sql", func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({"summary": st.session_state.chat_summary, "input": q}).content.strip())), description="Bookings, prices, availability."),
     Tool(name="vector", func=vector_search, description="Hotel details and policies."),
     Tool(name="chat", func=lambda q: llm.invoke(q).content.strip(), description="General chat.")
 ]
 
-# Agent setup
 agent = initialize_agent(
     tools=tools,
     llm=llm,
@@ -139,19 +169,14 @@ agent = initialize_agent(
 st.set_page_config(page_title="Chez Govinda – AI Hotel Assistant", page_icon="🏨")
 render_header()
 
-# Session state
 if "history" not in st.session_state: st.session_state.history = []
 if "chat_summary" not in st.session_state: st.session_state.chat_summary = ""
 
-# User input
 user_input = st.chat_input("Ask about availability, bookings, or anything else...")
-
-# Chat interaction
 if user_input:
     st.session_state.history.append(("user", user_input))
     with st.spinner("George is replying..."):
         response = agent.run(user_input)
     st.session_state.history.append(("bot", response))
 
-# Display conversation
 render_chat_bubbles(st.session_state.history)

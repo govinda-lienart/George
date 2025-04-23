@@ -1,4 +1,5 @@
 import os
+import time  # Import time module for tracking response time
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents import Tool, initialize_agent, AgentType
@@ -162,21 +163,29 @@ agent = initialize_agent(
     tools=tools,
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
+    verbose=False,
+    max_iterations=1,
+    early_stopping_method="generate"
 )
 
 # Streamlit UI setup
 st.set_page_config(page_title="Chez Govinda – AI Hotel Assistant", page_icon="🏨")
 render_header()
 
-if "history" not in st.session_state: st.session_state.history = []
-if "chat_summary" not in st.session_state: st.session_state.chat_summary = ""
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "chat_summary" not in st.session_state:
+    st.session_state.chat_summary = ""
 
 user_input = st.chat_input("Ask about availability, bookings, or anything else...")
 if user_input:
     st.session_state.history.append(("user", user_input))
     with st.spinner("George is replying..."):
+        start_time = time.time()  # Start timing
         response = agent.run(user_input)
+        end_time = time.time()  # End timing
+        duration = end_time - start_time  # Calculate duration
     st.session_state.history.append(("bot", response))
+    st.write(f"⏱️ Response time: {duration:.2f} seconds")  # Display response time
 
 render_chat_bubbles(st.session_state.history)

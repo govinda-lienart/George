@@ -153,3 +153,7 @@ def render_booking_form():
             )
         else:
             st.error(f"❌ Booking failed: {result}")
+
+if __name__ == "__main__":
+    st.title("🛎️ Welcome to Chez Govinda Booking")
+    render_booking_form()

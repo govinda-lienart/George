@@ -1,11 +1,11 @@
-# Last updated: 2025-04-24 22:11:38
-import os
-import mysql.connector
-from langchain.prompts import PromptTemplate
 from langchain.agents import Tool
+from langchain.prompts import PromptTemplate
 from utils.config import llm
+import mysql.connector
+import os
+import streamlit as st
 
-# SQL Prompt
+# --- Prompt Template ---
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -16,19 +16,63 @@ Conversation summary so far:
 
 Translate the user's question into a MySQL query using this schema:
 
-rooms(room_id, room_type, price, guest_capacity, description)
-room_availability(id, room_id, date, is_available)
-bookings(booking_id, first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests)
+bookings(
+  booking_id,
+  first_name,
+  last_name,
+  email,
+  phone,
+  room_id,
+  check_in,
+  check_out,
+  num_guests,
+  total_price,
+  special_requests,
+  booking_number
+)
+
+rooms(
+  room_id,
+  room_type,
+  price,
+  guest_capacity,
+  description
+)
+
+room_availability(
+  id,
+  room_id,
+  date,
+  is_available
+)
 
 Rules:
-- Use raw MySQL.
+- Use exact column names.
+- Use `check_in`, not `check_in_date`.
+- Use `check_out`, not `check_out_date`.
+- Use `booking_number` (not reservation ID).
 - Do NOT explain anything. Only return the raw SQL query.
+- DO NOT include backticks or markdown formatting like ```sql.
 
 User: "{input}"
 """
 )
 
-def run_sql(query):
+# --- Clean the SQL string ---
+def clean_sql(raw_sql: str) -> str:
+    return (
+        raw_sql.strip()
+        .removeprefix("```sql")
+        .removesuffix("```")
+        .replace("```", "")
+        .strip()
+    )
+
+# --- Run SQL safely ---
+def run_sql(query: str):
+    cleaned = clean_sql(query)
+    st.write(f"🔍 SQL query received:\n```sql\n{cleaned}\n```")
+
     try:
         conn = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
@@ -37,31 +81,44 @@ def run_sql(query):
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_NAME")
         )
+        st.write("✅ Connected to DB")
         cursor = conn.cursor()
-        cursor.execute(query)
+        cursor.execute(cleaned)
         return cursor.fetchall()
     except Exception as e:
+        st.write(f"❌ SQL ERROR: {e}")
         return f"SQL ERROR: {e}"
     finally:
-        cursor.close()
-        conn.close()
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
+# --- Explain result in natural language ---
 def explain_sql(user_question, result):
-    explain_prompt = PromptTemplate(
+    prompt = PromptTemplate(
         input_variables=["question", "result"],
         template="""
 You are a hotel assistant.
 
-Summarize this SQL result for the guest:
+Summarize the result of this SQL query for the guest:
 User Question: {question}
 SQL Result: {result}
 Response:
 """
     )
-    return (explain_prompt | llm).invoke({"question": user_question, "result": str(result)}).content.strip()
+    return (prompt | llm).invoke({
+        "question": user_question,
+        "result": str(result)
+    }).content.strip()
 
+# --- LangChain Tool ---
 sql_tool = Tool(
     name="sql",
-    func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({"summary": "", "input": q}).content.strip())),
-    description="Bookings, prices, availability."
+    func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({
+        "summary": st.session_state.chat_summary,
+        "input": q
+    }).content)),
+    description="Access bookings, availability, prices, and reservations from the SQL database."
 )

@@ -15,8 +15,8 @@ if not openai_key:
     raise ValueError("❌ Missing OPENAI_API_KEY")
 
 # Define file paths
-file_path = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_descriptions.txt"
-faiss_index_dir = "/Users/govinda-dashugolienart/Library/CloudStorage/GoogleDrive-govinda.lienart@three-monkeys.org/My Drive/TMWC - Govinda /TMWC - Govinda /Data Science/GitHub/George/hotel_description_vectordb5"
+file_path = "/hotel_descriptions.txt"
+faiss_index_dir = "/hotel_description_vectordb5"
 
 # Initialize embeddings and LLM
 embedding = OpenAIEmbeddings(openai_api_key=openai_key)

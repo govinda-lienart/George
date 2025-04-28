@@ -11,6 +11,9 @@ pinecone = "*"
 langchain-pinecone = "*"
 firecrawl-py = "*"
 langchain = "*"
+langchain-openai = "*"
+openai = "*"
+langchain-community = "*"
 
 [dev-packages]
 

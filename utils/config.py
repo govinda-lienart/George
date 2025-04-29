@@ -9,20 +9,30 @@ load_dotenv()
 
 print("🔵 Checking environment and Streamlit secrets...")
 
-# Print env and secret detection
+# Check if st.secrets are accessible
+try:
+    secrets_available = True if st.secrets else False
+except Exception:
+    secrets_available = False
+
+# Print environment variable detection
 print("ENV VARS:")
 print(" - DEEPSEEK_API_KEY found in os.environ?", "✅" if "DEEPSEEK_API_KEY" in os.environ else "❌")
 print(" - OPENAI_API_KEY found in os.environ?", "✅" if "OPENAI_API_KEY" in os.environ else "❌")
 
+# Print Streamlit secrets detection
 print("STREAMLIT SECRETS:")
-print(" - DEEPSEEK_API_KEY found in st.secrets?", "✅" if "DEEPSEEK_API_KEY" in st.secrets else "❌")
-print(" - OPENAI_API_KEY found in st.secrets?", "✅" if "OPENAI_API_KEY" in st.secrets else "❌")
+if secrets_available:
+    print(" - DEEPSEEK_API_KEY found in st.secrets?", "✅" if "DEEPSEEK_API_KEY" in st.secrets else "❌")
+    print(" - OPENAI_API_KEY found in st.secrets?", "✅" if "OPENAI_API_KEY" in st.secrets else "❌")
+else:
+    print(" - No st.secrets available locally (expected).")
 
 # Fetch API keys safely: env first, fallback to st.secrets
-deepseek_api_key = os.getenv("DEEPSEEK_API_KEY") or st.secrets.get("DEEPSEEK_API_KEY")
-openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+deepseek_api_key = os.getenv("DEEPSEEK_API_KEY") or (st.secrets.get("DEEPSEEK_API_KEY") if secrets_available else None)
+openai_api_key = os.getenv("OPENAI_API_KEY") or (st.secrets.get("OPENAI_API_KEY") if secrets_available else None)
 
-# Confirm keys fetched
+# Confirm API keys fetched
 print(f"🟠 DEEPSEEK_API_KEY detected: {'✅ Yes' if deepseek_api_key else '❌ No'}")
 print(f"🟠 OPENAI_API_KEY detected: {'✅ Yes' if openai_api_key else '❌ No'}")
 

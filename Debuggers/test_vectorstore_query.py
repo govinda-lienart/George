@@ -1,4 +1,4 @@
-# Last updated: 2025-04-29 14:23:14
+# Last updated: 2025-04-29 14:26:23
 import os
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings

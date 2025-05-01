@@ -1,10 +1,11 @@
-# Last updated: 2025-04-29 14:26:23
-from langchain.agents import Tool
-from langchain.prompts import PromptTemplate
-from utils.config import llm
+# tools/sql_tool.py
+
 import mysql.connector
 import os
 import streamlit as st
+from utils.config import llm
+from langchain.prompts import PromptTemplate
+from langchain.agents import Tool
 
 # --- Prompt Template ---
 sql_prompt = PromptTemplate(
@@ -53,7 +54,7 @@ Rules:
 - Use `check_out`, not `check_out_date`.
 - Use `booking_number` (not reservation ID).
 - Do NOT explain anything. Only return the raw SQL query.
-- DO NOT include backticks or markdown formatting like ```sql.
+- Do NOT include backticks or markdown formatting like ```sql.
 
 User: "{input}"
 """
@@ -76,19 +77,19 @@ def run_sql(query: str):
 
     try:
         conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            port=os.getenv("DB_PORT"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+            host=os.getenv("DB_HOST"),  # Use the existing DB_HOST
+            port=int(os.getenv("DB_PORT")),  # Use the existing DB_PORT
+            user=os.getenv("DB_USERNAME"),  # Use the existing DB_USERNAME
+            password=os.getenv("DB_PASSWORD"),  # Use the existing DB_PASSWORD
+            database=os.getenv("DB_DATABASE")  # Use the existing DB_DATABASE
         )
-        st.write("✅ Connected to DB")
+        st.write("✅ Connected to Online DB")
         cursor = conn.cursor()
         cursor.execute(cleaned)
         return cursor.fetchall()
     except Exception as e:
-        st.write(f"❌ SQL ERROR: {e}")
-        return f"SQL ERROR: {e}"
+        st.write(f"❌ SQL ERROR (Online DB): {e}")
+        return f"SQL ERROR (Online DB): {e}"
     finally:
         try:
             cursor.close()

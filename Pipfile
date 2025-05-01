@@ -14,6 +14,7 @@ langchain = "*"
 langchain-openai = "*"
 openai = "*"
 langchain-community = "*"
+psycopg2-binary = "*"
 
 [dev-packages]
 

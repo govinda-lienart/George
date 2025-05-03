@@ -1,5 +1,5 @@
 # Trigger redeploy
-# Last updated: 2025-04-24 22:11:38
+# Last updated: 2025-05-03
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents import initialize_agent, AgentType
@@ -7,7 +7,7 @@ from langchain.agents import initialize_agent, AgentType
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool  # 👈 This line should remain as is
+from tools.booking_tool import booking_tool
 
 from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles
@@ -30,7 +30,7 @@ if "booking_mode" not in st.session_state:
 
 # Initialize LangChain agent
 agent = initialize_agent(
-    tools=[sql_tool, vector_tool, chat_tool, booking_tool],  # 👈 This line should remain as is
+    tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True
@@ -44,14 +44,8 @@ if user_input:
         response = agent.run(user_input)
     st.session_state.history.append(("bot", response))
 
-    # 👈 ADD THIS DEBUGGING CODE
-    st.write(f"DEBUG: After agent run, booking_mode = {st.session_state.booking_mode}")
-
 # Chat history UI
 render_chat_bubbles(st.session_state.history)
-
-# 👈 ADD THIS DEBUGGING CODE
-st.write(f"DEBUG: Before conditional render, booking_mode = {st.session_state.booking_mode}")
 
 # ✅ Render booking form if booking_mode was triggered
 if st.session_state.booking_mode:

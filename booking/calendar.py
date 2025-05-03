@@ -12,11 +12,10 @@ load_dotenv()
 db_config = {
     "host": os.getenv("DB_HOST"),
     "port": os.getenv("DB_PORT"),
-    "user": os.getenv("DB_USERNAME"),  # Fixed: matches your .env
+    "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD") or '',
-    "database": os.getenv("DB_DATABASE")  # Fixed: matches your .env
+    "database": os.getenv("DB_NAME")
 }
-
 
 def get_rooms():
     try:

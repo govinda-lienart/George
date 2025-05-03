@@ -33,135 +33,68 @@ with st.sidebar:
 # 🔍 SQL Query Panel (if toggled on)
 # ================================
 if st.session_state.show_sql_panel:
-    # Add custom styling for the SQL panel
-    st.markdown("""
-    <style>
-        .status-message {
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        .success {
-            background-color: #ecf9ec;
-            color: #1e7e34;
-        }
-        .info {
-            background-color: #e6f2ff;
-            color: #0c5460;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # SQL Panel Header
     st.markdown("### 🔍 SQL Query Panel")
 
-    # SQL query input
-    st.markdown("🔎 Enter SQL query to run:")
-    sql_input = st.text_area(
-        label="",
-        value="SELECT * FROM bookings LIMIT 10;",
-        height=150,
-        key="sql_input_box"
-    )
+    # SQL query input with label
+    sql_input = st.text_area("🔍 Enter SQL query to run:",
+                             value="SELECT * FROM bookings LIMIT 10;",
+                             height=150,
+                             key="sql_input_box")
 
-    # Simple button outside columns (cleaner design)
+    # Run Query button
     run_query = st.button("Run Query", key="run_query_button", type="primary")
 
-    import pandas as pd
-    import sqlalchemy
-
-    # Status container to show connection status and query progress
+    # Create result containers
     status_container = st.container()
-
-    # Results container
     result_container = st.container()
 
+    # Import necessary libraries for SQL connection
+    import pandas as pd
+    import mysql.connector
 
-    def execute_manual_sql(sql_query):
-        """
-        Connects to the SQL database, executes the given query, and returns the results.
-
-        Args:
-            sql_query (str): The SQL query to execute.
-
-        Returns:
-            dict: A dictionary containing the query, an optional error message,
-                  and an optional Pandas DataFrame of the results.
-        """
+    if run_query:
         try:
-            # Show connection attempt status
             with status_container:
-                st.markdown(f"""
-                <div class="status-message info">
-                    <span>🔄 Attempting to connect to the database...</span>
-                </div>
-                """, unsafe_allow_html=True)
+                st.write("🔐 Connecting to database...")
 
-            # Get connection details from environment variables
-            db_host = os.getenv("DB_HOST")
-            db_port = os.getenv("DB_PORT")
-            db_username = os.getenv("DB_USERNAME")
-            db_password = os.getenv("DB_PASSWORD")
-            db_database = os.getenv("DB_DATABASE")
+            # Connect using mysql.connector instead of SQLAlchemy
+            conn = mysql.connector.connect(
+                host=os.getenv("DB_HOST"),
+                port=int(os.getenv("DB_PORT", "3306")),
+                user=os.getenv("DB_USERNAME"),
+                password=os.getenv("DB_PASSWORD"),
+                database=os.getenv("DB_DATABASE")
+            )
 
-            # Create connection string
-            connection_string = f"mysql+pymysql://{db_username}:{db_password}@{db_host}:{db_port}/{db_database}"
-
-            # Create engine and connect
-            engine = sqlalchemy.create_engine(connection_string)
-            connection = engine.connect()
-
-            # Show successful connection status
             with status_container:
-                st.markdown(f"""
-                <div class="status-message success">
-                    <span>✅ Successfully connected to MySQL.</span>
-                </div>
-                """, unsafe_allow_html=True)
+                st.success("✅ Connected to MySQL!")
 
-                st.markdown(f"""
-                <div class="status-message info">
-                    <span>▶️ Running query:</span>
-                </div>
-                """, unsafe_allow_html=True)
+            cursor = conn.cursor()
+            cursor.execute(sql_input)
+            rows = cursor.fetchall()
 
-                # Display the query with syntax highlighting
-                st.code(f"""
-{sql_query}
-                """, language="sql")
+            # Get column headers
+            col_names = [desc[0] for desc in cursor.description]
 
-            # Execute query
-            result = connection.execute(sqlalchemy.text(sql_query))
-            df = pd.DataFrame(result.fetchall(), columns=result.keys())
-
-            return {"query": sql_query, "dataframe": df, "success": True}
+            # Display results
+            with result_container:
+                st.dataframe(rows, use_container_width=True)
+                st.caption(f"Columns: {col_names}")
 
         except Exception as e:
             with status_container:
-                st.markdown(f"""
-                <div class="status-message error" style="background-color: #f8d7da; color: #721c24;">
-                    <span>❌ Error: {str(e)}</span>
-                </div>
-                """, unsafe_allow_html=True)
-            return {"query": sql_query, "error": str(e), "success": False}
+                st.error(f"❌ Connection failed:\n\n{e}")
 
         finally:
-            if 'connection' in locals() and connection:
-                connection.close()
-
-
-    if run_query:
-        # Clear previous results
-        status_container.empty()
-        result_container.empty()
-
-        # Execute query and show results
-        result = execute_manual_sql(sql_input)
-
-        # Display results if query was successful
-        if result.get("success", False):
-            with result_container:
-                st.dataframe(result["dataframe"], use_container_width=True)
+            try:
+                if 'conn' in locals() and conn.is_connected():
+                    cursor.close()
+                    conn.close()
+                    with status_container:
+                        st.info("🔌 Connection closed.")
+            except Exception as close_err:
+                with status_container:
+                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
 # ================================
 # 🤖 LangChain Agent Setup

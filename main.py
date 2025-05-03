@@ -1,5 +1,6 @@
 # Trigger redeploy
 # Last updated: 2025-05-03
+
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents import initialize_agent, AgentType
@@ -37,12 +38,29 @@ agent = initialize_agent(
 )
 
 # Handle user input
-user_input = st.chat_input("Ask about availability, bookings, or anything else...")
+user_input = st.chat_input("Ask about availability, bookings, or type: sql_query:")
 if user_input:
     st.session_state.history.append(("user", user_input))
-    with st.spinner("George is replying..."):
-        response = agent.run(user_input)
-    st.session_state.history.append(("bot", response))
+
+    # 🧠 Trigger SQL mode if input starts with sql_query:
+    if user_input.lower().startswith("sql_query:"):
+        st.markdown("### 🧠 SQL Mode Activated – Enter your custom query below")
+        query_text = st.text_area("🔍 Enter SQL query to run:", height=150, key="sql_input")
+
+        if st.button("Run Query"):
+            full_query = query_text.strip()
+            result = execute_manual_sql(f"sql_query: {full_query}")
+            if result:
+                st.code(result["query"], language="sql")
+                if "error" in result:
+                    st.error(result["error"])
+                else:
+                    st.dataframe(result["dataframe"])
+    else:
+        # 👨‍💼 Normal LLM-based response
+        with st.spinner("George is replying..."):
+            response = agent.run(user_input)
+        st.session_state.history.append(("bot", response))
 
 # Chat history UI
 render_chat_bubbles(st.session_state.history)

@@ -1,13 +1,12 @@
-# tools/sql_tool.py
-
+# Last updated: 2025-05-03
+from langchain.agents import Tool
+from langchain.prompts import PromptTemplate
+from utils.config import llm
 import mysql.connector
 import os
 import streamlit as st
-from utils.config import llm
-from langchain.prompts import PromptTemplate
-from langchain.agents import Tool
 
-# --- Prompt Template ---
+# --- Prompt Template for SQL generation ---
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -53,9 +52,13 @@ Rules:
 - Use `check_in`, not `check_in_date`.
 - Use `check_out`, not `check_out_date`.
 - Use `booking_number` (not reservation ID).
-- Do NOT explain anything. Only return the raw SQL query.
-- Do NOT include backticks or markdown formatting like ```sql.
+- DO NOT include backticks or markdown formatting like ```sql.
+- If the user provides a reference like BKG-YYYYMMDD-NNNN, it refers to booking_number.
+- If unsure, always try matching BKG codes to booking_number.
 
+Example:
+User: “Can you get me the details for BKG-20250401-0003?”
+Query: SELECT * FROM bookings WHERE booking_number = 'BKG-20250401-0003';
 User: "{input}"
 """
 )
@@ -70,26 +73,29 @@ def clean_sql(raw_sql: str) -> str:
         .strip()
     )
 
-# --- Run SQL safely ---
+# --- Execute the SQL query safely ---
 def run_sql(query: str):
     cleaned = clean_sql(query)
     st.write(f"🔍 SQL query received:\n```sql\n{cleaned}\n```")
 
     try:
+        db_user = os.getenv("DB_USERNAME")
+        st.write(f"👤 Using DB user: {db_user}")
+
         conn = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),  # Use the existing DB_HOST
-            port=int(os.getenv("DB_PORT")),  # Use the existing DB_PORT
-            user=os.getenv("DB_USERNAME"),  # Use the existing DB_USERNAME
-            password=os.getenv("DB_PASSWORD"),  # Use the existing DB_PASSWORD
-            database=os.getenv("DB_DATABASE")  # Use the existing DB_DATABASE
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            user=db_user,
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_DATABASE")
         )
-        st.write("✅ Connected to Online DB")
+        st.write("✅ Connected to DB")
         cursor = conn.cursor()
         cursor.execute(cleaned)
         return cursor.fetchall()
     except Exception as e:
-        st.write(f"❌ SQL ERROR (Online DB): {e}")
-        return f"SQL ERROR (Online DB): {e}"
+        st.write(f"❌ SQL ERROR: {e}")
+        return f"SQL ERROR: {e}"
     finally:
         try:
             cursor.close()
@@ -97,7 +103,7 @@ def run_sql(query: str):
         except:
             pass
 
-# --- Explain result in natural language ---
+# --- Generate explanation of SQL results ---
 def explain_sql(user_question, result):
     prompt = PromptTemplate(
         input_variables=["question", "result"],
@@ -115,7 +121,7 @@ Response:
         "result": str(result)
     }).content.strip()
 
-# --- LangChain Tool ---
+# --- LangChain Tool definition ---
 sql_tool = Tool(
     name="sql",
     func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({

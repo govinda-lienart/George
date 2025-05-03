@@ -1,6 +1,5 @@
-# main.py
-# Last updated: 2025-05-03
-
+# Trigger redeploy
+# Last updated: 2025-04-24 22:11:38
 import streamlit as st
 from dotenv import load_dotenv
 from langchain.agents import initialize_agent, AgentType
@@ -12,16 +11,16 @@ from tools.booking_tool import booking_tool
 
 from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles
-from booking.calendar import render_booking_form
+from booking.calendar import render_booking_form  # 👈 Import calendar form renderer
 
-# Load environment variables
+# Load .env
 load_dotenv()
 
-# Page config
+# Streamlit page setup
 st.set_page_config(page_title="Chez Govinda – AI Hotel Assistant", page_icon="🏨")
 render_header()
 
-# Initialize session state
+# Session state
 if "history" not in st.session_state:
     st.session_state.history = []
 if "chat_summary" not in st.session_state:
@@ -37,27 +36,17 @@ agent = initialize_agent(
     verbose=True
 )
 
-# Chat input
+# Handle user input
 user_input = st.chat_input("Ask about availability, bookings, or anything else...")
 if user_input:
     st.session_state.history.append(("user", user_input))
-
     with st.spinner("George is replying..."):
         response = agent.run(user_input)
+    st.session_state.history.append(("bot", response))
 
-    # Intercept booking trigger
-    if response == "ACTIVATE_BOOKING_MODE":
-        st.session_state.booking_mode = True
-        st.session_state.history.append((
-            "bot",
-            "I've initiated the booking process for you. Please fill out the form below to complete your reservation."
-        ))
-    else:
-        st.session_state.history.append(("bot", response))
-
-# Display chat bubbles
+# Chat history UI
 render_chat_bubbles(st.session_state.history)
 
-# Display booking form if triggered
+# ✅ Render booking form if booking_mode was triggered
 if st.session_state.booking_mode:
     render_booking_form()

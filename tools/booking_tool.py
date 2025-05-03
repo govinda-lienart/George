@@ -1,12 +1,11 @@
-# tools/booking_tool.py
-# Last updated: 2025-05-03 (fixes booking_mode issue for Streamlit Cloud)
-
+# Last updated: 2025-04-29 14:26:23
 from langchain.agents import Tool
+import streamlit as st
+from booking.calendar import render_booking_form
 
-# Instead of mutating session state directly (which fails on Streamlit Cloud),
-# we return a signal string the main app can catch.
 def handle_booking_flow(query: str) -> str:
-    return "ACTIVATE_BOOKING_MODE"
+    st.session_state.booking_mode = True
+    return ""  # 👈 Do not return a long message that LLM could treat as "final answer"
 
 booking_tool = Tool(
     name="booking",

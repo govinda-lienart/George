@@ -1,3 +1,4 @@
+# main.py
 # Trigger redeploy
 # Last updated: 2025-04-24 22:11:38
 import streamlit as st
@@ -44,8 +45,14 @@ if user_input:
         response = agent.run(user_input)
     st.session_state.history.append(("bot", response))
 
+    # 👈 ADD THIS DEBUGGING CODE
+    st.write(f"DEBUG: After agent run, booking_mode = {st.session_state.booking_mode}")
+
 # Chat history UI
 render_chat_bubbles(st.session_state.history)
+
+# 👈 ADD THIS DEBUGGING CODE
+st.write(f"DEBUG: Before conditional render, booking_mode = {st.session_state.booking_mode}")
 
 # ✅ Render booking form if booking_mode was triggered
 if st.session_state.booking_mode:

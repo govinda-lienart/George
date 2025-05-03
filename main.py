@@ -1,4 +1,3 @@
-# main.py
 # Trigger redeploy
 # Last updated: 2025-04-24 22:11:38
 import streamlit as st
@@ -8,7 +7,7 @@ from langchain.agents import initialize_agent, AgentType
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool
+from tools.booking_tool import booking_tool  # 👈 This line should remain as is
 
 from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles
@@ -31,7 +30,7 @@ if "booking_mode" not in st.session_state:
 
 # Initialize LangChain agent
 agent = initialize_agent(
-    tools=[sql_tool, vector_tool, chat_tool, booking_tool],
+    tools=[sql_tool, vector_tool, chat_tool, booking_tool],  # 👈 This line should remain as is
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True

@@ -1,5 +1,5 @@
 # Trigger redeploy
-# Last updated: 2025-05-03 (Updated: 2025-05-04 - Added booking form message)
+# Last updated: 2025-05-03
 
 import streamlit as st
 from dotenv import load_dotenv

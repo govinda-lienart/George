@@ -63,7 +63,6 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
-            # 🔎 DEBUG: Print connection info (not password)
             st.subheader("🔍 Debug: Database Connection Settings")
             st.code(f"""
 port    = {get_secret('DB_PORT_READ_ONLY')}
@@ -140,9 +139,28 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-    # ✅ Show chat bubbles immediately
+    # ✅ Render conversation so far
     render_chat_bubbles(st.session_state.history)
 
-    # ✅ Show booking form immediately if triggered
-    if st.session_state.booking_mode or st.session_state.get("booking_success", False):
+    # ✅ Inline: show booking form right after relevant reply
+    if st.session_state.booking_mode:
         render_booking_form()
+
+    # ✅ Inline: add booking confirmation as chat reply
+    if st.session_state.get("booking_success") and st.session_state.get("booking_result"):
+        result = st.session_state.booking_result
+        confirmation_text = (
+            f"✅ **Booking confirmed!**\n\n"
+            f"**Booking Number:** {result['booking_number']}\n"
+            f"**Room Type:** {result['room_type']}\n"
+            f"**Guests:** {result['num_guests']}\n"
+            f"**Total Price:** €{result['total_price']}\n\n"
+            f"A confirmation email has been sent to {result['email']}."
+        )
+        st.session_state.history.append(("bot", confirmation_text))
+        # Reset to avoid duplicate confirmation
+        st.session_state.booking_success = False
+        st.session_state.booking_result = None
+
+    # ✅ Re-render with new history including confirmation
+    render_chat_bubbles(st.session_state.history)

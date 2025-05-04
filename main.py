@@ -143,11 +143,14 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-    # ✅ Show booking form inline if activated
-    if st.session_state.booking_mode:
-        render_booking_form()
+        # ✅ If booking_mode was triggered by the response
+        if st.session_state.booking_mode:
+            st.session_state.history.append(("bot", "🧾 I've initiated the booking process for you. Please fill out the booking form to proceed with your reservation. Let me know if you need any assistance!"))
+            render_chat_bubbles(st.session_state.history)
+            render_booking_form()
+            st.stop()
 
-    # ✅ Append booking confirmation as chat message
+    # ✅ Append booking confirmation as a bot message
     if st.session_state.booking_success and st.session_state.booking_result:
         result = st.session_state.booking_result
         confirmation_text = (
@@ -162,5 +165,5 @@ if not st.session_state.show_sql_panel:
         st.session_state.booking_success = False
         st.session_state.booking_result = None
 
-    # ✅ Finally render the full chat history once
+    # ✅ Final render of chat
     render_chat_bubbles(st.session_state.history)

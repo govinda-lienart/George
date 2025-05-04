@@ -66,20 +66,20 @@ if st.session_state.show_sql_panel:
             # 🔎 DEBUG: Print connection info (not password)
             st.subheader("🔍 Debug: Database Connection Settings")
             st.code(f"""
-port     = {get_secret('DB_PORT')}
-""")
+            port    = {get_secret('DB_PORT')}
+            channel = {get_secret('DB_USERNAME_READ_ONLY')}
+            """)
 
             with status_container:
                 st.write("🔐 Connecting to database...")
 
             conn = mysql.connector.connect(
-                host=get_secret("DB_HOST"),
-                port=int(get_secret("DB_PORT", 3306)),
-                user=get_secret("DB_USERNAME"),
-                password=get_secret("DB_PASSWORD"),
-                database=get_secret("DB_DATABASE")
+                host=get_secret("DB_HOST_READ_ONLY"),
+                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
+                user=get_secret("DB_USERNAME_READ_ONLY"),
+                password=get_secret("DB_PASSWORD_READ_ONLY"),
+                database=get_secret("DB_DATABASE_READ_ONLY")
             )
-
             with status_container:
                 st.success("✅ Connected to MySQL!")
 

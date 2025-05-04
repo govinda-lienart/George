@@ -1,5 +1,3 @@
-#main.py
-
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -68,9 +66,9 @@ if st.session_state.show_sql_panel:
             # 🔎 DEBUG: Print connection info (not password)
             st.subheader("🔍 Debug: Database Connection Settings")
             st.code(f"""
-            port    = {get_secret('DB_PORT')}
-            channel = {get_secret('DB_USERNAME_READ_ONLY')}
-            """)
+port    = {get_secret('DB_PORT_READ_ONLY')}
+channel = {get_secret('DB_USERNAME_READ_ONLY')}
+""")
 
             with status_container:
                 st.write("🔐 Connecting to database...")
@@ -134,6 +132,7 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
+
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
     if user_input:
         st.session_state.history.append(("user", user_input))
@@ -141,14 +140,9 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-# ========================================
-# 💬 Display Chat History
-# ========================================
-if not st.session_state.show_sql_panel:
+    # ✅ Show chat bubbles immediately
     render_chat_bubbles(st.session_state.history)
 
-# ========================================
-# 📅 Show Booking Form if Triggered
-# ========================================
-if st.session_state.booking_mode:
-    render_booking_form()
+    # ✅ Show booking form immediately if triggered
+    if st.session_state.booking_mode or st.session_state.get("booking_success", False):
+        render_booking_form()

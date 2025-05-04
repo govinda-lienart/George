@@ -1,4 +1,4 @@
-# Last updated: calendar
+# Last updated: 2025-05-04
 import streamlit as st
 import mysql.connector
 from datetime import datetime, timedelta
@@ -157,7 +157,6 @@ def render_booking_form():
                     email, first_name, last_name, booking_number,
                     check_in, check_out, total_price, num_guests, phone, room_type
                 )
-                # Store confirmation in session to hide form next time
                 st.session_state.booking_success = True
                 st.session_state.booking_result = {
                     "booking_number": booking_number,
@@ -169,7 +168,6 @@ def render_booking_form():
             else:
                 st.error(f"❌ Booking failed: {result}")
 
-    # Show confirmation only after success
     if st.session_state.booking_success:
         result = st.session_state.booking_result
         st.success("✅ Booking confirmed!")
@@ -180,8 +178,11 @@ def render_booking_form():
             f"**Total Price:** €{result['total_price']}\n\n"
             f"A confirmation email has been sent to {result['email']}."
         )
-        else:
-            st.error(f"❌ Booking failed: {result}")
+
+        if st.button("🔁 Make another booking"):
+            st.session_state.booking_success = False
+            st.session_state.booking_result = None
+            st.experimental_rerun()
 
 # ✅ Export explicitly for import in booking_tool
 __all__ = ["render_booking_form"]

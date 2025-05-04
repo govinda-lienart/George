@@ -10,11 +10,11 @@ from booking.email import send_confirmation_email
 load_dotenv()
 
 db_config = {
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD") or '',
-    "database": os.getenv("DB_NAME")
+    "host": os.getenv("DB_HOST_FORM"),
+    "port": int(os.getenv("DB_PORT_FORM", 3306)),
+    "user": os.getenv("DB_USERNAME_FORM"),
+    "password": os.getenv("DB_PASSWORD_FORM") or '',
+    "database": os.getenv("DB_DATABASE_FORM")
 }
 
 def get_rooms():

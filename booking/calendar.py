@@ -2,19 +2,26 @@
 import streamlit as st
 import mysql.connector
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
-import os
 from booking.email import send_confirmation_email
 
-# Load .env
+# ✅ Load secrets from Streamlit or fallback to local .env
+from dotenv import load_dotenv
+import os
 load_dotenv()
 
+def get_secret(key, default=None):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, default)
+
+# ✅ DB connection config for FORM user
 db_config = {
-    "host": os.getenv("DB_HOST_FORM"),
-    "port": int(os.getenv("DB_PORT_FORM", 3306)),
-    "user": os.getenv("DB_USERNAME_FORM"),
-    "password": os.getenv("DB_PASSWORD_FORM") or '',
-    "database": os.getenv("DB_DATABASE_FORM")
+    "host": get_secret("DB_HOST_FORM"),
+    "port": int(get_secret("DB_PORT_FORM", 3306)),
+    "user": get_secret("DB_USERNAME_FORM"),
+    "password": get_secret("DB_PASSWORD_FORM") or '',
+    "database": get_secret("DB_DATABASE_FORM")
 }
 
 def get_rooms():
@@ -142,7 +149,10 @@ def render_booking_form():
         success, result = insert_booking(booking_data)
         if success:
             booking_number, total_price, room_type = result
-            send_confirmation_email(email, first_name, last_name, booking_number, check_in, check_out, total_price, num_guests, phone, room_type)
+            send_confirmation_email(
+                email, first_name, last_name, booking_number,
+                check_in, check_out, total_price, num_guests, phone, room_type
+            )
             st.success("✅ Booking confirmed!")
             st.info(
                 f"**Booking Number:** {booking_number}\n"

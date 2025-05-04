@@ -131,7 +131,7 @@ agent = initialize_agent(
 )
 
 # ========================================
-# 💬 George the Assistant (chatbot)
+# 💬 George the Assistant (chatbot interface)
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
@@ -143,14 +143,13 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-        # ✅ If booking_mode was triggered by the response
+        # ✅ If booking was triggered, render form inline after response
         if st.session_state.booking_mode:
-            st.session_state.history.append(("bot", "🧾 I've initiated the booking process for you. Please fill out the booking form to proceed with your reservation. Let me know if you need any assistance!"))
             render_chat_bubbles(st.session_state.history)
             render_booking_form()
             st.stop()
 
-    # ✅ Append booking confirmation as a bot message
+    # ✅ Show booking confirmation as final message if successful
     if st.session_state.booking_success and st.session_state.booking_result:
         result = st.session_state.booking_result
         confirmation_text = (
@@ -165,5 +164,5 @@ if not st.session_state.show_sql_panel:
         st.session_state.booking_success = False
         st.session_state.booking_result = None
 
-    # ✅ Final render of chat
+    # ✅ Final render of full chat
     render_chat_bubbles(st.session_state.history)

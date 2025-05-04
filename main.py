@@ -63,6 +63,15 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
+            # 🔎 DEBUG: Print connection info (not password)
+            st.subheader("🔍 Debug: Database Connection Settings")
+            st.code(f"""
+host     = {get_secret('DB_HOST')}
+port     = {get_secret('DB_PORT')}
+user     = {get_secret('DB_USERNAME')}
+database = {get_secret('DB_DATABASE')}
+""")
+
             with status_container:
                 st.write("🔐 Connecting to database...")
 
@@ -88,8 +97,10 @@ if st.session_state.show_sql_panel:
                 st.caption(f"Columns: {col_names}")
 
         except Exception as e:
+            import traceback
             with status_container:
-                st.error(f"❌ Connection failed:\n\n{e}")
+                st.error("❌ Connection failed:")
+                st.code(traceback.format_exc())
 
         finally:
             try:

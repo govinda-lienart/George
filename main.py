@@ -1,3 +1,6 @@
+# Trigger redeploy
+# Last updated: 2025-05-03
+
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -143,11 +146,10 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-        # ✅ If booking was triggered, render form inline after response
-        if st.session_state.booking_mode:
-            render_chat_bubbles(st.session_state.history)
-            render_booking_form()
-            st.stop()
+    # ✅ Render booking form inline after response if triggered
+    if st.session_state.booking_mode:
+        render_chat_bubbles(st.session_state.history)
+        render_booking_form()
 
     # ✅ Show booking confirmation as final message if successful
     if st.session_state.booking_success and st.session_state.booking_result:
@@ -166,3 +168,10 @@ if not st.session_state.show_sql_panel:
 
     # ✅ Final render of full chat
     render_chat_bubbles(st.session_state.history)
+
+# ========================================
+# 📅 Booking Form (rendered conditionally)
+# ========================================
+# The render_booking_form() function is imported and called conditionally above.
+# Ensure this function correctly handles the booking submission and updates
+# st.session_state.booking_success and st.session_state.booking_result.

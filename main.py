@@ -1,6 +1,8 @@
 import streamlit as st
 from dotenv import load_dotenv
 import os
+import pandas as pd
+import mysql.connector
 from langchain.agents import initialize_agent, AgentType
 
 from tools.sql_tool import sql_tool
@@ -12,16 +14,29 @@ from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles
 from booking.calendar import render_booking_form
 
-# Load .env
+# ========================================
+# 🔁 Load .env for local fallback
+# ========================================
 load_dotenv()
 
-# Streamlit page setup
+# ========================================
+# ✅ Smart secret getter: Cloud or local
+# ========================================
+def get_secret(key, default=None):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, default)
+
+# ========================================
+# ⚙️ Streamlit page config
+# ========================================
 st.set_page_config(page_title="Chez Govinda – AI Hotel Assistant", page_icon="🏨")
 render_header()
 
-# ================================
-# 🛠️ Sidebar Toggle for SQL Panel
-# ================================
+# ========================================
+# 🧠 Developer tools toggle in sidebar
+# ========================================
 with st.sidebar:
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
@@ -29,41 +44,34 @@ with st.sidebar:
         value=st.session_state.get("show_sql_panel", False)
     )
 
-# ================================
-# 🔍 SQL Query Panel (if toggled on)
-# ================================
+# ========================================
+# 🔍 SQL Query Panel
+# ========================================
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
 
-    # SQL query input with label
-    sql_input = st.text_area("🔍 Enter SQL query to run:",
-                             value="SELECT * FROM bookings LIMIT 10;",
-                             height=150,
-                             key="sql_input_box")
+    sql_input = st.text_area(
+        "🔍 Enter SQL query to run:",
+        value="SELECT * FROM bookings LIMIT 10;",
+        height=150,
+        key="sql_input_box"
+    )
 
-    # Run Query button
     run_query = st.button("Run Query", key="run_query_button", type="primary")
-
-    # Create result containers
     status_container = st.container()
     result_container = st.container()
-
-    # Import necessary libraries for SQL connection
-    import pandas as pd
-    import mysql.connector
 
     if run_query:
         try:
             with status_container:
                 st.write("🔐 Connecting to database...")
 
-            # Connect using mysql.connector instead of SQLAlchemy
             conn = mysql.connector.connect(
-                host=os.getenv("DB_HOST"),
-                port=int(os.getenv("DB_PORT", "3306")),
-                user=os.getenv("DB_USERNAME"),
-                password=os.getenv("DB_PASSWORD"),
-                database=os.getenv("DB_DATABASE")
+                host=get_secret("DB_HOST"),
+                port=int(get_secret("DB_PORT", 3306)),
+                user=get_secret("DB_USERNAME"),
+                password=get_secret("DB_PASSWORD"),
+                database=get_secret("DB_DATABASE")
             )
 
             with status_container:
@@ -72,13 +80,11 @@ if st.session_state.show_sql_panel:
             cursor = conn.cursor()
             cursor.execute(sql_input)
             rows = cursor.fetchall()
-
-            # Get column headers
             col_names = [desc[0] for desc in cursor.description]
 
-            # Display results
             with result_container:
-                st.dataframe(rows, use_container_width=True)
+                df = pd.DataFrame(rows, columns=col_names)
+                st.dataframe(df, use_container_width=True)
                 st.caption(f"Columns: {col_names}")
 
         except Exception as e:
@@ -96,9 +102,9 @@ if st.session_state.show_sql_panel:
                 with status_container:
                     st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
-# ================================
+# ========================================
 # 🤖 LangChain Agent Setup
-# ================================
+# ========================================
 if "history" not in st.session_state:
     st.session_state.history = []
 if "chat_summary" not in st.session_state:
@@ -113,9 +119,9 @@ agent = initialize_agent(
     verbose=True
 )
 
-# ================================
-# 💬 Chatbot (only if SQL panel is off)
-# ================================
+# ========================================
+# 💬 George the Assistant (chatbot)
+# ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
@@ -125,14 +131,14 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-# ================================
-# 💬 Chat History UI
-# ================================
+# ========================================
+# 💬 Display Chat History
+# ========================================
 if not st.session_state.show_sql_panel:
     render_chat_bubbles(st.session_state.history)
 
-# ================================
-# 📅 Booking Form if Triggered
-# ================================
+# ========================================
+# 📅 Show Booking Form if Triggered
+# ========================================
 if st.session_state.booking_mode:
     render_booking_form()

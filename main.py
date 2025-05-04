@@ -1,6 +1,3 @@
-# Trigger redeploy
-# Last updated: 2025-05-03
-
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -66,11 +63,12 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
+            # 🔎 DEBUG: Print connection info (not password)
             st.subheader("🔍 Debug: Database Connection Settings")
             st.code(f"""
-port    = {get_secret('DB_PORT_READ_ONLY')}
-channel = {get_secret('DB_USERNAME_READ_ONLY')}
-""")
+            port    = {get_secret('DB_PORT')}
+            channel = {get_secret('DB_USERNAME_READ_ONLY')}
+            """)
 
             with status_container:
                 st.write("🔐 Connecting to database...")
@@ -121,10 +119,6 @@ if "chat_summary" not in st.session_state:
     st.session_state.chat_summary = ""
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
-if "booking_success" not in st.session_state:
-    st.session_state.booking_success = False
-if "booking_result" not in st.session_state:
-    st.session_state.booking_result = None
 
 agent = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
@@ -134,11 +128,10 @@ agent = initialize_agent(
 )
 
 # ========================================
-# 💬 George the Assistant (chatbot interface)
+# 💬 George the Assistant (chatbot)
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
-
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
     if user_input:
         st.session_state.history.append(("user", user_input))
@@ -146,32 +139,14 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-    # ✅ Render booking form inline after response if triggered
-    if st.session_state.booking_mode:
-        render_chat_bubbles(st.session_state.history)
-        render_booking_form()
-
-    # ✅ Show booking confirmation as final message if successful
-    if st.session_state.booking_success and st.session_state.booking_result:
-        result = st.session_state.booking_result
-        confirmation_text = (
-            f"✅ **Booking confirmed!**\n\n"
-            f"**Booking Number:** {result['booking_number']}\n"
-            f"**Room Type:** {result['room_type']}\n"
-            f"**Guests:** {result['num_guests']}\n"
-            f"**Total Price:** €{result['total_price']}\n\n"
-            f"A confirmation email has been sent to {result['email']}."
-        )
-        st.session_state.history.append(("bot", confirmation_text))
-        st.session_state.booking_success = False
-        st.session_state.booking_result = None
-
-    # ✅ Final render of full chat
+# ========================================
+# 💬 Display Chat History
+# ========================================
+if not st.session_state.show_sql_panel:
     render_chat_bubbles(st.session_state.history)
 
 # ========================================
-# 📅 Booking Form (rendered conditionally)
+# 📅 Show Booking Form if Triggered
 # ========================================
-# The render_booking_form() function is imported and called conditionally above.
-# Ensure this function correctly handles the booking submission and updates
-# st.session_state.booking_success and st.session_state.booking_result.
+if st.session_state.booking_mode:
+    render_booking_form()

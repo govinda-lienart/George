@@ -179,10 +179,6 @@ def render_booking_form():
             f"A confirmation email has been sent to {result['email']}."
         )
 
-        if st.button("🔁 Make another booking"):
-            st.session_state.booking_success = False
-            st.session_state.booking_result = None
-            st.experimental_rerun()
 
 # ✅ Export explicitly for import in booking_tool
 __all__ = ["render_booking_form"]

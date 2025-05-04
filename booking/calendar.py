@@ -98,69 +98,88 @@ def insert_booking(data):
             pass
 
 def render_booking_form():
-    rooms = get_rooms()
-    if not rooms:
-        st.warning("No rooms available or failed to load room list.")
-        return
+    if "booking_success" not in st.session_state:
+        st.session_state.booking_success = False
 
-    ROOM_NAME_KEY = "room_type"
-    ROOM_PRICE_KEY = "price"
+    if not st.session_state.booking_success:
+        rooms = get_rooms()
+        if not rooms:
+            st.warning("No rooms available or failed to load room list.")
+            return
 
-    room_names = [f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})" for room in rooms]
-    room_mapping = {
-        f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": {
-            "id": room["room_id"],
-            "type": room[ROOM_NAME_KEY],
-            "price": room[ROOM_PRICE_KEY]
-        } for room in rooms
-    }
+        ROOM_NAME_KEY = "room_type"
+        ROOM_PRICE_KEY = "price"
 
-    with st.form("booking_form"):
-        first_name = st.text_input("First Name")
-        last_name = st.text_input("Last Name")
-        email = st.text_input("Email")
-        phone = st.text_input("Phone")
-        num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
-        selected_room = st.selectbox("Select a Room", room_names)
-        check_in = st.date_input("Check-in Date", min_value=datetime.today())
-        check_out = st.date_input("Check-out Date", min_value=datetime.today() + timedelta(days=1))
-        special_requests = st.text_area("Special Requests", placeholder="Optional")
-        submitted = st.form_submit_button("Book Now")
-
-    if submitted:
-        room_info = room_mapping[selected_room]
-        nights = (check_out - check_in).days
-        total_price = room_info["price"] * nights * num_guests
-
-        booking_data = {
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
-            "phone": phone,
-            "room_id": room_info["id"],
-            "room_type": room_info["type"],
-            "check_in": check_in,
-            "check_out": check_out,
-            "num_guests": num_guests,
-            "total_price": total_price,
-            "special_requests": special_requests
+        room_names = [f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})" for room in rooms]
+        room_mapping = {
+            f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": {
+                "id": room["room_id"],
+                "type": room[ROOM_NAME_KEY],
+                "price": room[ROOM_PRICE_KEY]
+            } for room in rooms
         }
 
-        success, result = insert_booking(booking_data)
-        if success:
-            booking_number, total_price, room_type = result
-            send_confirmation_email(
-                email, first_name, last_name, booking_number,
-                check_in, check_out, total_price, num_guests, phone, room_type
-            )
-            st.success("✅ Booking confirmed!")
-            st.info(
-                f"**Booking Number:** {booking_number}\n"
-                f"**Room Type:** {room_type}\n"
-                f"**Guests:** {num_guests}\n"
-                f"**Total Price:** €{total_price}\n\n"
-                f"A confirmation email has been sent to {email}."
-            )
+        with st.form("booking_form"):
+            first_name = st.text_input("First Name")
+            last_name = st.text_input("Last Name")
+            email = st.text_input("Email")
+            phone = st.text_input("Phone")
+            num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
+            selected_room = st.selectbox("Select a Room", room_names)
+            check_in = st.date_input("Check-in Date", min_value=datetime.today())
+            check_out = st.date_input("Check-out Date", min_value=datetime.today() + timedelta(days=1))
+            special_requests = st.text_area("Special Requests", placeholder="Optional")
+            submitted = st.form_submit_button("Book Now")
+
+        if submitted:
+            room_info = room_mapping[selected_room]
+            nights = (check_out - check_in).days
+            total_price = room_info["price"] * nights * num_guests
+
+            booking_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "phone": phone,
+                "room_id": room_info["id"],
+                "room_type": room_info["type"],
+                "check_in": check_in,
+                "check_out": check_out,
+                "num_guests": num_guests,
+                "total_price": total_price,
+                "special_requests": special_requests
+            }
+
+            success, result = insert_booking(booking_data)
+            if success:
+                booking_number, total_price, room_type = result
+                send_confirmation_email(
+                    email, first_name, last_name, booking_number,
+                    check_in, check_out, total_price, num_guests, phone, room_type
+                )
+                # Store confirmation in session to hide form next time
+                st.session_state.booking_success = True
+                st.session_state.booking_result = {
+                    "booking_number": booking_number,
+                    "room_type": room_type,
+                    "num_guests": num_guests,
+                    "total_price": total_price,
+                    "email": email
+                }
+            else:
+                st.error(f"❌ Booking failed: {result}")
+
+    # Show confirmation only after success
+    if st.session_state.booking_success:
+        result = st.session_state.booking_result
+        st.success("✅ Booking confirmed!")
+        st.info(
+            f"**Booking Number:** {result['booking_number']} "
+            f"**Room Type:** {result['room_type']} "
+            f"**Guests:** {result['num_guests']} "
+            f"**Total Price:** €{result['total_price']}\n\n"
+            f"A confirmation email has been sent to {result['email']}."
+        )
         else:
             st.error(f"❌ Booking failed: {result}")
 

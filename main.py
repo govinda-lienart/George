@@ -118,6 +118,10 @@ if "chat_summary" not in st.session_state:
     st.session_state.chat_summary = ""
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
+if "booking_success" not in st.session_state:
+    st.session_state.booking_success = False
+if "booking_result" not in st.session_state:
+    st.session_state.booking_result = None
 
 agent = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
@@ -139,15 +143,12 @@ if not st.session_state.show_sql_panel:
             response = agent.run(user_input)
         st.session_state.history.append(("bot", response))
 
-    # ✅ Render conversation so far
-    render_chat_bubbles(st.session_state.history)
-
-    # ✅ Inline: show booking form right after relevant reply
+    # ✅ Show booking form inline if activated
     if st.session_state.booking_mode:
         render_booking_form()
 
-    # ✅ Inline: add booking confirmation as chat reply
-    if st.session_state.get("booking_success") and st.session_state.get("booking_result"):
+    # ✅ Append booking confirmation as chat message
+    if st.session_state.booking_success and st.session_state.booking_result:
         result = st.session_state.booking_result
         confirmation_text = (
             f"✅ **Booking confirmed!**\n\n"
@@ -158,9 +159,8 @@ if not st.session_state.show_sql_panel:
             f"A confirmation email has been sent to {result['email']}."
         )
         st.session_state.history.append(("bot", confirmation_text))
-        # Reset to avoid duplicate confirmation
         st.session_state.booking_success = False
         st.session_state.booking_result = None
 
-    # ✅ Re-render with new history including confirmation
+    # ✅ Finally render the full chat history once
     render_chat_bubbles(st.session_state.history)

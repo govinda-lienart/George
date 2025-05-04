@@ -66,10 +66,7 @@ if st.session_state.show_sql_panel:
             # 🔎 DEBUG: Print connection info (not password)
             st.subheader("🔍 Debug: Database Connection Settings")
             st.code(f"""
-host     = {get_secret('DB_HOST')}
 port     = {get_secret('DB_PORT')}
-user     = {get_secret('DB_USERNAME')}
-database = {get_secret('DB_DATABASE')}
 """)
 
             with status_container:

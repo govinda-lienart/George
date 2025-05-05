@@ -4,9 +4,6 @@ import os
 import pandas as pd
 import mysql.connector
 from PIL import Image
-import time
-import threading
-
 from langchain.agents import initialize_agent, AgentType
 
 from tools.sql_tool import sql_tool
@@ -47,9 +44,11 @@ render_header()
 # 🧠 Developer Tools Toggle + Logo
 # ========================================
 with st.sidebar:
+    # ✅ Display logo from assets folder
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
 
+    # 🛠️ Developer tools toggle
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
@@ -133,9 +132,6 @@ if "chat_summary" not in st.session_state:
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
-if "typing_animation" not in st.session_state:
-    st.session_state.typing_animation = False
-
 agent = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
@@ -148,38 +144,25 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
 
+    # Show George's greeting on first visit
     if not st.session_state.history:
         st.session_state.history.append((
             "bot",
             "👋 Hello, I’m George. How can I help you today?"
         ))
-        render_chat_bubbles(st.session_state.history)
 
+    # Show chat history
+    render_chat_bubbles(st.session_state.history)
+
+    # Handle user input
     user_input = get_user_input()
     if user_input:
         st.session_state.history.append(("user", user_input))
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            typing_placeholder = st.empty()
-            st.session_state.typing_animation = True
-
-            def animate_typing_dots():
-                i = 0
-                while st.session_state.typing_animation:
-                    dots = "." * (i % 4)
-                    typing_placeholder.markdown(f"🤖 George is typing{dots}")
-                    time.sleep(0.5)
-                    i += 1
-
-            typing_thread = threading.Thread(target=animate_typing_dots)
-            typing_thread.start()
-
-            response = agent.run(user_input)
-
-            st.session_state.typing_animation = False
-            typing_thread.join()
-            typing_placeholder.markdown(response)
+            with st.spinner("🤖 George is typing..."):
+                response = agent.run(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()

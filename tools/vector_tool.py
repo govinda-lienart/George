@@ -4,6 +4,7 @@ from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 from utils.helpers import find_source_link
 
+
 def vector_search(query):
     docs = vectorstore.similarity_search(query, k=30)
 
@@ -45,15 +46,24 @@ User: {question}
     context = "\n\n".join(doc.page_content for doc in docs)
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
-    env_link = find_source_link(docs, "environment")
-    rooms_link = find_source_link(docs, "rooms")
+    # Find relevant links
+    link_map = {
+        "environment":     "🌱 You can read more about this on our [Environmental Commitment page]({link}).",
+        "rooms":           "🛏️ You can check out more details on our [Rooms page]({link}).",
+        "policy":          "📄 You can find more details on our [Hotel Policy page]({link}).",
+        "breakfast":       "🍳 You can find details about [Breakfast and Guest Amenities]({link}).",
+        "amenities":       "✨ You can find details about [Breakfast and Guest Amenities]({link}).",
+        "contactlocation": "📍 You can find details about [Contact and Location]({link})."
+    }
 
-    if env_link:
-        final_answer += f"\n\n🌱 You can read more about this on our [Environmental Commitment page]({env_link})."
-    elif rooms_link:
-        final_answer += f"\n\n🛏️ You can check out more details on our [Rooms page]({rooms_link})."
+    for keyword, template in link_map.items():
+        link = find_source_link(docs, keyword)
+        if link:
+            final_answer += f"\n\n{template.format(link=link)}"
+            break  # Only add the *first* relevant link
 
     return final_answer
+
 
 vector_tool = Tool(
     name="vector",

@@ -17,13 +17,12 @@ def render_page_config():
 def render_header():
     st.markdown(
         """
-        <h1 style='font-size: 2.4rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;'>
-            🏨 Chez Govinda – AI Hotel Assistant
+        <h1 style='font-size: 2.2rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;'>
+            🤖 George – Your AI Receptionist
         </h1>
         """,
         unsafe_allow_html=True
     )
-
 # ========================================
 # 💬 Display Chat Messages
 # ========================================

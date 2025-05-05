@@ -143,7 +143,6 @@ agent = initialize_agent(
 # 💬 George the Assistant (chatbot)
 # ========================================
 if not st.session_state.show_sql_panel:
-    st.markdown("### 💬 George the Assistant")
 
     # Show George's greeting on first visit
     if not st.session_state.history:

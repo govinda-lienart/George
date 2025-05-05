@@ -120,7 +120,7 @@ If someone asks about rooms, **always return the full list of the seven room typ
 
 Answer the user's question in a warm, concise paragraph using only the information below.
 If a helpful page is available about rooms and other topics, conclude with a sentence like: "You can find more details [here]({source_link})."
-You must always stop after one observation and respond with a Final Answer. Do not loop or continue reasoning.
+
 {context}
 
 User: {question}

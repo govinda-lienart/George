@@ -1,148 +1,186 @@
-# ========================================
-# 🧠 LangChain & Vector Store Configuration
-# ========================================
-from langchain.agents import Tool
-from langchain.prompts import PromptTemplate
-from utils.config import llm, vectorstore
+import streamlit as st
+from dotenv import load_dotenv
+import os
+import pandas as pd
+import mysql.connector
+from PIL import Image
+from langchain.agents import initialize_agent, AgentType
+
+from tools.sql_tool import sql_tool
+from tools.vector_tool import vector_tool
+from tools.chat_tool import chat_tool
+from tools.booking_tool import booking_tool
+
+from utils.config import llm
+from chat_ui import render_header, render_chat_bubbles, get_user_input
+from booking.calendar import render_booking_form
 
 # ========================================
-# 🔗 Hardcoded Backup URLs for Each Category
+# 🔁 Load .env for local fallback
 # ========================================
-HARDCODED_LINKS = {
-    "environment":     "https://sites.google.com/view/chez-govinda/environmental-commitment",
-    "rooms":           "https://sites.google.com/view/chez-govinda/rooms",
-    "breakfast":       "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-    "amenities":       "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-    "wellness":        "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-    "policy":          "https://sites.google.com/view/chez-govinda/policy",
-    "contactlocation": "https://sites.google.com/view/chez-govinda/contact-location"
-}
+load_dotenv()
 
 # ========================================
-# 🧩 Query Keywords → URL + Message Mapping
+# ✅ Smart secret getter: Cloud or local
 # ========================================
-link_map = {
-    "environment": (
-        ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
-        "🌱 You can read more on our [Environmental Commitment page]({link})."
-    ),
-    "rooms": (
-        ["rooms", "accommodation", "suites", "bedroom", "stay", "lodging"],
-        "🛏️ You can explore our [Rooms page]({link})."
-    ),
-    "breakfast": (
-        ["breakfast", "dining", "food", "plant-based", "vegan", "vegetarian", "organic", "morning meal"],
-        "🍳 More about [Breakfast and Guest Amenities]({link})."
-    ),
-    "amenities": (
-        ["amenities", "facilities", "services", "Wi-Fi", "garden", "yoga", "honesty bar"],
-        "✨ View all our [Amenities]({link})."
-    ),
-    "wellness": (
-        ["wellness", "relaxation", "peace", "meditation", "yoga", "mindfulness", "garden access"],
-        "🧘 Learn more on our [Wellness page]({link})."
-    ),
-    "policy": (
-        ["policy", "policies", "rules", "terms", "conditions", "pet", "dog", "cat", "animal"],
-        "📄 Review our full [Hotel Policy here]({link})."
-    ),
-    "contactlocation": (
-        ["contact", "location", "address", "directions", "map", "navigate"],
-        "📍 Visit [Contact & Location]({link})."
+def get_secret(key, default=None):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, default)
+
+# ========================================
+# ⚙️ Streamlit page config
+# ========================================
+st.set_page_config(
+    page_title="Chez Govinda – AI Hotel Assistant",
+    page_icon="🏨",
+    layout="centered",
+    initial_sidebar_state="auto"
+)
+render_header()
+
+# ========================================
+# 🧠 Developer Tools Toggle + Logo
+# ========================================
+with st.sidebar:
+    logo = Image.open("assets/logo.png")
+    st.image(logo, use_container_width=True)
+
+    st.markdown("### 🛠️ Developer Tools")
+    st.session_state.show_sql_panel = st.checkbox(
+        "🧠 Enable SQL Query Panel",
+        value=st.session_state.get("show_sql_panel", False)
     )
-}
 
 # ========================================
-# 🤖 George’s Smart Vector-Based Search Tool
+# 🔍 SQL Query Panel
 # ========================================
-def vector_search(query):
-    docs_and_scores = vectorstore.similarity_search_with_score(query, k=30)
+if st.session_state.show_sql_panel:
+    st.markdown("### 🔍 SQL Query Panel")
 
-    if not docs_and_scores:
-        return "❌ I couldn’t find anything relevant in our documents."
+    sql_input = st.text_area(
+        "🔍 Enter SQL query to run:",
+        value="SELECT * FROM bookings LIMIT 10;",
+        height=150,
+        key="sql_input_box"
+    )
 
-    # ----------------------------------------
-    # 🧹 Filter and deduplicate content
-    # ----------------------------------------
-    filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
-    seen, unique_docs = set(), []
-    for doc, score in filtered:
-        snippet = doc.page_content[:100]
-        if snippet not in seen:
-            unique_docs.append((doc, score))
-            seen.add(snippet)
+    run_query = st.button("Run Query", key="run_query_button", type="primary")
+    status_container = st.container()
+    result_container = st.container()
 
-    if not unique_docs:
-        return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
+    if run_query:
+        try:
+            st.subheader("🔍 Debug: Database Connection Settings")
+            st.code(f"""
+port    = {get_secret('DB_PORT_READ_ONLY')}
+user    = {get_secret('DB_USERNAME_READ_ONLY')}
+            """)
 
-    # ----------------------------------------
-    # 🍃 Boost sustainability results if needed
-    # ----------------------------------------
-    boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
-    if any(term in query.lower() for term in boost_terms):
-        unique_docs = sorted(
-            unique_docs,
-            key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
-            reverse=True
-        )
+            with status_container:
+                st.write("🔐 Connecting to database...")
 
-    # ----------------------------------------
-    # 📚 Prepare top content chunks as context
-    # ----------------------------------------
-    top_docs = [doc for doc, _ in unique_docs[:10]]
-    context = "\n\n".join(doc.page_content for doc in top_docs)
+            conn = mysql.connector.connect(
+                host=get_secret("DB_HOST_READ_ONLY"),
+                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
+                user=get_secret("DB_USERNAME_READ_ONLY"),
+                password=get_secret("DB_PASSWORD_READ_ONLY"),
+                database=get_secret("DB_DATABASE_READ_ONLY")
+            )
 
-    # ----------------------------------------
-    # 🔍 Match query to relevant source link
-    # ----------------------------------------
-    matched_link = None
-    for category, (keywords, _) in link_map.items():
-        if any(k in query.lower() for k in keywords):
-            for doc in top_docs:
-                source = doc.metadata.get("source", "")
-                if category in source.lower():
-                    matched_link = source
-                    break
-            if not matched_link:
-                matched_link = HARDCODED_LINKS.get(category)
-            break
+            with status_container:
+                st.success("✅ Connected to MySQL!")
 
-    # ----------------------------------------
-    # 📝 Prompt Template with Link Injection
-    # ----------------------------------------
-    prompt = PromptTemplate(
-        input_variables=["context", "question", "source_link"],
-        template="""
-You are George, the friendly AI receptionist at *Chez Govinda*.
+            cursor = conn.cursor()
+            cursor.execute(sql_input)
+            rows = cursor.fetchall()
+            col_names = [desc[0] for desc in cursor.description]
 
-You always speak **as part of the hotel team**, so say **"our hotel"**, **"we offer"**, or **"our rooms"** — never use "their hotel" or talk about Chez Govinda in third person.
+            with result_container:
+                df = pd.DataFrame(rows, columns=col_names)
+                st.dataframe(df, use_container_width=True)
+                st.caption(f"Columns: {col_names}")
+
+        except Exception as e:
+            import traceback
+            with status_container:
+                st.error("❌ Connection failed:")
+                st.code(traceback.format_exc())
+        finally:
+            try:
+                if 'conn' in locals() and conn.is_connected():
+                    cursor.close()
+                    conn.close()
+                    with status_container:
+                        st.info("🔌 Connection closed.")
+            except Exception as close_err:
+                with status_container:
+                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
+
+# ========================================
+# 🤖 LangChain Agent Setup
+# ========================================
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+if "chat_summary" not in st.session_state:
+    st.session_state.chat_summary = ""
+
+if "booking_mode" not in st.session_state:
+    st.session_state.booking_mode = False
+
+agent_executor = initialize_agent(
+    tools=[sql_tool, vector_tool, chat_tool, booking_tool],
+    llm=llm,
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True,
+    agent_kwargs={
+        "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
+
+Always follow these rules:
+
+- ✅ Use `vector_tool` for room types, room descriptions, hotel policies, breakfast, and amenities.
+- ❌ Never use `sql_tool` for room descriptions or general hotel info.
+- ✅ Use `sql_tool` only for checking availability, bookings, or price queries.
+
 If someone asks about rooms, **always return the full list of the seven room types** from hotel documentation in the database.
 
-Answer the user's question in a warm, concise paragraph using only the information below.
-If a helpful page is available about rooms and other topics, conclude with a sentence like: "You can find more details [here]({source_link})."
+If a user asks a question unrelated to the hotel, kindly respond with something like:
+"I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
 
-{context}
-
-User: {question}
+Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
 """
-    )
-
-    # ----------------------------------------
-    # 🤖 Invoke LLM with context and link
-    # ----------------------------------------
-    final_answer = (prompt | llm).invoke({
-        "context": context,
-        "question": query,
-        "source_link": matched_link or ""
-    }).content.strip()
-
-    return final_answer
-
-# ========================================
-# 🧰 LangChain Tool Wrapper
-# ========================================
-vector_tool = Tool(
-    name="vector",
-    func=vector_search,
-    description="Hotel details and policies."
+    }
 )
+
+# ========================================
+# 💬 George the Assistant (chatbot)
+# ========================================
+if not st.session_state.show_sql_panel:
+
+    if not st.session_state.history:
+        st.session_state.history.append((
+            "bot",
+            "👋 Hello, I’m George. How can I help you today?"
+        ))
+
+    render_chat_bubbles(st.session_state.history)
+
+    user_input = get_user_input()
+    if user_input:
+        st.session_state.history.append(("user", user_input))
+        render_chat_bubbles(st.session_state.history)
+
+        with st.chat_message("assistant"):
+            with st.spinner("🤖 George is typing..."):
+                response = agent_executor.run(user_input)
+
+        st.session_state.history.append(("bot", response))
+        st.rerun()
+
+# ========================================
+# 📅 Show Booking Form if Triggered
+# ========================================
+if st.session_state.booking_mode:
+    render_booking_form()

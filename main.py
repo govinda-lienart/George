@@ -11,7 +11,7 @@ from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 
 from utils.config import llm
-from chat_ui import render_header # Assuming this only renders the header
+from chat_ui import render_header, render_chat_bubbles
 from booking.calendar import render_booking_form
 
 # ========================================
@@ -131,39 +131,31 @@ agent = initialize_agent(
 # ========================================
 # 💬 George the Assistant (chatbot)
 # ========================================
-def render_chat_bubbles(history):
-    for role, message in history:
-        with st.chat_message(role):
-            st.markdown(message)
-
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
 
-    user_input = st.chat_input("Ask about availability, bookings, or anything else...", key="user_chat_input")
-
-    if user_input:
-        # Append user's message to history
-        st.session_state.history.append(("user", user_input))
-
-        # Create an empty container for the bot's response
-        with st.chat_message("assistant"):
-            bot_message_container = st.empty()
-            bot_message_container.markdown("⏳ George is replying...")
-
-            # Run the agent and get the response
-            response = agent.run(user_input)
-
-            # Update the container with the actual response
-            bot_message_container.markdown(response)
-
-            # Store assistant response
-            st.session_state.history.append(("bot", response))
-
-        # Clear the input field in session state AFTER processing
-        st.session_state["user_chat_input"] = ""
-
-    # Render the entire chat history
+    # Display chat history first
     render_chat_bubbles(st.session_state.history)
+
+    user_input = st.chat_input("Ask about availability, bookings, or anything else...")
+    if user_input:
+        # 1. Append user's message immediately
+        st.session_state.history.append(("user", user_input))
+        render_chat_bubbles(st.session_state.history)
+
+        # 2. Display "George is replying..." temporarily
+        with st.chat_message("assistant"):
+            st.markdown("⏳ George is replying...")
+
+        # 3. Run the agent
+        response = agent.run(user_input)
+
+        # 4. Store assistant response
+        st.session_state.history.append(("bot", response))
+
+        # 5. Rerun to show response
+        st.rerun()
+
 
 # ========================================
 # 📅 Show Booking Form if Triggered

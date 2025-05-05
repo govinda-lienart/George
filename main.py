@@ -37,6 +37,12 @@ render_header()
 # ========================================
 # 🧠 Developer tools toggle in sidebar
 # ========================================
+
+with st.sidebar:
+    # ✅ Display logo from assets folder
+    logo = Image.open("assets/logo.png")
+    st.image(logo, use_column_width=True)
+
 with st.sidebar:
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
@@ -128,8 +134,7 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
-
-    # 👋 Show George's greeting on first visit
+    Show George's greeting on first visit
     if not st.session_state.history:
         st.session_state.history.append((
             "bot",
@@ -146,12 +151,14 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            st.markdown("⏳ George is replying...")
+            with st.spinner("George is thinking..."):
+                response = agent.run(user_input)
 
         response = agent.run(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()
+    # 👋
 
 # ========================================
 # 📅 Show Booking Form if Triggered

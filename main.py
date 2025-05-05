@@ -5,6 +5,7 @@ import pandas as pd
 import mysql.connector
 from PIL import Image
 import time
+import threading
 
 from langchain.agents import initialize_agent, AgentType
 
@@ -46,11 +47,9 @@ render_header()
 # 🧠 Developer Tools Toggle + Logo
 # ========================================
 with st.sidebar:
-    # ✅ Display logo from assets folder
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
 
-    # 🛠️ Developer tools toggle
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
@@ -146,17 +145,14 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
 
-    # Show George's greeting on first visit
     if not st.session_state.history:
         st.session_state.history.append((
             "bot",
             "👋 Hello, I’m George. How can I help you today?"
         ))
 
-    # Show chat history
     render_chat_bubbles(st.session_state.history)
 
-    # Handle user input
     user_input = get_user_input()
     if user_input:
         st.session_state.history.append(("user", user_input))
@@ -164,15 +160,23 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             typing_placeholder = st.empty()
+            stop_typing = False
 
-            # Simulate animated typing
-            for i in range(6):  # ~3 seconds
-                dots = "." * (i % 4)
-                typing_placeholder.markdown(f"🤖 George is typing{dots}")
-                time.sleep(0.5)
+            def animate_typing():
+                i = 0
+                while not stop_typing:
+                    dots = "." * (i % 4)
+                    typing_placeholder.markdown(f"🤖 George is typing**{dots}**")
+                    time.sleep(0.5)
+                    i += 1
 
-            # Run the agent and show result
+            animation_thread = threading.Thread(target=animate_typing)
+            animation_thread.start()
+
             response = agent.run(user_input)
+
+            stop_typing = True
+            animation_thread.join()
             typing_placeholder.markdown(response)
 
         st.session_state.history.append(("bot", response))
@@ -182,4 +186,4 @@ if not st.session_state.show_sql_panel:
 # 📅 Show Booking Form if Triggered
 # ========================================
 if st.session_state.booking_mode:
-    render_booking_form()
+    render

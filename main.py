@@ -148,7 +148,7 @@ if not st.session_state.show_sql_panel:
     if not st.session_state.history:
         st.session_state.history.append((
             "bot",
-            "👋 Hello, I’m George, your AI receptionist. How can I help you today?"
+            "👋 Hello, I’m George. How can I help you today?"
         ))
 
     # Show chat history
@@ -161,7 +161,7 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            with st.spinner("🤖 George is thinking..."):
+            with st.spinner("🤖 George is typing..."):
                 response = agent.run(user_input)
 
         st.session_state.history.append(("bot", response))

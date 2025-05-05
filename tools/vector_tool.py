@@ -2,7 +2,6 @@ from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 
-# Hardcoded links for fallback
 HARDCODED_LINKS = {
     "environment":     "https://sites.google.com/view/chez-govinda/environmental-commitment",
     "rooms":           "https://sites.google.com/view/chez-govinda/rooms",
@@ -13,35 +12,34 @@ HARDCODED_LINKS = {
     "contactlocation": "https://sites.google.com/view/chez-govinda/contact-location"
 }
 
-# Category link messages
 link_map = {
     "environment": (
         ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
-        "🌱 You can read more about this on our [Environmental Commitment page]({link})."
+        "🌱 You can read more on our [Environmental Commitment page]({link})."
     ),
     "rooms": (
         ["rooms", "accommodation", "suites", "bedroom", "stay", "lodging"],
-        "🛏️ You can check out more details on our [Rooms page]({link})."
+        "🛏️ You can explore our [Rooms page]({link})."
     ),
     "breakfast": (
-        ["breakfast", "dining", "food", "plant-based", "vegan", "vegetarian", "organic", "local produce", "morning meal"],
-        "🍳 You can find details about [Breakfast and Guest Amenities]({link})."
+        ["breakfast", "dining", "food", "plant-based", "vegan", "vegetarian", "organic", "morning meal"],
+        "🍳 More about [Breakfast and Guest Amenities]({link})."
     ),
     "amenities": (
-        ["amenities", "facilities", "services", "Wi-Fi", "garden", "yoga", "snacks", "honesty bar", "relaxation"],
-        "✨ You can find details about [Breakfast and Guest Amenities]({link})."
+        ["amenities", "facilities", "services", "Wi-Fi", "garden", "yoga", "honesty bar"],
+        "✨ View all our [Amenities]({link})."
     ),
     "wellness": (
         ["wellness", "relaxation", "peace", "meditation", "yoga", "mindfulness", "garden access"],
-        "🧘 For a rejuvenating experience, explore our [Wellness offerings]({link})."
+        "🧘 Learn more on our [Wellness page]({link})."
     ),
     "policy": (
-        ["policy", "policies", "rules", "terms", "conditions", "pet", "dog", "cat", "animal", "pets"],
-        "📄 You can find more details on our [Hotel Policy page]({link})."
+        ["policy", "policies", "rules", "terms", "conditions", "pet", "dog", "cat", "animal"],
+        "📄 Review our full [Hotel Policy here]({link})."
     ),
     "contactlocation": (
-        ["contact", "location", "address", "directions", "how to get", "map", "reach", "navigate"],
-        "📍 You can find details about [Contact and Location]({link})."
+        ["contact", "location", "address", "directions", "map", "navigate"],
+        "📍 Visit [Contact & Location]({link})."
     )
 }
 
@@ -52,21 +50,19 @@ def vector_search(query):
     if not docs_and_scores:
         return "❌ I couldn’t find anything relevant in our documents."
 
-    # Filter out very short or empty chunks
+    # Filter and deduplicate
     filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
-    if not filtered:
-        return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
-
-    # Deduplicate by chunk content
-    seen = set()
-    unique_docs = []
+    seen, unique_docs = set(), []
     for doc, score in filtered:
         snippet = doc.page_content[:100]
         if snippet not in seen:
             unique_docs.append((doc, score))
             seen.add(snippet)
 
-    # Boost sustainability content
+    if not unique_docs:
+        return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
+
+    # Boost sustainability if needed
     boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
     if any(term in query.lower() for term in boost_terms):
         unique_docs = sorted(
@@ -76,15 +72,29 @@ def vector_search(query):
         )
 
     top_docs = [doc for doc, _ in unique_docs[:10]]
-
-    # Prepare context for LLM
     context = "\n\n".join(doc.page_content for doc in top_docs)
+
+    # Try to extract relevant source link
+    matched_link = None
+    for category, (keywords, _) in link_map.items():
+        if any(k in query.lower() for k in keywords):
+            for doc in top_docs:
+                source = doc.metadata.get("source", "")
+                if category in source.lower():
+                    matched_link = source
+                    break
+            if not matched_link:
+                matched_link = HARDCODED_LINKS.get(category)
+            break
+
+    # Prepare prompt with optional link
     prompt = PromptTemplate(
-        input_variables=["context", "question"],
+        input_variables=["context", "question", "source_link"],
         template="""
 You are George, the friendly receptionist at Chez Govinda.
 
-Answer the user's question in a warm and concise paragraph, using only the information below. Prioritize anything about sustainability or green practices when applicable.
+Answer the user's question in a warm, concise paragraph using only the information below.
+If a helpful page is available, conclude with a sentence like: "You can find more details [here]({source_link})."
 
 {context}
 
@@ -92,24 +102,11 @@ User: {question}
 """
     )
 
-    final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
-
-    # Decide best link based on query and matched content
-    matched_link = None
-    for category, (keywords, message_template) in link_map.items():
-        if any(word in query.lower() for word in keywords):
-            # Try to find a matching source link from the top docs
-            for doc in top_docs:
-                source = doc.metadata.get("source", "")
-                if category in source.lower():
-                    matched_link = source
-                    break
-            # Fallback to hardcoded link
-            if not matched_link:
-                matched_link = HARDCODED_LINKS.get(category)
-            if matched_link:
-                final_answer += "\n\n" + message_template.format(link=matched_link)
-            break
+    final_answer = (prompt | llm).invoke({
+        "context": context,
+        "question": query,
+        "source_link": matched_link or ""
+    }).content.strip()
 
     return final_answer
 

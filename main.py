@@ -1,4 +1,3 @@
-# Last updated: 2025-05-05 19:29:09
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -133,12 +132,30 @@ if "chat_summary" not in st.session_state:
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
-agent = initialize_agent(
+agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
+    verbose=True,
+    agent_kwargs={
+        "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
+
+Always follow these rules:
+
+- ✅ Use `vector_tool` for room types, room descriptions, hotel policies, breakfast, and amenities.
+- ❌ Never use `sql_tool` for room descriptions or general hotel info.
+- ✅ Use `sql_tool` only for checking availability, bookings, or price queries.
+
+If someone asks about rooms, **always return the full list of room types** from hotel documentation.
+
+If a user asks a question unrelated to the hotel, kindly respond with something like:
+"I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
+
+Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
+"""
+    }
 )
+
 
 # ========================================
 # 💬 George the Assistant (chatbot)

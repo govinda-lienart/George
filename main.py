@@ -4,21 +4,13 @@ import os
 import pandas as pd
 import mysql.connector
 from PIL import Image
+from langchain.agents import initialize_agent, AgentType
 
-# ✅ NEW: Faster agent libraries
-from langchain.agents import AgentExecutor
-from langchain.agents.openai_functions_agent.agent_token_buffer_memory import AgentTokenBufferMemory
-from langchain.agents.openai_functions_agent.base import create_openai_functions_agent
-from langchain.schema.messages import SystemMessage
-from langchain.agents.openai_functions_agent.base import create_openai_functions_agent
-
-# ✅ Your tools
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 
-# ✅ Your UI and LLM config
 from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
@@ -28,6 +20,9 @@ from booking.calendar import render_booking_form
 # ========================================
 load_dotenv()
 
+# ========================================
+# ✅ Smart secret getter: Cloud or local
+# ========================================
 def get_secret(key, default=None):
     try:
         return st.secrets[key]
@@ -46,7 +41,7 @@ st.set_page_config(
 render_header()
 
 # ========================================
-# 🧠 Sidebar Developer Tools
+# 🧠 Developer Tools Toggle + Logo
 # ========================================
 with st.sidebar:
     logo = Image.open("assets/logo.png")
@@ -124,7 +119,7 @@ user    = {get_secret('DB_USERNAME_READ_ONLY')}
                     st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
 # ========================================
-# 🤖 LangChain OpenAI Function Agent Setup
+# 🤖 LangChain Agent Setup
 # ========================================
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -135,28 +130,28 @@ if "chat_summary" not in st.session_state:
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
-# ✅ Create faster function-calling agent
-agent = create_openai_functions_agent(
+agent_executor = initialize_agent(
+    tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
-    tools=[sql_tool, vector_tool, chat_tool, booking_tool],
-    system_message=SystemMessage(
-        content="""
-You are George, the friendly AI receptionist at Chez Govinda.
-
-Use tools to answer user questions about hotel rooms, availability, bookings, policies, and breakfast.
-
-Always use `vector_tool` for hotel descriptions, and `sql_tool` for availability and pricing.
-
-Reply warmly and clearly like a hotel receptionist. Do not simulate thought steps. Just call the right tool and respond directly.
-"""
-    )
-)
-
-agent_executor = AgentExecutor(
-    agent=agent,
-    tools=[sql_tool, vector_tool, chat_tool, booking_tool],
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
-    handle_parsing_errors=True
+    agent_kwargs={
+        "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
+
+Always follow these rules:
+
+- ✅ Use `vector_tool` for room types, room descriptions, hotel policies, breakfast, and amenities.
+- ❌ Never use `sql_tool` for room descriptions or general hotel info.
+- ✅ Use `sql_tool` only for checking availability, bookings, or price queries.
+
+If someone asks about rooms, **always return the full list of the seven room types** from hotel documentation in the database.
+
+If a user asks a question unrelated to the hotel, kindly respond with something like:
+"I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
+
+Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
+"""
+    }
 )
 
 # ========================================

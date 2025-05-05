@@ -1,72 +1,72 @@
-# Last updated: 2025-05-05 – Fast & Streaming-Ready
+# Last updated: 2025-05-05 19:29:09
 import os
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# Load environment variables for local development
+# Load .env for local development
 load_dotenv()
 
 print("🔵 Checking environment and Streamlit secrets...")
 
-# Check if Streamlit secrets are accessible
+# Check if st.secrets are accessible
 try:
     secrets_available = True if st.secrets else False
 except Exception:
     secrets_available = False
 
-# Print detected environment variables
+# Print environment variable detection
 print("ENV VARS:")
-print(" - DEEPSEEK_API_KEY in os.environ?", "✅" if "DEEPSEEK_API_KEY" in os.environ else "❌")
-print(" - OPENAI_API_KEY in os.environ?", "✅" if "OPENAI_API_KEY" in os.environ else "❌")
+print(" - DEEPSEEK_API_KEY found in os.environ?", "✅" if "DEEPSEEK_API_KEY" in os.environ else "❌")
+print(" - OPENAI_API_KEY found in os.environ?", "✅" if "OPENAI_API_KEY" in os.environ else "❌")
 
+# Print Streamlit secrets detection
 print("STREAMLIT SECRETS:")
 if secrets_available:
-    print(" - DEEPSEEK_API_KEY in st.secrets?", "✅" if "DEEPSEEK_API_KEY" in st.secrets else "❌")
-    print(" - OPENAI_API_KEY in st.secrets?", "✅" if "OPENAI_API_KEY" in st.secrets else "❌")
+    print(" - DEEPSEEK_API_KEY found in st.secrets?", "✅" if "DEEPSEEK_API_KEY" in st.secrets else "❌")
+    print(" - OPENAI_API_KEY found in st.secrets?", "✅" if "OPENAI_API_KEY" in st.secrets else "❌")
 else:
-    print(" - No Streamlit secrets found (expected for local run).")
+    print(" - No st.secrets available locally (expected).")
 
-# Securely fetch API keys
+# Fetch API keys safely: env first, fallback to st.secrets
 deepseek_api_key = os.getenv("DEEPSEEK_API_KEY") or (st.secrets.get("DEEPSEEK_API_KEY") if secrets_available else None)
 openai_api_key = os.getenv("OPENAI_API_KEY") or (st.secrets.get("OPENAI_API_KEY") if secrets_available else None)
 
+# Confirm API keys fetched
 print(f"🟠 DEEPSEEK_API_KEY detected: {'✅ Yes' if deepseek_api_key else '❌ No'}")
 print(f"🟠 OPENAI_API_KEY detected: {'✅ Yes' if openai_api_key else '❌ No'}")
 
-# ✅ Initialize Chat LLM with streaming enabled
+# Initialize LLM
 if deepseek_api_key:
-    print("🧠 Using DeepSeek ChatOpenAI model...")
+    print("🧠 Initializing DeepSeek ChatOpenAI model...")
     llm = ChatOpenAI(
         model_name="deepseek-chat",
-        temperature=0.3,
-        streaming=True,
+        temperature=0,
         openai_api_key=deepseek_api_key,
         openai_api_base="https://api.deepseek.com/v1"
     )
-    print("✅ DeepSeek model initialized.")
+    print("✅ DeepSeek model ready.")
 elif openai_api_key:
-    print("🧠 Using OpenAI GPT-3.5-Turbo model...")
+    print("🧠 DeepSeek not found. Falling back to OpenAI ChatGPT model...")
     llm = ChatOpenAI(
-        model_name="gpt-3.5-turbo-1106",  # Function-calling ready
-        temperature=0.3,
-        streaming=True,
+        model_name="gpt-3.5-turbo",
+        temperature=0,
         openai_api_key=openai_api_key
     )
-    print("✅ OpenAI GPT model initialized.")
+    print("✅ OpenAI GPT model ready.")
 else:
-    raise ValueError("❌ No valid API key found! Set DEEPSEEK_API_KEY or OPENAI_API_KEY.")
+    raise ValueError("❌ Neither DEEPSEEK_API_KEY nor OPENAI_API_KEY found! Please set them in your .env or Streamlit Secrets.")
 
-# ✅ Initialize Pinecone VectorStore (OpenAI embeddings only)
+# Initialize VectorStore (always needs OpenAI key for embeddings)
 if not openai_api_key:
-    raise ValueError("❌ OPENAI_API_KEY required for initializing Pinecone embeddings!")
+    raise ValueError("❌ OPENAI_API_KEY missing! Cannot initialize Pinecone vectorstore embeddings.")
 
-print("🗂️ Initializing Pinecone VectorStore...")
+print("🗂️ Initializing Pinecone VectorStore with OpenAI embeddings...")
 vectorstore = PineconeVectorStore.from_existing_index(
     index_name="george",
     embedding=OpenAIEmbeddings(openai_api_key=openai_api_key)
 )
 
-print("✅ Pinecone vectorstore ready.")
-print("🚀 Config loaded successfully.")
+print("✅ Vectorstore initialized successfully.")
+print("🚀 App setup complete.")

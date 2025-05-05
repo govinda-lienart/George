@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import mysql.connector
+from PIL import Image
 from langchain.agents import initialize_agent, AgentType
 
 from tools.sql_tool import sql_tool
@@ -11,7 +12,7 @@ from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 
 from utils.config import llm
-from chat_ui import render_page_config, render_header, render_chat_bubbles, get_user_input
+from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
 # ========================================
@@ -31,19 +32,23 @@ def get_secret(key, default=None):
 # ========================================
 # ⚙️ Streamlit page config
 # ========================================
-render_page_config()
+st.set_page_config(
+    page_title="Chez Govinda – AI Hotel Assistant",
+    page_icon="🏨",
+    layout="centered",
+    initial_sidebar_state="auto"
+)
 render_header()
 
 # ========================================
-# 🧠 Developer tools toggle in sidebar
+# 🧠 Developer Tools Toggle + Logo
 # ========================================
-
 with st.sidebar:
     # ✅ Display logo from assets folder
     logo = Image.open("assets/logo.png")
     st.image(logo, use_column_width=True)
 
-with st.sidebar:
+    # 🛠️ Developer tools toggle
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
@@ -69,6 +74,12 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
+            st.subheader("🔍 Debug: Database Connection Settings")
+            st.code(f"""
+port    = {get_secret('DB_PORT_READ_ONLY')}
+user    = {get_secret('DB_USERNAME_READ_ONLY')}
+            """)
+
             with status_container:
                 st.write("🔐 Connecting to database...")
 
@@ -79,6 +90,7 @@ if st.session_state.show_sql_panel:
                 password=get_secret("DB_PASSWORD_READ_ONLY"),
                 database=get_secret("DB_DATABASE_READ_ONLY")
             )
+
             with status_container:
                 st.success("✅ Connected to MySQL!")
 
@@ -97,7 +109,6 @@ if st.session_state.show_sql_panel:
             with status_container:
                 st.error("❌ Connection failed:")
                 st.code(traceback.format_exc())
-
         finally:
             try:
                 if 'conn' in locals() and conn.is_connected():
@@ -108,7 +119,6 @@ if st.session_state.show_sql_panel:
             except Exception as close_err:
                 with status_container:
                     st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
-
 
 # ========================================
 # 🤖 LangChain Agent Setup
@@ -134,6 +144,7 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
+
     # Show George's greeting on first visit
     if not st.session_state.history:
         st.session_state.history.append((
@@ -151,14 +162,11 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            with st.spinner("George is thinking..."):
+            with st.spinner("🤖 George is thinking..."):
                 response = agent.run(user_input)
-
-        response = agent.run(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()
-    # 👋
 
 # ========================================
 # 📅 Show Booking Form if Triggered

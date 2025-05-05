@@ -1,4 +1,4 @@
-# Last updated: 2025-05-05
+# Last updated: 2025-04-29 14:26:23
 import os
 import time
 from dotenv import load_dotenv
@@ -48,16 +48,8 @@ def ingest_full_pages():
         try:
             response = app.scrape_url(url, formats=["markdown", "html"])
             cleaned = clean_text(response.markdown)
-
-            # Extract short page key (e.g., 'rooms', 'policy')
-            page_key = url.split("/")[-1].split("?")[0]
-
-            # Add both 'source' and 'page' metadata
-            all_docs.append(Document(
-                page_content=cleaned,
-                metadata={"source": url, "page": page_key}
-            ))
-            print(f"📦 Stored cleaned content for page: {page_key}")
+            all_docs.append(Document(page_content=cleaned, metadata={"source": url}))
+            print("📦 Stored cleaned content.")
         except Exception as e:
             print(f"❌ Error scraping {url}: {e}")
 

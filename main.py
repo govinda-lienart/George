@@ -11,7 +11,7 @@ from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 
-from utils.config import llm
+from utils.config import llm  # make sure this is the updated, fast LLM
 from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
@@ -20,9 +20,6 @@ from booking.calendar import render_booking_form
 # ========================================
 load_dotenv()
 
-# ========================================
-# ✅ Smart secret getter: Cloud or local
-# ========================================
 def get_secret(key, default=None):
     try:
         return st.secrets[key]
@@ -30,7 +27,7 @@ def get_secret(key, default=None):
         return os.getenv(key, default)
 
 # ========================================
-# ⚙️ Streamlit page config
+# ⚙️ Page Config
 # ========================================
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
@@ -41,7 +38,7 @@ st.set_page_config(
 render_header()
 
 # ========================================
-# 🧠 Developer Tools Toggle + Logo
+# 🧠 Sidebar Developer Tools
 # ========================================
 with st.sidebar:
     logo = Image.open("assets/logo.png")
@@ -135,6 +132,7 @@ agent_executor = initialize_agent(
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
+    max_iterations=2,  # ✅ Enforce 1 action-observation-final answer cycle
     agent_kwargs={
         "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
 
@@ -150,14 +148,14 @@ If a user asks a question unrelated to the hotel, kindly respond with something 
 "I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
 
 Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
-You must always stop after one observation and respond with a Final Answer. Do not loop or continue reasoning.
 
+You must always stop after one observation and respond with a Final Answer. Do not loop or continue reasoning.
 """
     }
 )
 
 # ========================================
-# 💬 George the Assistant (chatbot)
+# 💬 George the Assistant
 # ========================================
 if not st.session_state.show_sql_panel:
 

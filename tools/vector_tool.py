@@ -65,7 +65,7 @@ User: {question}
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
     # ----------------------------------------
-    # 🔗 Add the most relevant page link
+    # 🔗 Link map and friendly names
     # ----------------------------------------
     friendly_names = {
         "policy": "Hotel Policies page",
@@ -73,7 +73,7 @@ User: {question}
         "environmental-commitment": "Environmental Commitment page",
         "breakfast-guest-amenities": "Breakfast & Amenities page",
         "contactlocation": "Contact & Location page",
-        "enviroment": "Environmental Info page",  # typo retained
+        "enviroment": "Environmental Info page",
         "home": "homepage"
     }
 
@@ -87,14 +87,14 @@ User: {question}
         "home": "https://sites.google.com/view/chez-govinda/home"
     }
 
+    # ----------------------------------------
+    # ✅ Match using explicit metadata["page"]
+    # ----------------------------------------
     matched_key = None
     for doc in docs:
-        source = doc.metadata.get("source", "")
-        for key in friendly_names:
-            if key in source:
-                matched_key = key
-                break
-        if matched_key:
+        page_key = doc.metadata.get("page", "")
+        if page_key in friendly_names:
+            matched_key = page_key
             break
 
     if matched_key:

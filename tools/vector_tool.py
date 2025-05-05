@@ -1,8 +1,8 @@
-# Last updated: 2025-04-29 14:26:23
+# Last updated: 2025-05-05 17:32:00 CEST
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
-from utils.helpers import find_source_link
+# from utils.helpers import find_source_link  # We might not need this anymore
 
 
 def vector_search(query):
@@ -46,21 +46,12 @@ User: {question}
     context = "\n\n".join(doc.page_content for doc in docs)
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
-    # Find relevant links
-    link_map = {
-        "environment":     "🌱 You can read more about this on our [Environmental Commitment page]({link}).",
-        "rooms":           "🛏️ You can check out more details on our [Rooms page]({link}).",
-        "policy":          "📄 You can find more details on our [Hotel Policy page]({link}).",
-        "breakfast":       "🍳 You can find details about [Breakfast and Guest Amenities]({link}).",
-        "amenities":       "✨ You can find details about [Breakfast and Guest Amenities]({link}).",
-        "contactlocation": "📍 You can find details about [Contact and Location]({link})."
-    }
-
-    for keyword, template in link_map.items():
-        link = find_source_link(docs, keyword)
-        if link:
-            final_answer += f"\n\n{template.format(link=link)}"
-            break  # Only add the *first* relevant link
+    # Directly use the URL from the most relevant document
+    if docs:
+        most_relevant_doc = docs[0]  # Assuming the first doc is the most relevant
+        source_url = most_relevant_doc.metadata.get("source")
+        if source_url:
+            final_answer += f"\n\n📖 You can find more details on this topic at: {source_url}"
 
     return final_answer
 

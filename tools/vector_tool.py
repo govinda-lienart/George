@@ -1,7 +1,13 @@
+# ========================================
+# 🧠 LangChain & Vector Store Configuration
+# ========================================
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 
+# ========================================
+# 🔗 Hardcoded Backup URLs for Each Category
+# ========================================
 HARDCODED_LINKS = {
     "environment":     "https://sites.google.com/view/chez-govinda/environmental-commitment",
     "rooms":           "https://sites.google.com/view/chez-govinda/rooms",
@@ -12,6 +18,9 @@ HARDCODED_LINKS = {
     "contactlocation": "https://sites.google.com/view/chez-govinda/contact-location"
 }
 
+# ========================================
+# 🧩 Query Keywords → URL + Message Mapping
+# ========================================
 link_map = {
     "environment": (
         ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
@@ -43,14 +52,18 @@ link_map = {
     )
 }
 
-
+# ========================================
+# 🤖 George’s Smart Vector-Based Search Tool
+# ========================================
 def vector_search(query):
     docs_and_scores = vectorstore.similarity_search_with_score(query, k=30)
 
     if not docs_and_scores:
         return "❌ I couldn’t find anything relevant in our documents."
 
-    # Filter and deduplicate
+    # ----------------------------------------
+    # 🧹 Filter and deduplicate content
+    # ----------------------------------------
     filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
     seen, unique_docs = set(), []
     for doc, score in filtered:
@@ -62,7 +75,9 @@ def vector_search(query):
     if not unique_docs:
         return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
 
-    # Boost sustainability if needed
+    # ----------------------------------------
+    # 🍃 Boost sustainability results if needed
+    # ----------------------------------------
     boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
     if any(term in query.lower() for term in boost_terms):
         unique_docs = sorted(
@@ -71,10 +86,15 @@ def vector_search(query):
             reverse=True
         )
 
+    # ----------------------------------------
+    # 📚 Prepare top content chunks as context
+    # ----------------------------------------
     top_docs = [doc for doc, _ in unique_docs[:10]]
     context = "\n\n".join(doc.page_content for doc in top_docs)
 
-    # Try to extract relevant source link
+    # ----------------------------------------
+    # 🔍 Match query to relevant source link
+    # ----------------------------------------
     matched_link = None
     for category, (keywords, _) in link_map.items():
         if any(k in query.lower() for k in keywords):
@@ -87,23 +107,28 @@ def vector_search(query):
                 matched_link = HARDCODED_LINKS.get(category)
             break
 
-    # Prepare prompt with optional link
+    # ----------------------------------------
+    # 📝 Prompt Template with Link Injection
+    # ----------------------------------------
     prompt = PromptTemplate(
         input_variables=["context", "question", "source_link"],
         template="""
-    You are George, the friendly AI receptionist at *Chez Govinda*.
+You are George, the friendly AI receptionist at *Chez Govinda*.
 
-    You always speak **as part of the hotel team**, so say **"our hotel"**, **"we offer"**, or **"our rooms"** — never use "their hotel" or talk about Chez Govinda in third person.
+You always speak **as part of the hotel team**, so say **"our hotel"**, **"we offer"**, or **"our rooms"** — never use "their hotel" or talk about Chez Govinda in third person.
 
-    Answer the user's question in a warm, concise paragraph using only the information below.
-    If a helpful page is available, conclude with a sentence like: "You can find more details [here]({source_link})."
+Answer the user's question in a warm, concise paragraph using only the information below.
+If a helpful page is available, conclude with a sentence like: "You can find more details [here]({source_link})."
 
-    {context}
+{context}
 
-    User: {question}
-    """
+User: {question}
+"""
     )
 
+    # ----------------------------------------
+    # 🤖 Invoke LLM with context and link
+    # ----------------------------------------
     final_answer = (prompt | llm).invoke({
         "context": context,
         "question": query,
@@ -112,7 +137,9 @@ def vector_search(query):
 
     return final_answer
 
-
+# ========================================
+# 🧰 LangChain Tool Wrapper
+# ========================================
 vector_tool = Tool(
     name="vector",
     func=vector_search,

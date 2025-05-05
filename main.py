@@ -133,6 +133,9 @@ if "chat_summary" not in st.session_state:
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
+if "typing_animation" not in st.session_state:
+    st.session_state.typing_animation = False
+
 agent = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
@@ -150,8 +153,7 @@ if not st.session_state.show_sql_panel:
             "bot",
             "👋 Hello, I’m George. How can I help you today?"
         ))
-
-    render_chat_bubbles(st.session_state.history)
+        render_chat_bubbles(st.session_state.history)
 
     user_input = get_user_input()
     if user_input:
@@ -160,23 +162,23 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             typing_placeholder = st.empty()
-            stop_typing = False
+            st.session_state.typing_animation = True
 
-            def animate_typing():
+            def animate_typing_dots():
                 i = 0
-                while not stop_typing:
+                while st.session_state.typing_animation:
                     dots = "." * (i % 4)
-                    typing_placeholder.markdown(f"🤖 George is typing**{dots}**")
+                    typing_placeholder.markdown(f"🤖 George is typing{dots}")
                     time.sleep(0.5)
                     i += 1
 
-            animation_thread = threading.Thread(target=animate_typing)
-            animation_thread.start()
+            typing_thread = threading.Thread(target=animate_typing_dots)
+            typing_thread.start()
 
             response = agent.run(user_input)
 
-            stop_typing = True
-            animation_thread.join()
+            st.session_state.typing_animation = False
+            typing_thread.join()
             typing_placeholder.markdown(response)
 
         st.session_state.history.append(("bot", response))
@@ -186,4 +188,4 @@ if not st.session_state.show_sql_panel:
 # 📅 Show Booking Form if Triggered
 # ========================================
 if st.session_state.booking_mode:
-    render
+    render_booking_form()

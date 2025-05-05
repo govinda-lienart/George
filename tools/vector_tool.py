@@ -1,5 +1,3 @@
-# Vector_tool.py
-
 # Last updated: 2025-05-05
 
 # ========================================
@@ -67,24 +65,34 @@ User: {question}
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
     # ----------------------------------------
-    # 🔗 Add top document source as link
+    # 🔗 Add best-matching source as fixed URL
     # ----------------------------------------
     top_doc = docs[0]
     top_source = top_doc.metadata.get("source", "")
 
     friendly_names = {
-        "home": "homepage",
-        "rooms": "Rooms page",
         "policy": "Hotel Policies page",
-        "enviroment": "Environmental Info page",
+        "rooms": "Rooms page",
         "environmental-commitment": "Environmental Commitment page",
+        "breakfast-guest-amenities": "Breakfast & Amenities page",
         "contactlocation": "Contact & Location page",
-        "breakfast-guest-amenities": "Breakfast & Amenities page"
+        "enviroment": "Environmental Info page",  # typo retained
+        "home": "homepage"
+    }
+
+    link_map = {
+        "policy": "https://sites.google.com/view/chez-govinda/policy",
+        "rooms": "https://sites.google.com/view/chez-govinda/rooms",
+        "environmental-commitment": "https://sites.google.com/view/chez-govinda/environmental-commitment",
+        "breakfast-guest-amenities": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+        "contactlocation": "https://sites.google.com/view/chez-govinda/contactlocation",
+        "enviroment": "https://sites.google.com/view/chez-govinda/enviroment",
+        "home": "https://sites.google.com/view/chez-govinda/home"
     }
 
     for key, name in friendly_names.items():
         if key in top_source:
-            final_answer += f"\n\n🔗 You can read more on our [{name}]({top_source})."
+            final_answer += f"\n\n🔗 You can read more on our [{name}]({link_map[key]})."
             break
 
     return final_answer
@@ -97,5 +105,3 @@ vector_tool = Tool(
     func=vector_search,
     description="Hotel details and policies."
 )
-
-

@@ -161,14 +161,8 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            typing_placeholder = st.empty()
-
-            for i in range(6):  # 3 seconds animation
-                typing_placeholder.markdown(f"🤖 George is typing{'.' * (i % 4)}")
-                time.sleep(0.5)
-
-            response = agent.run(user_input)
-            typing_placeholder.markdown(response)
+            with st.spinner("🤖 George is typing..."):
+                response = agent.run(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()

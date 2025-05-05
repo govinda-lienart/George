@@ -1,33 +1,10 @@
-# Last updated: 2025-05-05
-
-# ========================================
-# 📦 Imports
-# ========================================
-import os
+# Last updated: 2025-04-29 14:26:23
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
+from utils.helpers import find_source_link
 
-# ========================================
-# 🔗 Helper: Match by 'page' field
-# ========================================
-def find_page_link(docs, keyword):
-    """
-    Return the first source URL where metadata['page'] matches the keyword.
-    """
-    for doc in docs:
-        page = doc.metadata.get("page", "").lower()
-        if page == keyword.lower():
-            return doc.metadata.get("source", "")
-    return None
-
-# ========================================
-# 🤖 Vector Search Function for George
-# ========================================
 def vector_search(query):
-    # ----------------------------------------
-    # 🔍 Retrieve and clean similar documents
-    # ----------------------------------------
     docs = vectorstore.similarity_search(query, k=30)
 
     if not docs:
@@ -40,28 +17,18 @@ def vector_search(query):
     seen = set()
     unique_docs = []
     for doc in docs:
-        snippet = doc.page_content[:100]
-        if snippet not in seen:
+        if doc.page_content[:100] not in seen:
             unique_docs.append(doc)
-            seen.add(snippet)
+            seen.add(doc.page_content[:100])
     docs = unique_docs
 
-    # ----------------------------------------
-    # 🌱 Boost sustainability-related content
-    # ----------------------------------------
+    # Boost sustainability
     boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
     if any(term in query.lower() for term in boost_terms):
-        docs = sorted(
-            docs,
-            key=lambda d: any(term in d.page_content.lower() for term in boost_terms),
-            reverse=True
-        )
+        docs = sorted(docs, key=lambda d: any(term in d.page_content.lower() for term in boost_terms), reverse=True)
 
     docs = docs[:10]
 
-    # ----------------------------------------
-    # ✏️ Prompt construction
-    # ----------------------------------------
     prompt = PromptTemplate(
         input_variables=["context", "question"],
         template="""
@@ -78,54 +45,16 @@ User: {question}
     context = "\n\n".join(doc.page_content for doc in docs)
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
-    # ----------------------------------------
-    # 🔗 Friendly names and final links
-    # ----------------------------------------
-    friendly_names = {
-        "policy": "Hotel Policies page",
-        "rooms": "Rooms page",
-        "environmental-commitment": "Environmental Commitment page",
-        "breakfast-guest-amenities": "Breakfast & Amenities page",
-        "contactlocation": "Contact & Location page",
-        "enviroment": "Environmental Info page",  # spelling kept as-is
-        "home": "homepage"
-    }
+    env_link = find_source_link(docs, "environment")
+    rooms_link = find_source_link(docs, "rooms")
 
-    link_map = {
-        "policy": "https://sites.google.com/view/chez-govinda/policy",
-        "rooms": "https://sites.google.com/view/chez-govinda/rooms",
-        "environmental-commitment": "https://sites.google.com/view/chez-govinda/environmental-commitment",
-        "breakfast-guest-amenities": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-        "contactlocation": "https://sites.google.com/view/chez-govinda/contactlocation",
-        "enviroment": "https://sites.google.com/view/chez-govinda/enviroment",
-        "home": "https://sites.google.com/view/chez-govinda/home"
-    }
-
-    # ----------------------------------------
-    # 🧠 Find matching page from metadata
-    # ----------------------------------------
-    matched_key = None
-    for key in friendly_names:
-        source_url = find_page_link(docs, key)
-        if os.getenv("DEBUG", "false").lower() == "true":
-            print(f"🔍 Looking for page='{key}' → {source_url}")
-        if source_url:
-            matched_key = key
-            break
-
-    if matched_key:
-        name = friendly_names[matched_key]
-        url = link_map[matched_key]
-        final_answer += f"\n\n🔗 You can read more on our [{name}]({url})."
-    else:
-        # Optional fallback
-        final_answer += f"\n\n📍 You can start from our [homepage]({link_map['home']})."
+    if env_link:
+        final_answer += f"\n\n🌱 You can read more about this on our [Environmental Commitment page]({env_link})."
+    elif rooms_link:
+        final_answer += f"\n\n🛏️ You can check out more details on our [Rooms page]({rooms_link})."
 
     return final_answer
 
-# ========================================
-# 🧰 Tool Registration
-# ========================================
 vector_tool = Tool(
     name="vector",
     func=vector_search,

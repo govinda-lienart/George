@@ -134,7 +134,7 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
-    Show George's greeting on first visit
+    # Show George's greeting on first visit
     if not st.session_state.history:
         st.session_state.history.append((
             "bot",

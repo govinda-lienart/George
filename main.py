@@ -10,6 +10,7 @@ from langchain.agents import AgentExecutor
 from langchain.agents.openai_functions_agent.agent_token_buffer_memory import AgentTokenBufferMemory
 from langchain.agents.openai_functions_agent.base import create_openai_functions_agent
 from langchain.schema.messages import SystemMessage
+from langchain.agents.openai_functions_agent.base import create_openai_functions_agent
 
 # ✅ Your tools
 from tools.sql_tool import sql_tool

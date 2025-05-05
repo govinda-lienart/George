@@ -135,7 +135,6 @@ agent_executor = initialize_agent(
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
-    max_iterations=1,  # <- Force only one Thought > Action > Observation loop
     agent_kwargs={
         "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
 
@@ -151,6 +150,8 @@ If a user asks a question unrelated to the hotel, kindly respond with something 
 "I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
 
 Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
+You must always stop after one observation and respond with a Final Answer. Do not loop or continue reasoning.
+
 """
     }
 )

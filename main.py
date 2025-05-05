@@ -142,34 +142,28 @@ if not st.session_state.show_sql_panel:
     user_input = st.chat_input("Ask about availability, bookings, or anything else...", key="user_chat_input")
 
     if user_input:
-        # Append user's message to history IMMEDIATELY
+        # Append user's message to history
         st.session_state.history.append(("user", user_input))
 
-        # Clear the input field in the session state
-        st.session_state["user_chat_input"] = ""
-
-        # Force a rerun to update the UI with the user's message
-        st.rerun()
-
-    # Render the entire chat history
-    render_chat_bubbles(st.session_state.history)
-
-    # If there was user input in the last interaction, process it now (after the UI has updated)
-    if st.session_state.get("last_user_input") and not st.session_state.get("processing"):
-        st.session_state["processing"] = True
+        # Create an empty container for the bot's response
         with st.chat_message("assistant"):
             bot_message_container = st.empty()
             bot_message_container.markdown("⏳ George is replying...")
-            response = agent.run(st.session_state["last_user_input"])
-            bot_message_container.markdown(response)
-            st.session_state.history.append(("bot", response))
-        st.session_state["last_user_input"] = None
-        st.session_state["processing"] = False
-        st.rerun() # Rerun to show the bot's response
 
-    # Store the current user input for the next interaction
-    if user_input:
-        st.session_state["last_user_input"] = user_input
+            # Run the agent and get the response
+            response = agent.run(user_input)
+
+            # Update the container with the actual response
+            bot_message_container.markdown(response)
+
+            # Store assistant response
+            st.session_state.history.append(("bot", response))
+
+        # Clear the input field in session state AFTER processing
+        st.session_state["user_chat_input"] = ""
+
+    # Render the entire chat history
+    render_chat_bubbles(st.session_state.history)
 
 # ========================================
 # 📅 Show Booking Form if Triggered

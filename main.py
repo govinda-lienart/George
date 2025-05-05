@@ -46,7 +46,7 @@ render_header()
 with st.sidebar:
     # ✅ Display logo from assets folder
     logo = Image.open("assets/logo.png")
-    st.image(logo, use_column_width=True)
+    st.image(logo, use_container_width=True)
 
     # 🛠️ Developer tools toggle
     st.markdown("### 🛠️ Developer Tools")

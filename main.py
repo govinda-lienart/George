@@ -134,31 +134,27 @@ agent = initialize_agent(
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
 
-    # Display chat history first
-    render_chat_bubbles(st.session_state.history)
-
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
     if user_input:
         # 1. Append user's message immediately
         st.session_state.history.append(("user", user_input))
-        render_chat_bubbles(st.session_state.history)
 
-        # 2. Create an empty container for the bot's response
+        # 2. Create an empty container for the entire bot message area
         with st.chat_message("assistant"):
-            reply_container = st.empty()
-            reply_container.markdown("⏳ George is replying...")
+            bot_message_container = st.empty()
+            bot_message_container.markdown("⏳ George is replying...")
 
-        # 3. Run the agent and get the response
-        response = agent.run(user_input)
+            # 3. Run the agent and get the response
+            response = agent.run(user_input)
 
-        # 4. Update the empty container with the actual response
-        with st.chat_message("assistant"): # Re-open the chat message context
-            reply_container.markdown(response)
+            # 4. Update the container with the actual response
+            bot_message_container.markdown(response)
 
-        # 5. Store assistant response
-        st.session_state.history.append(("bot", response))
+            # 5. Store assistant response AFTER the UI update
+            st.session_state.history.append(("bot", response))
 
-        # No need for st.rerun() here, as the state has been updated and Streamlit will handle the re-render.
+    # 6. Render the entire chat history AFTER processing the current input
+    render_chat_bubbles(st.session_state.history)
 
 # ========================================
 # 📅 Show Booking Form if Triggered

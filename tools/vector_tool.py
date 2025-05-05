@@ -3,6 +3,42 @@ from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 from utils.helpers import find_source_link
 
+HARDCODED_LINKS = {
+    "environment":     "https://sites.google.com/view/chez-govinda/environmental-commitment",
+    "rooms":           "https://sites.google.com/view/chez-govinda/rooms",
+    "breakfast":       "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+    "amenities":       "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+    "wellness":        "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+    "policy":          "https://sites.google.com/view/chez-govinda/policy",
+    "contactlocation": "https://sites.google.com/view/chez-govinda/contact-location"
+}
+
+def find_source_link(docs, relevant_keywords):
+    # 1. Look in document metadata
+    for doc in docs:
+        source = doc.metadata.get("source", "")
+        if source:
+            for keyword in relevant_keywords:
+                if keyword.lower() in source.lower():
+                    return source
+
+    # 2. Look inside content if needed
+    for doc in docs:
+        content = doc.page_content.lower()
+        source = doc.metadata.get("source", "")
+        if source:
+            for keyword in relevant_keywords:
+                if keyword.lower() in content:
+                    return source
+
+    # 3. Fallback to hardcoded links
+    for category, url in HARDCODED_LINKS.items():
+        if any(keyword.lower() in category for keyword in relevant_keywords):
+            return url
+
+    return None
+
+
 def vector_search(query):
     docs = vectorstore.similarity_search(query, k=30)
 
@@ -12,7 +48,7 @@ def vector_search(query):
     if all(len(doc.page_content.strip()) < 50 for doc in docs):
         return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
 
-    # Deduplicate documents
+    # Deduplicate docs
     seen = set()
     unique_docs = []
     for doc in docs:
@@ -22,7 +58,7 @@ def vector_search(query):
             seen.add(snippet)
     docs = unique_docs
 
-    # Boost sustainability-related documents
+    # Prioritize green content if query suggests it
     boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
     if any(term in query.lower() for term in boost_terms):
         docs = sorted(
@@ -49,15 +85,14 @@ User: {question}
     context = "\n\n".join(doc.page_content for doc in docs)
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
-    # Attempt to provide a direct source link from the most relevant document
+    # Try showing a link from the top result
     if docs:
-        most_relevant_doc = docs[0]
-        source_url = most_relevant_doc.metadata.get("source")
+        source_url = docs[0].metadata.get("source")
         if source_url:
             final_answer += f"\n\n📖 You can find more details on this topic at: {source_url}"
             return final_answer
 
-    # Fallback to keyword-based search with prioritized categories
+    # Fallback: category-based links
     link_map = {
         "environment": (
             ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
@@ -89,7 +124,6 @@ User: {question}
         )
     }
 
-    # Define the priority order for categories
     priority = ["environment", "rooms", "breakfast", "amenities", "wellness", "policy", "contactlocation"]
 
     for category in priority:
@@ -100,6 +134,7 @@ User: {question}
             break
 
     return final_answer
+
 
 vector_tool = Tool(
     name="vector",

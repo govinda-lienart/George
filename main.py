@@ -11,7 +11,7 @@ from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 
 from utils.config import llm
-from chat_ui import render_header, render_chat_bubbles
+from chat_ui import render_header # Assuming this only renders the header
 from booking.calendar import render_booking_form
 
 # ========================================
@@ -131,29 +131,38 @@ agent = initialize_agent(
 # ========================================
 # 💬 George the Assistant (chatbot)
 # ========================================
+def render_chat_bubbles(history):
+    for role, message in history:
+        with st.chat_message(role):
+            st.markdown(message)
+
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
 
-    user_input = st.chat_input("Ask about availability, bookings, or anything else...")
+    user_input = st.chat_input("Ask about availability, bookings, or anything else...", key="user_chat_input")
+
     if user_input:
-        # 1. Append user's message immediately
+        # Append user's message immediately
         st.session_state.history.append(("user", user_input))
 
-        # 2. Create an empty container for the entire bot message area
+        # Clear the input field after processing
+        st.session_state["user_chat_input"] = ""
+
+        # Create an empty container for the entire bot message area
         with st.chat_message("assistant"):
             bot_message_container = st.empty()
             bot_message_container.markdown("⏳ George is replying...")
 
-            # 3. Run the agent and get the response
+            # Run the agent and get the response
             response = agent.run(user_input)
 
-            # 4. Update the container with the actual response
+            # Update the container with the actual response
             bot_message_container.markdown(response)
 
-            # 5. Store assistant response AFTER the UI update
+            # Store assistant response AFTER the UI update
             st.session_state.history.append(("bot", response))
 
-    # 6. Render the entire chat history AFTER processing the current input
+    # Render the entire chat history AFTER processing the current input
     render_chat_bubbles(st.session_state.history)
 
 # ========================================

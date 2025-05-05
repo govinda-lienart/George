@@ -65,11 +65,8 @@ User: {question}
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
     # ----------------------------------------
-    # 🔗 Add best-matching source as fixed URL
+    # 🔗 Add the most relevant page link
     # ----------------------------------------
-    top_doc = docs[0]
-    top_source = top_doc.metadata.get("source", "")
-
     friendly_names = {
         "policy": "Hotel Policies page",
         "rooms": "Rooms page",
@@ -90,10 +87,20 @@ User: {question}
         "home": "https://sites.google.com/view/chez-govinda/home"
     }
 
-    for key, name in friendly_names.items():
-        if key in top_source:
-            final_answer += f"\n\n🔗 You can read more on our [{name}]({link_map[key]})."
+    matched_key = None
+    for doc in docs:
+        source = doc.metadata.get("source", "")
+        for key in friendly_names:
+            if key in source:
+                matched_key = key
+                break
+        if matched_key:
             break
+
+    if matched_key:
+        name = friendly_names[matched_key]
+        url = link_map[matched_key]
+        final_answer += f"\n\n🔗 You can read more on our [{name}]({url})."
 
     return final_answer
 

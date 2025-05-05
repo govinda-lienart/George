@@ -16,27 +16,21 @@ from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles
 from booking.calendar import render_booking_form
 
-# ===============================
-# 🔁 Load .env for local fallback
-# ===============================
+# Load .env for fallback
 load_dotenv()
 
-# ✅ Smart getter: streamlit secrets or fallback
+# Smart secret fetcher
 def get_secret(key, default=None):
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
 
-# ===============================
-# ⚙️ Streamlit page setup
-# ===============================
+# Set page
 st.set_page_config(page_title="Chez Govinda – AI Hotel Assistant", page_icon="🏨")
 render_header()
 
-# ===============================
-# 🧠 Developer Tools in sidebar
-# ===============================
+# Sidebar dev toggle
 with st.sidebar:
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
@@ -44,9 +38,7 @@ with st.sidebar:
         value=st.session_state.get("show_sql_panel", False)
     )
 
-# ===============================
-# 🔍 SQL Panel
-# ===============================
+# SQL Panel
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
 
@@ -63,11 +55,13 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
-            st.subheader("🔍 Debug: Connection Info")
-            st.code(f"host = {get_secret('DB_HOST_READ_ONLY')}\nuser = {get_secret('DB_USERNAME_READ_ONLY')}")
-
+            st.subheader("🔍 Debug: Database Connection Settings")
+            st.code(f"""
+port    = {get_secret('DB_PORT_READ_ONLY')}
+user    = {get_secret('DB_USERNAME_READ_ONLY')}
+""")
             with status_container:
-                st.write("🔐 Connecting...")
+                st.write("🔐 Connecting to database...")
 
             conn = mysql.connector.connect(
                 host=get_secret("DB_HOST_READ_ONLY"),
@@ -93,7 +87,7 @@ if st.session_state.show_sql_panel:
         except Exception as e:
             import traceback
             with status_container:
-                st.error("❌ Query failed:")
+                st.error("❌ Connection failed:")
                 st.code(traceback.format_exc())
 
         finally:
@@ -105,21 +99,14 @@ if st.session_state.show_sql_panel:
                         st.info("🔌 Connection closed.")
             except Exception as close_err:
                 with status_container:
-                    st.warning(f"⚠️ Close failed:\n\n{close_err}")
+                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
-# ===============================
-# 💬 Chatbot section
-# ===============================
+# LangChain Agent
 if "history" not in st.session_state:
-    st.session_state.history = [("bot", "How may I assist you today?")]
+    st.session_state.history = [("bot", "👋 How may I assist you today?")]
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
-if "booking_success" not in st.session_state:
-    st.session_state.booking_success = False
-if "booking_result" not in st.session_state:
-    st.session_state.booking_result = None
 
-# ✅ Init LangChain Agent
 agent = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
@@ -127,45 +114,22 @@ agent = initialize_agent(
     verbose=True
 )
 
-# ✅ Render chat + form
+# Main Chat Interface
 if not st.session_state.show_sql_panel:
-
-    # 🗨️ Chat history
     render_chat_bubbles(st.session_state.history)
 
-    # 📅 If booking triggered
-    if st.session_state.booking_mode:
-        render_booking_form()
-
-        # 📨 Add confirmation to chat
-        if st.session_state.booking_success and st.session_state.booking_result:
-            result = st.session_state.booking_result
-            confirmation = (
-                f"✅ **Booking confirmed!**\n\n"
-                f"**Booking Number:** {result['booking_number']}\n"
-                f"**Room Type:** {result['room_type']}\n"
-                f"**Guests:** {result['num_guests']}\n"
-                f"**Total Price:** €{result['total_price']}\n\n"
-                f"A confirmation email has been sent to {result['email']}."
-            )
-            st.session_state.history.append(("bot", confirmation))
-            st.session_state.booking_success = False
-            st.session_state.booking_result = None
-            st.rerun()
-
-    # 💬 Input
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
     if user_input:
         st.session_state.history.append(("user", user_input))
-        render_chat_bubbles(st.session_state.history)
 
-        # ⏳ Show temporary placeholder
+        # Assistant 'thinking...'
         with st.chat_message("assistant"):
-            st.markdown("⏳ Thinking...")
+            msg_placeholder = st.empty()
+            msg_placeholder.markdown("⏳ George is replying...")
 
-        # 🤖 Run agent
-        response = agent.run(user_input)
+            try:
+                response = agent.run(user_input)
+            except Exception as e:
+                response = f"⚠️ An error occurred: `{str(e)}`"
 
-        # 💬 Add reply to history
-        st.session_state.history.append(("bot", response))
-        st.rerun()
+            msg_placeholder.markdown(response)

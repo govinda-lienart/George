@@ -135,6 +135,7 @@ agent_executor = initialize_agent(
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
     verbose=True,
+    max_iterations=1,  # <- Force only one Thought > Action > Observation loop
     agent_kwargs={
         "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
 

@@ -11,6 +11,9 @@ from utils.config import llm, vectorstore
 # 🔗 Helper: Find Source Link by Keyword
 # ========================================
 def find_source_link(docs, keyword):
+    """
+    Return the first source URL in the docs that includes the given keyword.
+    """
     for doc in docs:
         source = doc.metadata.get("source", "")
         if keyword.lower() in source.lower():
@@ -75,7 +78,7 @@ User: {question}
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
     # ----------------------------------------
-    # 🔗 Add a relevant source link (via helper)
+    # 🔗 Friendly link names and hardcoded URLs
     # ----------------------------------------
     friendly_names = {
         "policy": "Hotel Policies page",
@@ -83,7 +86,7 @@ User: {question}
         "environmental-commitment": "Environmental Commitment page",
         "breakfast-guest-amenities": "Breakfast & Amenities page",
         "contactlocation": "Contact & Location page",
-        "enviroment": "Environmental Info page",  # typo retained
+        "enviroment": "Environmental Info page",
         "home": "homepage"
     }
 
@@ -97,10 +100,15 @@ User: {question}
         "home": "https://sites.google.com/view/chez-govinda/home"
     }
 
-    # Prioritized matching
+    # ----------------------------------------
+    # 🧠 Try to find the most relevant link
+    # ----------------------------------------
     matched_key = None
     for key in friendly_names:
-        if find_source_link(docs, key):
+        found = find_source_link(docs, key)
+        print(f"🔍 Checking for '{key}' → {found}")  # Debug output
+
+        if found:
             matched_key = key
             break
 
@@ -108,6 +116,8 @@ User: {question}
         name = friendly_names[matched_key]
         url = link_map[matched_key]
         final_answer += f"\n\n🔗 You can read more on our [{name}]({url})."
+    else:
+        print("⚠️ No matching link found in top documents.")
 
     return final_answer
 

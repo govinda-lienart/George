@@ -1,5 +1,3 @@
-# update
-
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -118,8 +116,10 @@ user    = {get_secret('DB_USERNAME_READ_ONLY')}
 # ========================================
 if "history" not in st.session_state:
     st.session_state.history = []
+
 if "chat_summary" not in st.session_state:
     st.session_state.chat_summary = ""
+
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
@@ -136,28 +136,29 @@ agent = initialize_agent(
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
 
-    # Display chat history first
+    # 👋 Show George's greeting on first visit
+    if not st.session_state.history:
+        st.session_state.history.append((
+            "bot",
+            "👋 Hello, I’m George, your AI receptionist. How can I help you today?"
+        ))
+
+    # Show chat history
     render_chat_bubbles(st.session_state.history)
 
+    # Handle user input
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
     if user_input:
-        # 1. Append user's message immediately
         st.session_state.history.append(("user", user_input))
         render_chat_bubbles(st.session_state.history)
 
-        # 2. Display "George is replying..." temporarily
         with st.chat_message("assistant"):
             st.markdown("⏳ George is replying...")
 
-        # 3. Run the agent
         response = agent.run(user_input)
 
-        # 4. Store assistant response
         st.session_state.history.append(("bot", response))
-
-        # 5. Rerun to show response
         st.rerun()
-
 
 # ========================================
 # 📅 Show Booking Form if Triggered

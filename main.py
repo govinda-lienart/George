@@ -1,5 +1,3 @@
-#main.py change
-
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -65,6 +63,13 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
+            # 🔎 DEBUG: Print connection info (not password)
+            st.subheader("🔍 Debug: Database Connection Settings")
+            st.code(f"""
+port    = {get_secret('DB_PORT_READ_ONLY')}
+user    = {get_secret('DB_USERNAME_READ_ONLY')}
+            """)
+
             with status_container:
                 st.write("🔐 Connecting to database...")
 
@@ -75,6 +80,7 @@ if st.session_state.show_sql_panel:
                 password=get_secret("DB_PASSWORD_READ_ONLY"),
                 database=get_secret("DB_DATABASE_READ_ONLY")
             )
+
             with status_container:
                 st.success("✅ Connected to MySQL!")
 
@@ -127,25 +133,29 @@ agent = initialize_agent(
 # ========================================
 if not st.session_state.show_sql_panel:
     st.markdown("### 💬 George the Assistant")
+
+    # Display chat history first
+    render_chat_bubbles(st.session_state.history)
+
     user_input = st.chat_input("Ask about availability, bookings, or anything else...")
-
     if user_input:
+        # 1. Append user's message immediately
         st.session_state.history.append(("user", user_input))
+        render_chat_bubbles(st.session_state.history)
 
-        response_placeholder = st.empty()
-        with response_placeholder.container():
-            with st.chat_message("assistant"):
-                st.markdown("⏳ George is replying...")
+        # 2. Display "George is replying..." temporarily
+        with st.chat_message("assistant"):
+            st.markdown("⏳ George is replying...")
 
+        # 3. Run the agent
         response = agent.run(user_input)
-        response_placeholder.empty()
+
+        # 4. Store assistant response
         st.session_state.history.append(("bot", response))
 
-# ========================================
-# 💬 Display Chat History
-# ========================================
-if not st.session_state.show_sql_panel:
-    render_chat_bubbles(st.session_state.history)
+        # 5. Rerun to show response
+        st.rerun()
+
 
 # ========================================
 # 📅 Show Booking Form if Triggered

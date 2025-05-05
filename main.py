@@ -174,7 +174,7 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             with st.spinner("🤖 George is typing..."):
-                response = agent_executor.run(user_input)
+                response = agent_executor.run({"input": user_input})
 
         st.session_state.history.append(("bot", response))
         st.rerun()

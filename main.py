@@ -1,5 +1,3 @@
-#
-
 import streamlit as st
 from dotenv import load_dotenv
 import os
@@ -7,6 +5,7 @@ import pandas as pd
 import mysql.connector
 from PIL import Image
 from langchain.agents import initialize_agent, AgentType
+from langchain.callbacks import StreamlitCallbackHandler
 
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
@@ -132,11 +131,14 @@ if "chat_summary" not in st.session_state:
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
+# Initialize StreamlitCallbackHandler to capture intermediate steps
+streamlit_handler = StreamlitCallbackHandler(st.container())
+
 agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True,
+    verbose=True,  # Ensure verbose mode is enabled
     agent_kwargs={
         "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
 
@@ -153,7 +155,8 @@ If a user asks a question unrelated to the hotel, kindly respond with something 
 
 Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
 """
-    }
+    },
+    callbacks=[streamlit_handler] # Pass the callback handler to the agent
 )
 
 # ========================================
@@ -175,7 +178,7 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            with st.spinner("🤖 George is typing..."):
+            with st.spinner("🤖 George is thinking..."):
                 response = agent_executor.run(user_input)
 
         st.session_state.history.append(("bot", response))

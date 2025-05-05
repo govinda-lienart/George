@@ -98,4 +98,4 @@ vector_tool = Tool(
     description="Hotel details and policies."
 )
 
-)
+

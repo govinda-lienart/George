@@ -145,9 +145,6 @@ if not st.session_state.show_sql_panel:
         # Append user's message immediately
         st.session_state.history.append(("user", user_input))
 
-        # Clear the input field after processing
-        st.session_state["user_chat_input"] = ""
-
         # Create an empty container for the entire bot message area
         with st.chat_message("assistant"):
             bot_message_container = st.empty()
@@ -161,6 +158,9 @@ if not st.session_state.show_sql_panel:
 
             # Store assistant response AFTER the UI update
             st.session_state.history.append(("bot", response))
+
+        # Clear the input field after processing
+        st.session_state["user_chat_input"] = ""
 
     # Render the entire chat history AFTER processing the current input
     render_chat_bubbles(st.session_state.history)

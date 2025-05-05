@@ -73,7 +73,7 @@ User: {question}
         "environmental-commitment": "Environmental Commitment page",
         "breakfast-guest-amenities": "Breakfast & Amenities page",
         "contactlocation": "Contact & Location page",
-        "enviroment": "Environmental Info page",
+        "enviroment": "Environmental Info page",  # typo retained
         "home": "homepage"
     }
 
@@ -88,13 +88,25 @@ User: {question}
     }
 
     # ----------------------------------------
-    # ✅ Match using explicit metadata["page"]
+    # ✅ Match using "page" OR fallback to source URL
     # ----------------------------------------
     matched_key = None
     for doc in docs:
-        page_key = doc.metadata.get("page", "")
-        if page_key in friendly_names:
+        page_key = doc.metadata.get("page")
+        source_url = doc.metadata.get("source", "")
+
+        # Prefer explicit page key if available
+        if page_key and page_key in friendly_names:
             matched_key = page_key
+            break
+
+        # Fallback to URL substring match
+        for key in friendly_names:
+            if key in source_url:
+                matched_key = key
+                break
+
+        if matched_key:
             break
 
     if matched_key:

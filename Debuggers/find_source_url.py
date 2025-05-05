@@ -14,58 +14,35 @@ if not os.getenv("PINECONE_API_KEY") or not os.getenv("PINECONE_ENVIRONMENT"):
 # Pinecone index name
 INDEX_NAME = "george"
 
-# Initialize Pinecone and OpenAI
+# Initialize embeddings and Pinecone client
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-
-# Initialize Pinecone client
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 
-def find_source_link(docs, keyword):
-    policy_keywords = ["policy", "policies", "rules", "terms", "conditions", "pet-policy", "pets"]
-    if keyword == "policy":
-        for doc in docs:
-            source = doc["metadata"].get("source", "")  # Access metadata with ["metadata"]
-            if source and any(pk.lower() in source.lower() for pk in policy_keywords):
-                return source
-    else:
-        for doc in docs:
-            source = doc["metadata"].get("source", "")  # Access metadata with ["metadata"]
-            if source and keyword.lower() in source.lower():
-                return source
-    return None
-
-def retrieve_and_test(query):
-    print(f"Query: {query}")
+def retrieve_and_show_chunks(query):
+    print(f"\n=== Query: {query} ===")
 
     try:
-        # Connect to Pinecone and fetch relevant documents
-        index = pc.Index(INDEX_NAME)  # Get the index
-        vectorstore = PineconeVectorStore(
-            index=index,  # Pass the index object
-            embedding=embeddings
-        )
-        docs_and_scores = vectorstore.similarity_search_with_score(query, k=10)  # Get top 10 results
-        docs = [doc.page_content for doc, _ in docs_and_scores]  # Extract the content
-        metadatas = [doc.metadata for doc, _ in docs_and_scores]  # Extract the metadatas
+        index = pc.Index(INDEX_NAME)
+        vectorstore = PineconeVectorStore(index=index, embedding=embeddings)
 
-        # Combine content and metadata for find_source_link compatibility
-        combined_docs = [{"page_content": docs[i], "metadata": metadatas[i]} for i in range(len(docs))]
+        # Retrieve top 5 documents
+        docs_and_scores = vectorstore.similarity_search_with_score(query, k=5)
 
-        policy_link = find_source_link(combined_docs, "policy")
-
-        if policy_link:
-            print(f"Found policy link: {policy_link}")
-        else:
-            print("No policy link found.")
+        for i, (doc, score) in enumerate(docs_and_scores, start=1):
+            print(f"\n--- Result {i} (score: {score:.4f}) ---")
+            print("Chunk content:\n", doc.page_content.strip())
+            print("Source:", doc.metadata.get("source", "No source found"))
 
     except Exception as e:
-        print(f"Error retrieving data from Pinecone: {e}")
+        print(f"Error: {e}")
 
-# Test cases
-retrieve_and_test("what is the dog policy?")
-retrieve_and_test("hotel policy")
-retrieve_and_test("dog allowed in room")
-retrieve_and_test("check-in policy")
+# Test queries
+queries = [
+    "what time is breakfast served?",
+    "can I take my pet into my room?",
+    "what amenities exist to do yoga?",
+    "what is the address of the hotel?"
+]
 
-# No need to deinit, the pc instance will be garbage collected.
-# pinecone.deinit()
+for q in queries:
+    retrieve_and_show_chunks(q)

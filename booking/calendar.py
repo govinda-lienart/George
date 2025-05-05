@@ -162,7 +162,7 @@ def render_booking_form():
                 f"A confirmation email has been sent to {email}."
             )
             st.session_state.booking_mode = False
-            st.experimental_rerun()
+            st.experimental_rerun()  # ✅ Last line after success
         else:
             st.error(f"❌ Booking failed: {result}")
 

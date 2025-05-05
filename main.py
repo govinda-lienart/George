@@ -154,7 +154,7 @@ if not st.session_state.show_sql_panel:
         st.session_state.history.append(("bot", response))
 
         # 5. Rerun to show response
-        st.experimental_rerun()
+        st.rerun()
 
 # ========================================
 # 📅 Show Booking Form if Triggered

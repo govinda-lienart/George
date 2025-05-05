@@ -17,7 +17,7 @@ def render_page_config():
 def render_header():
     st.markdown(
         """
-        <h1 style='font-size: 2.2rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;'>
+        <h1 style='font-size: 1.5rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;'>
             🤖 George – Talk with our AI Hotel Receptionist
         </h1>
         """,

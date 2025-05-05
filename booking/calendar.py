@@ -161,6 +161,8 @@ def render_booking_form():
                 f"**Total Price:** €{total_price}\n\n"
                 f"A confirmation email has been sent to {email}."
             )
+            st.session_state.booking_mode = False
+            st.experimental_rerun()
         else:
             st.error(f"❌ Booking failed: {result}")
 

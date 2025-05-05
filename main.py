@@ -11,7 +11,7 @@ from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 
 from utils.config import llm
-from chat_ui import render_header, render_chat_bubbles
+from chat_ui import render_page_config, render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
 # ========================================
@@ -31,7 +31,7 @@ def get_secret(key, default=None):
 # ========================================
 # ⚙️ Streamlit page config
 # ========================================
-st.set_page_config(page_title="Chez Govinda – AI Hotel Assistant", page_icon="🏨")
+render_page_config()
 render_header()
 
 # ========================================
@@ -63,53 +63,28 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
-            # 🔎 DEBUG: Print connection info (not password)
-            st.subheader("🔍 Debug: Database Connection Settings")
-            st.code(f"""
-port    = {get_secret('DB_PORT_READ_ONLY')}
-user    = {get_secret('DB_USERNAME_READ_ONLY')}
-            """)
-
-            with status_container:
-                st.write("🔐 Connecting to database...")
-
             conn = mysql.connector.connect(
-                host=get_secret("DB_HOST_READ_ONLY"),
-                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
-                user=get_secret("DB_USERNAME_READ_ONLY"),
-                password=get_secret("DB_PASSWORD_READ_ONLY"),
-                database=get_secret("DB_DATABASE_READ_ONLY")
+                host=get_secret("DB_HOST"),
+                user=get_secret("DB_USER"),
+                password=get_secret("DB_PASSWORD"),
+                database=get_secret("DB_NAME")
             )
-
-            with status_container:
-                st.success("✅ Connected to MySQL!")
-
             cursor = conn.cursor()
             cursor.execute(sql_input)
             rows = cursor.fetchall()
-            col_names = [desc[0] for desc in cursor.description]
+            columns = [desc[0] for desc in cursor.description]
 
-            with result_container:
-                df = pd.DataFrame(rows, columns=col_names)
-                st.dataframe(df, use_container_width=True)
-                st.caption(f"Columns: {col_names}")
+            df = pd.DataFrame(rows, columns=columns)
+            result_container.dataframe(df)
 
-        except Exception as e:
-            import traceback
+            cursor.close()
+            conn.close()
             with status_container:
-                st.error("❌ Connection failed:")
-                st.code(traceback.format_exc())
+                st.info("🔌 Connection closed.")
 
-        finally:
-            try:
-                if 'conn' in locals() and conn.is_connected():
-                    cursor.close()
-                    conn.close()
-                    with status_container:
-                        st.info("🔌 Connection closed.")
-            except Exception as close_err:
-                with status_container:
-                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
+        except Exception as close_err:
+            with status_container:
+                st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
 # ========================================
 # 🤖 LangChain Agent Setup
@@ -147,7 +122,7 @@ if not st.session_state.show_sql_panel:
     render_chat_bubbles(st.session_state.history)
 
     # Handle user input
-    user_input = st.chat_input("Ask about availability, bookings, or anything else...")
+    user_input = get_user_input()
     if user_input:
         st.session_state.history.append(("user", user_input))
         render_chat_bubbles(st.session_state.history)

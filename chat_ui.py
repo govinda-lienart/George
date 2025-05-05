@@ -1,4 +1,4 @@
-# chat_ui.py
+# update chat_ui.py
 import streamlit as st
 
 def render_header():

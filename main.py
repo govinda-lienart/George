@@ -133,7 +133,7 @@ if "booking_mode" not in st.session_state:
 agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
-    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    agent=AgentType.CHAT_CONVERSATIONAL_REACT_DESCRIPTION,
     verbose=True,
     agent_kwargs={
         "system_message": """You are George, the friendly AI receptionist at Chez Govinda.

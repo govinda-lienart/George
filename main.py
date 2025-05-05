@@ -63,28 +63,46 @@ if st.session_state.show_sql_panel:
 
     if run_query:
         try:
+            with status_container:
+                st.write("🔐 Connecting to database...")
+
             conn = mysql.connector.connect(
-                host=get_secret("DB_HOST"),
-                user=get_secret("DB_USER"),
-                password=get_secret("DB_PASSWORD"),
-                database=get_secret("DB_NAME")
+                host=get_secret("DB_HOST_READ_ONLY"),
+                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
+                user=get_secret("DB_USERNAME_READ_ONLY"),
+                password=get_secret("DB_PASSWORD_READ_ONLY"),
+                database=get_secret("DB_DATABASE_READ_ONLY")
             )
+            with status_container:
+                st.success("✅ Connected to MySQL!")
+
             cursor = conn.cursor()
             cursor.execute(sql_input)
             rows = cursor.fetchall()
-            columns = [desc[0] for desc in cursor.description]
+            col_names = [desc[0] for desc in cursor.description]
 
-            df = pd.DataFrame(rows, columns=columns)
-            result_container.dataframe(df)
+            with result_container:
+                df = pd.DataFrame(rows, columns=col_names)
+                st.dataframe(df, use_container_width=True)
+                st.caption(f"Columns: {col_names}")
 
-            cursor.close()
-            conn.close()
+        except Exception as e:
+            import traceback
             with status_container:
-                st.info("🔌 Connection closed.")
+                st.error("❌ Connection failed:")
+                st.code(traceback.format_exc())
 
-        except Exception as close_err:
-            with status_container:
-                st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
+        finally:
+            try:
+                if 'conn' in locals() and conn.is_connected():
+                    cursor.close()
+                    conn.close()
+                    with status_container:
+                        st.info("🔌 Connection closed.")
+            except Exception as close_err:
+                with status_container:
+                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
+
 
 # ========================================
 # 🤖 LangChain Agent Setup

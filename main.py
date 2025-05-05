@@ -44,11 +44,9 @@ render_header()
 # 🧠 Developer Tools Toggle + Logo
 # ========================================
 with st.sidebar:
-    # ✅ Display logo from assets folder
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
 
-    # 🛠️ Developer tools toggle
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
@@ -156,23 +154,19 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
     }
 )
 
-
 # ========================================
 # 💬 George the Assistant (chatbot)
 # ========================================
 if not st.session_state.show_sql_panel:
 
-    # Show George's greeting on first visit
     if not st.session_state.history:
         st.session_state.history.append((
             "bot",
             "👋 Hello, I’m George. How can I help you today?"
         ))
 
-    # Show chat history
     render_chat_bubbles(st.session_state.history)
 
-    # Handle user input
     user_input = get_user_input()
     if user_input:
         st.session_state.history.append(("user", user_input))
@@ -180,7 +174,7 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             with st.spinner("🤖 George is typing..."):
-                response = agent.run(user_input)
+                response = agent_executor.run(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()

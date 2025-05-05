@@ -156,6 +156,7 @@ if not st.session_state.show_sql_panel:
         # 5. Rerun to show response
         st.rerun()
 
+
 # ========================================
 # 📅 Show Booking Form if Triggered
 # ========================================

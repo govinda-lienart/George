@@ -4,6 +4,8 @@ import os
 import pandas as pd
 import mysql.connector
 from PIL import Image
+import time
+
 from langchain.agents import initialize_agent, AgentType
 
 from tools.sql_tool import sql_tool
@@ -161,8 +163,17 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            with st.spinner("🤖 George is typing..."):
-                response = agent.run(user_input)
+            typing_placeholder = st.empty()
+
+            # Simulate animated typing
+            for i in range(6):  # ~3 seconds
+                dots = "." * (i % 4)
+                typing_placeholder.markdown(f"🤖 George is typing{dots}")
+                time.sleep(0.5)
+
+            # Run the agent and show result
+            response = agent.run(user_input)
+            typing_placeholder.markdown(response)
 
         st.session_state.history.append(("bot", response))
         st.rerun()

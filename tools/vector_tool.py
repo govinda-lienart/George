@@ -14,7 +14,6 @@ HARDCODED_LINKS = {
 }
 
 def find_source_link(docs, relevant_keywords):
-    # 1. Look in document metadata
     for doc in docs:
         source = doc.metadata.get("source", "")
         if source:
@@ -22,16 +21,13 @@ def find_source_link(docs, relevant_keywords):
                 if keyword.lower() in source.lower():
                     return source
 
-    # 2. Look inside content if needed
     for doc in docs:
-        content = doc.page_content.lower()
         source = doc.metadata.get("source", "")
-        if source:
-            for keyword in relevant_keywords:
-                if keyword.lower() in content:
-                    return source
+        content = doc.page_content.lower()
+        for keyword in relevant_keywords:
+            if keyword.lower() in content and source:
+                return source
 
-    # 3. Fallback to hardcoded links
     for category, url in HARDCODED_LINKS.items():
         if any(keyword.lower() in category for keyword in relevant_keywords):
             return url
@@ -48,7 +44,7 @@ def vector_search(query):
     if all(len(doc.page_content.strip()) < 50 for doc in docs):
         return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
 
-    # Deduplicate docs
+    # Deduplicate
     seen = set()
     unique_docs = []
     for doc in docs:
@@ -58,7 +54,7 @@ def vector_search(query):
             seen.add(snippet)
     docs = unique_docs
 
-    # Prioritize green content if query suggests it
+    # Boost sustainability
     boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
     if any(term in query.lower() for term in boost_terms):
         docs = sorted(
@@ -85,14 +81,7 @@ User: {question}
     context = "\n\n".join(doc.page_content for doc in docs)
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
-    # Try showing a link from the top result
-    if docs:
-        source_url = docs[0].metadata.get("source")
-        if source_url:
-            final_answer += f"\n\n📖 You can find more details on this topic at: {source_url}"
-            return final_answer
-
-    # Fallback: category-based links
+    # Always try to find a relevant link
     link_map = {
         "environment": (
             ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
@@ -126,12 +115,18 @@ User: {question}
 
     priority = ["environment", "rooms", "breakfast", "amenities", "wellness", "policy", "contactlocation"]
 
-    for category in priority:
-        keywords, template = link_map[category]
-        link = find_source_link(docs, keywords)
-        if link:
-            final_answer += f"\n\n{template.format(link=link)}"
-            break
+    # Try metadata source from top doc
+    source_url = docs[0].metadata.get("source")
+    if not source_url:
+        # If not available, try keyword-based lookup
+        for category in priority:
+            keywords, _ = link_map[category]
+            source_url = find_source_link(docs, keywords)
+            if source_url:
+                break
+
+    if source_url:
+        final_answer += f"\n\n📖 You can find more details on this topic at: {source_url}"
 
     return final_answer
 

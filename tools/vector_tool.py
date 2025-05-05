@@ -8,6 +8,16 @@ from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 
 # ========================================
+# 🔗 Helper: Find Source Link by Keyword
+# ========================================
+def find_source_link(docs, keyword):
+    for doc in docs:
+        source = doc.metadata.get("source", "")
+        if keyword.lower() in source.lower():
+            return source
+    return None
+
+# ========================================
 # 🤖 Vector Search Function for George
 # ========================================
 def vector_search(query):
@@ -65,7 +75,7 @@ User: {question}
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
     # ----------------------------------------
-    # 🔗 Link map and friendly names
+    # 🔗 Add a relevant source link (via helper)
     # ----------------------------------------
     friendly_names = {
         "policy": "Hotel Policies page",
@@ -87,26 +97,11 @@ User: {question}
         "home": "https://sites.google.com/view/chez-govinda/home"
     }
 
-    # ----------------------------------------
-    # ✅ Match using "page" OR fallback to source URL
-    # ----------------------------------------
+    # Prioritized matching
     matched_key = None
-    for doc in docs:
-        page_key = doc.metadata.get("page")
-        source_url = doc.metadata.get("source", "")
-
-        # Prefer explicit page key if available
-        if page_key and page_key in friendly_names:
-            matched_key = page_key
-            break
-
-        # Fallback to URL substring match
-        for key in friendly_names:
-            if key in source_url:
-                matched_key = key
-                break
-
-        if matched_key:
+    for key in friendly_names:
+        if find_source_link(docs, key):
+            matched_key = key
             break
 
     if matched_key:

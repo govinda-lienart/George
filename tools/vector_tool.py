@@ -3,21 +3,22 @@
 # ========================================
 # 📦 Imports
 # ========================================
+import os
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 
 # ========================================
-# 🔗 Helper: Find Source Link by Keyword
+# 🔗 Helper: Match by 'page' field
 # ========================================
-def find_source_link(docs, keyword):
+def find_page_link(docs, keyword):
     """
-    Return the first source URL in the docs that includes the given keyword.
+    Return the first source URL where metadata['page'] matches the keyword.
     """
     for doc in docs:
-        source = doc.metadata.get("source", "")
-        if keyword.lower() in source.lower():
-            return source
+        page = doc.metadata.get("page", "").lower()
+        if page == keyword.lower():
+            return doc.metadata.get("source", "")
     return None
 
 # ========================================
@@ -78,7 +79,7 @@ User: {question}
     final_answer = (prompt | llm).invoke({"context": context, "question": query}).content.strip()
 
     # ----------------------------------------
-    # 🔗 Friendly link names and hardcoded URLs
+    # 🔗 Friendly names and final links
     # ----------------------------------------
     friendly_names = {
         "policy": "Hotel Policies page",
@@ -86,7 +87,7 @@ User: {question}
         "environmental-commitment": "Environmental Commitment page",
         "breakfast-guest-amenities": "Breakfast & Amenities page",
         "contactlocation": "Contact & Location page",
-        "enviroment": "Environmental Info page",
+        "enviroment": "Environmental Info page",  # spelling kept as-is
         "home": "homepage"
     }
 
@@ -101,14 +102,14 @@ User: {question}
     }
 
     # ----------------------------------------
-    # 🧠 Try to find the most relevant link
+    # 🧠 Find matching page from metadata
     # ----------------------------------------
     matched_key = None
     for key in friendly_names:
-        found = find_source_link(docs, key)
-        print(f"🔍 Checking for '{key}' → {found}")  # Debug output
-
-        if found:
+        source_url = find_page_link(docs, key)
+        if os.getenv("DEBUG", "false").lower() == "true":
+            print(f"🔍 Looking for page='{key}' → {source_url}")
+        if source_url:
             matched_key = key
             break
 
@@ -117,7 +118,8 @@ User: {question}
         url = link_map[matched_key]
         final_answer += f"\n\n🔗 You can read more on our [{name}]({url})."
     else:
-        print("⚠️ No matching link found in top documents.")
+        # Optional fallback
+        final_answer += f"\n\n📍 You can start from our [homepage]({link_map['home']})."
 
     return final_answer
 

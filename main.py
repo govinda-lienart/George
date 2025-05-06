@@ -84,6 +84,12 @@ with st.sidebar:
         result = test_langsmith_trace()
         st.success(f"LangSmith test: {result}")
 
+    # 🔍 LangSmith debug info
+    st.markdown("### 🔍 LangSmith Debug")
+    st.text(f"Project: {os.environ.get('LANGSMITH_PROJECT')}")
+    st.text(f"Tracing: {os.environ.get('LANGSMITH_TRACING')}")
+    st.text(f"API Key Set: {'✅' if os.environ.get('LANGSMITH_API_KEY') else '❌'}")
+
 # ========================================
 # 🔍 SQL Query Panel
 # ========================================

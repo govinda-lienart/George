@@ -44,19 +44,6 @@ from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
 # ========================================
-# ✅ LangSmith test function with real LLM call
-# ========================================
-@traceable(name="langsmith_test_trace", run_type="chain")
-def test_langsmith_trace():
-    return llm.invoke("Just say hi to LangSmith.")
-
-# ========================================
-# ✅ Manually traced LangSmith wrapper for chatbot
-@traceable(name="chez_govinda_chat_trace", run_type="chain")
-def get_agent_response(user_input):
-    return agent_executor.run(user_input)
-
-# ========================================
 # ⚙️ Streamlit page config
 # ========================================
 st.set_page_config(
@@ -66,6 +53,17 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 render_header()
+
+# ========================================
+# ✅ LangSmith Manual Trace Function
+# ========================================
+@traceable(name="streamlit_trace_test", run_type="chain", tags=["manual", "test"])
+def trace_test_info():
+    return {"status": "✅ Streamlit is tracing properly", "user": "Govinda", "test": True}
+
+@traceable(name="langsmith_test_trace", run_type="chain")
+def test_langsmith_trace():
+    return llm.invoke("Just say hi to LangSmith.", config={"metadata": {"project_name": "George"}})
 
 # ========================================
 # 🧠 Developer Tools Sidebar
@@ -80,11 +78,14 @@ with st.sidebar:
         value=st.session_state.get("show_sql_panel", False)
     )
 
-    if st.button("🧪 Test LangSmith"):
+    if st.button("🧪 Test LangSmith (LLM)"):
         result = test_langsmith_trace()
         st.success(f"LangSmith test: {result}")
 
-    # 🔍 LangSmith debug info
+    if st.button("🧪 Send Trace Test Info"):
+        result = trace_test_info()
+        st.success(f"Traced: {result['status']}")
+
     st.markdown("### 🔍 LangSmith Debug")
     st.text(f"Project: {os.environ.get('LANGSMITH_PROJECT')}")
     st.text(f"Tracing: {os.environ.get('LANGSMITH_TRACING')}")
@@ -195,7 +196,7 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             with st.spinner("🤖 George is typing..."):
-                response = get_agent_response(user_input)
+                response = agent_executor.run(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()
@@ -207,6 +208,6 @@ if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# 🧹 Flush LangSmith traces
+# 🧹 Flush LangSmith traces (Streamlit Cloud safe)
 # ========================================
 wait_for_all_tracers()

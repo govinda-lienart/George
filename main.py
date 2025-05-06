@@ -1,4 +1,3 @@
-#
 import os
 import streamlit as st
 from dotenv import load_dotenv
@@ -14,12 +13,13 @@ os.environ["LANGSMITH_PROJECT"] = st.secrets.get("LANGSMITH_PROJECT", os.getenv(
 os.environ["OPENAI_API_KEY"] = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
 
 # ========================================
-# 🧠  import everything else
+# ✅ Imports after env is set
 # ========================================
 import pandas as pd
 import mysql.connector
 from PIL import Image
 from langchain.agents import initialize_agent, AgentType
+from langsmith import traceable  # <-- for manual tracing
 
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
@@ -165,6 +165,13 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
 )
 
 # ========================================
+# ✅ Manual LangSmith trace of agent interaction
+# ========================================
+@traceable(name="George Assistant Interaction", run_type="chain")
+def get_agent_response(user_input):
+    return agent_executor.run(user_input)
+
+# ========================================
 # 💬 George the Assistant (chatbot)
 # ========================================
 if not st.session_state.show_sql_panel:
@@ -184,7 +191,7 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             with st.spinner("🤖 George is typing..."):
-                response = agent_executor.run(user_input)
+                response = get_agent_response(user_input)
 
         st.session_state.history.append(("bot", response))
         st.rerun()
@@ -194,3 +201,9 @@ if not st.session_state.show_sql_panel:
 # ========================================
 if st.session_state.booking_mode:
     render_booking_form()
+
+# ========================================
+# ✅ Ensure all LangSmith traces are flushed (for serverless)
+# ========================================
+from langchain_core.tracers.langchain import wait_for_all_tracers
+wait_for_all_tracers()

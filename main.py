@@ -3,7 +3,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 # ========================================
-# 🧠 LangSmith + OpenAI config: Set before importing `llm`
+# 🧠 LangSmith + OpenAI config: Set before importing LangChain
 # ========================================
 load_dotenv()
 
@@ -19,7 +19,8 @@ import pandas as pd
 import mysql.connector
 from PIL import Image
 from langchain.agents import initialize_agent, AgentType
-from langsmith import traceable  # <-- for manual tracing
+from langsmith import traceable
+from langchain_core.tracers.langchain import wait_for_all_tracers  # ensures flushing in Streamlit
 
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
@@ -51,12 +52,11 @@ st.set_page_config(
 render_header()
 
 # ========================================
-# 🧠 Developer Tools Toggle + Logo
+# 🧠 Developer Tools Sidebar
 # ========================================
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
-
     st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
@@ -68,29 +68,20 @@ with st.sidebar:
 # ========================================
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
-
     sql_input = st.text_area(
         "🔍 Enter SQL query to run:",
         value="SELECT * FROM bookings LIMIT 10;",
         height=150,
         key="sql_input_box"
     )
-
     run_query = st.button("Run Query", key="run_query_button", type="primary")
     status_container = st.container()
     result_container = st.container()
 
     if run_query:
         try:
-            st.subheader("🔍 Debug: Database Connection Settings")
-            st.code(f"""
-port    = {get_secret('DB_PORT_READ_ONLY')}
-user    = {get_secret('DB_USERNAME_READ_ONLY')}
-            """)
-
             with status_container:
                 st.write("🔐 Connecting to database...")
-
             conn = mysql.connector.connect(
                 host=get_secret("DB_HOST_READ_ONLY"),
                 port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
@@ -98,20 +89,15 @@ user    = {get_secret('DB_USERNAME_READ_ONLY')}
                 password=get_secret("DB_PASSWORD_READ_ONLY"),
                 database=get_secret("DB_DATABASE_READ_ONLY")
             )
-
             with status_container:
                 st.success("✅ Connected to MySQL!")
-
             cursor = conn.cursor()
             cursor.execute(sql_input)
             rows = cursor.fetchall()
             col_names = [desc[0] for desc in cursor.description]
-
             with result_container:
                 df = pd.DataFrame(rows, columns=col_names)
                 st.dataframe(df, use_container_width=True)
-                st.caption(f"Columns: {col_names}")
-
         except Exception as e:
             import traceback
             with status_container:
@@ -133,10 +119,8 @@ user    = {get_secret('DB_USERNAME_READ_ONLY')}
 # ========================================
 if "history" not in st.session_state:
     st.session_state.history = []
-
 if "chat_summary" not in st.session_state:
     st.session_state.chat_summary = ""
-
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
@@ -165,10 +149,11 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
 )
 
 # ========================================
-# ✅ Manual LangSmith trace of agent interaction
+# ✅ Manual LangSmith trace
 # ========================================
-@traceable(name="George Assistant Interaction", run_type="chain")
+@traceable(name="chez_govinda_chat_trace", run_type="chain")
 def get_agent_response(user_input):
+    print(f"[LangSmith TRACE] user_input: {user_input}")  # for debug logs
     return agent_executor.run(user_input)
 
 # ========================================
@@ -183,8 +168,8 @@ if not st.session_state.show_sql_panel:
         ))
 
     render_chat_bubbles(st.session_state.history)
-
     user_input = get_user_input()
+
     if user_input:
         st.session_state.history.append(("user", user_input))
         render_chat_bubbles(st.session_state.history)
@@ -203,7 +188,6 @@ if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# ✅ Ensure all LangSmith traces are flushed (for serverless)
+# ✅ Flush LangSmith traces at end (important on Streamlit Cloud)
 # ========================================
-from langchain_core.tracers.langchain import wait_for_all_tracers
 wait_for_all_tracers()

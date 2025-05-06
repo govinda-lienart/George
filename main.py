@@ -44,18 +44,16 @@ from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
 # ========================================
-# ✅ LangSmith test function
+# ✅ LangSmith test function with real LLM call
 # ========================================
 @traceable(name="langsmith_test_trace", run_type="chain")
 def test_langsmith_trace():
-    return "✅ LangSmith test trace succeeded!"
+    return llm.invoke("Just say hi to LangSmith.")
 
 # ========================================
 # ✅ Manually traced LangSmith wrapper for chatbot
-# ========================================
 @traceable(name="chez_govinda_chat_trace", run_type="chain")
 def get_agent_response(user_input):
-    print(f"[LangSmith TRACE] User input: {user_input}")
     return agent_executor.run(user_input)
 
 # ========================================
@@ -84,7 +82,7 @@ with st.sidebar:
 
     if st.button("🧪 Test LangSmith"):
         result = test_langsmith_trace()
-        st.success(result)
+        st.success(f"LangSmith test: {result}")
 
 # ========================================
 # 🔍 SQL Query Panel
@@ -203,6 +201,6 @@ if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# 🧹 Flush LangSmith traces (Streamlit Cloud safe)
+# 🧹 Flush LangSmith traces
 # ========================================
 wait_for_all_tracers()

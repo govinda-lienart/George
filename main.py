@@ -1,8 +1,21 @@
 #
-
+import os
 import streamlit as st
 from dotenv import load_dotenv
-import os
+
+# ========================================
+# 🧠 LangSmith + OpenAI config: Set before importing `llm`
+# ========================================
+load_dotenv()
+
+os.environ["LANGSMITH_TRACING"] = st.secrets.get("LANGSMITH_TRACING", os.getenv("LANGSMITH_TRACING", "false"))
+os.environ["LANGSMITH_API_KEY"] = st.secrets.get("LANGSMITH_API_KEY", os.getenv("LANGSMITH_API_KEY", ""))
+os.environ["LANGSMITH_PROJECT"] = st.secrets.get("LANGSMITH_PROJECT", os.getenv("LANGSMITH_PROJECT", "George"))
+os.environ["OPENAI_API_KEY"] = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+
+# ========================================
+# 🧠  import everything else
+# ========================================
 import pandas as pd
 import mysql.connector
 from PIL import Image
@@ -16,20 +29,6 @@ from tools.booking_tool import booking_tool
 from utils.config import llm
 from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
-
-# ========================================
-# 🔁 Load .env for local fallback
-# ========================================
-load_dotenv()
-
-# ========================================
-# 🧠 Load LangSmith and OpenAI credentials
-# ========================================
-load_dotenv()  # Optional fallback for local
-
-os.environ["LANGSMITH_TRACING"] = st.secrets.get("LANGSMITH_TRACING", os.getenv("LANGSMITH_TRACING", "false"))
-os.environ["LANGSMITH_API_KEY"] = st.secrets.get("LANGSMITH_API_KEY", os.getenv("LANGSMITH_API_KEY", ""))
-os.environ["LANGSMITH_PROJECT"] = st.secrets.get("LANGSMITH_PROJECT", os.getenv("LANGSMITH_PROJECT", "George"))
 
 # ========================================
 # ✅ Smart secret getter: Cloud or local

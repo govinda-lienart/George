@@ -55,11 +55,15 @@ st.set_page_config(
 render_header()
 
 # ========================================
-# ✅ LangSmith Manual Trace Function
+# ✅ LangSmith Trace Functions
 # ========================================
 @traceable(name="streamlit_trace_test", run_type="chain", tags=["manual", "test"])
 def trace_test_info():
     return {"status": "✅ Streamlit is tracing properly", "user": "Govinda", "test": True}
+
+@traceable(name="pure_streamlit_trace", run_type="chain")
+def streamlit_hello_world():
+    return "✅ Hello from Streamlit with LangSmith!"
 
 @traceable(name="langsmith_test_trace", run_type="chain")
 def test_langsmith_trace():
@@ -85,6 +89,10 @@ with st.sidebar:
     if st.button("🧪 Send Trace Test Info"):
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")
+
+    if st.button("🔍 Ping LangSmith (String Only)"):
+        msg = streamlit_hello_world()
+        st.success(msg)
 
     st.markdown("### 🔍 LangSmith Debug")
     st.text(f"Project: {os.environ.get('LANGSMITH_PROJECT')}")

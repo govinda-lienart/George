@@ -3,24 +3,36 @@ import streamlit as st
 from dotenv import load_dotenv
 
 # ========================================
-# 🧠 LangSmith + OpenAI config: Set before importing LangChain
+# 🔁 Load local .env for development
 # ========================================
 load_dotenv()
 
-os.environ["LANGSMITH_TRACING"] = st.secrets.get("LANGSMITH_TRACING", os.getenv("LANGSMITH_TRACING", "false"))
-os.environ["LANGSMITH_API_KEY"] = st.secrets.get("LANGSMITH_API_KEY", os.getenv("LANGSMITH_API_KEY", ""))
-os.environ["LANGSMITH_PROJECT"] = st.secrets.get("LANGSMITH_PROJECT", os.getenv("LANGSMITH_PROJECT", "George"))
-os.environ["OPENAI_API_KEY"] = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+# ========================================
+# ✅ Safe secret getter: Cloud or local
+# ========================================
+def get_secret(key: str, default: str = "") -> str:
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key, default)
 
 # ========================================
-# ✅ Imports after env is set
+# 🧠 Set environment variables before LangChain
+# ========================================
+os.environ["LANGSMITH_TRACING"] = get_secret("LANGSMITH_TRACING", "false")
+os.environ["LANGSMITH_API_KEY"] = get_secret("LANGSMITH_API_KEY", "")
+os.environ["LANGSMITH_PROJECT"] = get_secret("LANGSMITH_PROJECT", "George")
+os.environ["OPENAI_API_KEY"] = get_secret("OPENAI_API_KEY", "")
+
+# ========================================
+# 📦 Imports after env is configured
 # ========================================
 import pandas as pd
 import mysql.connector
 from PIL import Image
 from langchain.agents import initialize_agent, AgentType
 from langsmith import traceable
-from langchain_core.tracers.langchain import wait_for_all_tracers  # ensures flushing in Streamlit
+from langchain_core.tracers.langchain import wait_for_all_tracers
 
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
@@ -32,13 +44,19 @@ from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
 # ========================================
-# ✅ Smart secret getter: Cloud or local
+# ✅ LangSmith test function
 # ========================================
-def get_secret(key, default=None):
-    try:
-        return st.secrets[key]
-    except Exception:
-        return os.getenv(key, default)
+@traceable(name="langsmith_test_trace", run_type="chain")
+def test_langsmith_trace():
+    return "✅ LangSmith test trace succeeded!"
+
+# ========================================
+# ✅ Manually traced LangSmith wrapper for chatbot
+# ========================================
+@traceable(name="chez_govinda_chat_trace", run_type="chain")
+def get_agent_response(user_input):
+    print(f"[LangSmith TRACE] User input: {user_input}")
+    return agent_executor.run(user_input)
 
 # ========================================
 # ⚙️ Streamlit page config
@@ -58,10 +76,15 @@ with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
     st.markdown("### 🛠️ Developer Tools")
+
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
+
+    if st.button("🧪 Test LangSmith"):
+        result = test_langsmith_trace()
+        st.success(result)
 
 # ========================================
 # 🔍 SQL Query Panel
@@ -149,14 +172,6 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
 )
 
 # ========================================
-# ✅ Manual LangSmith trace
-# ========================================
-@traceable(name="chez_govinda_chat_trace", run_type="chain")
-def get_agent_response(user_input):
-    print(f"[LangSmith TRACE] user_input: {user_input}")  # for debug logs
-    return agent_executor.run(user_input)
-
-# ========================================
 # 💬 George the Assistant (chatbot)
 # ========================================
 if not st.session_state.show_sql_panel:
@@ -188,6 +203,6 @@ if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# ✅ Flush LangSmith traces at end (important on Streamlit Cloud)
+# 🧹 Flush LangSmith traces (Streamlit Cloud safe)
 # ========================================
 wait_for_all_tracers()

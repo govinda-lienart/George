@@ -8,4 +8,4 @@ load_dotenv()  # This loads your .env into os.environ
 def say_hi(name):
     return f"Hello, {name}!"
 
-print(say_hi("Fabienne"))
+print(say_hi("papa"))

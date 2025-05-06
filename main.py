@@ -23,6 +23,15 @@ from booking.calendar import render_booking_form
 load_dotenv()
 
 # ========================================
+# 🧠 Load LangSmith and OpenAI credentials
+# ========================================
+load_dotenv()  # Optional fallback for local
+
+os.environ["LANGSMITH_TRACING"] = st.secrets.get("LANGSMITH_TRACING", os.getenv("LANGSMITH_TRACING", "false"))
+os.environ["LANGSMITH_API_KEY"] = st.secrets.get("LANGSMITH_API_KEY", os.getenv("LANGSMITH_API_KEY", ""))
+os.environ["LANGSMITH_PROJECT"] = st.secrets.get("LANGSMITH_PROJECT", os.getenv("LANGSMITH_PROJECT", "George"))
+
+# ========================================
 # ✅ Smart secret getter: Cloud or local
 # ========================================
 def get_secret(key, default=None):

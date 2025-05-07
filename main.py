@@ -1,5 +1,4 @@
 # main.py
-
 import os
 import streamlit as st
 import pandas as pd
@@ -16,14 +15,13 @@ from dotenv import load_dotenv
 # ========================================
 # 📦 Imports for LangChain tools and UI
 # ========================================
-# Assuming these files are in the same directory or accessible in 'tools'
+# Assuming these files are in the 'tools' directory
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool  # Placeholder - replace with your actual tool
-from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool
-from chat_ui import render_header, render_chat_bubbles, get_user_input
+from tools.chat_tool import chat_tool    # Placeholder - replace with your actual tool
+from tools.booking_tool import booking_tool # Placeholder - replace with your actual tool
+from chat_ui import render_header, render_chat_bubbles, get_user_input # Import chat_ui here
 from booking.calendar import render_booking_form
-
 # ========================================
 # 🔁 Load environment variables
 # ========================================
@@ -59,7 +57,7 @@ router_llm = ChatOpenAI(
 )
 
 router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist at Chez Govinda.
+You are a routing assistant for an AI hotel receptionist.
 
 Choose the correct tool for the user's question.
 
@@ -67,11 +65,11 @@ Available tools:
 - sql_tool: check room availability, prices, booking status, or existing reservation details
 - vector_tool: room descriptions, hotel policies, breakfast, amenities
 - booking_tool: when the user confirms they want to book
-- chat_tool: if the question is clearly unrelated to the hotel or the user's stay. This includes personal questions, opinions, general knowledge, or topics outside the scope of a hotel.
+- chat_tool: if the question is unrelated to the hotel (e.g. weather, personal questions, general small talk)
 
 Important:
-- If the question is NOT about booking, rooms, hotel services, policies, or the user's stay at Chez Govinda, choose `chat_tool`. The assistant will then respond kindly:
-  “😊 I can only help with questions about our hotel and your stay at Chez Govinda. Could you ask something related to your visit?”
+- If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
+  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -253,7 +251,7 @@ if not st.session_state.show_sql_panel:
                     elif tool_name == "booking_tool":
                         return booking_tool.func(query)  # Assuming you have this
                     elif tool_name == "chat_tool":
-                        return chat_tool.func(query)
+                        return chat_tool.func(query)  # Assuming you have this
                     else:
                         return f"Error: Tool '{tool_name}' not found."
 

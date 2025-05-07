@@ -118,8 +118,6 @@ with st.sidebar:
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
-
-    st.markdown("### 🛠️ Developer Tools")
     if st.button("🧪 Send Trace Test Info"):
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")

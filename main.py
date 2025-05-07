@@ -57,19 +57,19 @@ router_llm = ChatOpenAI(
 )
 
 router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist at Chez Govinda.
+You are a routing assistant for an AI hotel receptionist.
 
 Choose the correct tool for the user's question.
 
 Available tools:
 - sql_tool: check room availability, prices, booking status, or existing reservation details
-- vector_tool: room descriptions, hotel policies, breakfast, amenities, pet policies
+- vector_tool: room descriptions, hotel policies, breakfast, amenities
 - booking_tool: when the user confirms they want to book
-- chat_tool: if the question is clearly and unequivocally unrelated to Chez Govinda, hotel services, policies, bookings, or the user's stay. This includes personal life advice, relationship issues, opinions, general knowledge, or topics with no connection to a hotel.
+- chat_tool: if the question is unrelated to the hotel (e.g. weather, personal questions, general small talk)
 
 Important:
-- If the question is about booking, rooms, hotel services, policies, or the user's stay, choose the relevant tool (sql_tool, vector_tool, or booking_tool).
-- **Only choose `chat_tool` for questions like "What's the weather like?", "What's your opinion on politics?", or "I want to divorce my wife." These have absolutely no connection to the hotel.** The assistant will then respond kindly: “😊 I can only help with questions about our hotel and your stay at Chez Govinda. Could you ask something related to your visit?”
+- If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
+  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -257,14 +257,12 @@ if not st.session_state.show_sql_panel:
 
                 tool_response = execute_tool(tool_choice, user_input)
 
-                # 3. Evaluate the tool's response and handle
-                if tool_choice == "chat_tool":
-                    response = str(tool_response)
-                elif not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                    print(f"Tool '{tool_choice}' response was insufficient or an error occurred.")
-                    response = "I encountered an issue processing your request. Please try again or ask a different question."
+                # 3. Evaluate the tool's response and fallback if necessary
+                if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+                    print("Tool response was insufficient or an error occurred. Falling back to main agent.")
+                    response = agent_executor.run(user_input)
                 else:
-                    response = str(tool_response) # Process the tool's successful response
+                    response = str(tool_response) # Consider formatting this for the user
 
         st.session_state.history.append(("bot", response))
         st.rerun()

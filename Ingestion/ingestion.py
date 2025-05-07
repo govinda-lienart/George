@@ -1,4 +1,4 @@
-# Last updated: 2025-05-05 19:29:09
+# Last updated: 2025-05-07 14:45:57
 import os
 from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader, PDFMinerLoader

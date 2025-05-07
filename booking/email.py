@@ -1,4 +1,4 @@
-# Last updated: 2025-05-05 19:29:09
+# Last updated: 2025-05-07 14:45:57
 import smtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv

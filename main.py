@@ -21,11 +21,13 @@ from booking.calendar import render_booking_form
 
 load_dotenv()
 
+
 def get_secret(key: str, default: str = "") -> str:
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
+
 
 os.environ["LANGSMITH_TRACING"] = get_secret("LANGSMITH_TRACING", "false")
 os.environ["LANGSMITH_API_KEY"] = get_secret("LANGSMITH_API_KEY", "")
@@ -49,7 +51,7 @@ Available tools:
 
 Important:
 - If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
-  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
+  "😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?"
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -76,22 +78,26 @@ If someone asks about rooms, **always return the full list of the seven room typ
 If a user asks a question unrelated to the hotel, kindly respond with something like:
 "I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
 
-Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
+Speak warmly, like a real hotel receptionist. Use phrases like "our hotel," "we offer," etc.
 """
     }
 )
+
 
 @traceable(name="streamlit_trace_test", run_type="chain", tags=["manual", "test"])
 def trace_test_info():
     return {"status": "✅ Streamlit is tracing properly", "user": "Govinda", "test": True}
 
+
 @traceable(name="pure_streamlit_trace", run_type="chain")
 def streamlit_hello_world():
     return "✅ Hello from Streamlit with LangSmith!"
 
+
 @traceable(name="langsmith_test_trace", run_type="chain")
 def test_langsmith_trace():
     return llm.invoke("Just say hi to LangSmith.", config={"metadata": {"project_name": "George"}})
+
 
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
@@ -145,17 +151,23 @@ if not st.session_state.show_sql_panel:
         st.session_state.chat_summary = ""
     if "booking_mode" not in st.session_state:
         st.session_state.booking_mode = False
+    if "processing" not in st.session_state:
+        st.session_state.processing = False
 
     if not st.session_state.history:
-        st.session_state.history.append(("bot", "👋 Hello, I’m George. How can I help you today?"))
+        st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
 
+    # Display chat history
     render_chat_bubbles(st.session_state.history)
+
+    # Get user input
     user_input = get_user_input()
 
     wrapped_sql_tool = RunnableLambda(sql_tool.func).with_config(run_name="SQL Tool")
     wrapped_vector_tool = RunnableLambda(vector_tool.func).with_config(run_name="Vector Tool")
     wrapped_chat_tool = RunnableLambda(chat_tool.func).with_config(run_name="Chat Tool")
     wrapped_booking_tool = RunnableLambda(booking_tool.func).with_config(run_name="Booking Tool")
+
 
     def execute_tool(tool_name: str, query: str):
         if tool_name == "sql_tool":
@@ -169,26 +181,38 @@ if not st.session_state.show_sql_panel:
         else:
             return f"Error: Tool '{tool_name}' not found."
 
-    if user_input:
+
+    # Process user input and generate response
+    if user_input and not st.session_state.processing:
+        # Set processing flag to prevent duplicate messages
+        st.session_state.processing = True
+
+        # Append user message to history
         st.session_state.history.append(("user", user_input))
-        render_chat_bubbles(st.session_state.history)
 
-        assistant_placeholder = st.empty()
-        with assistant_placeholder.container():
-            with st.chat_message("assistant"):
-                with st.spinner("🤖 George is thinking..."):
-                    tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
-                    tool_response = execute_tool(tool_choice, user_input)
+        # Create placeholder for assistant response
+        with st.chat_message("assistant"):
+            with st.spinner("🤖 George is thinking..."):
+                # Get tool response
+                tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
+                tool_response = execute_tool(tool_choice, user_input)
 
-                    if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                        response = agent_executor.run(user_input)
-                    else:
-                        response = str(tool_response)
+                if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+                    response = agent_executor.run(user_input)
+                else:
+                    response = str(tool_response)
 
+                # Display response
                 st.markdown(response)
 
+        # Add bot response to history after complete processing
         st.session_state.history.append(("bot", response))
-        st.rerun()
+
+        # Reset processing flag
+        st.session_state.processing = False
+
+        # Refresh without doing a full rerun to avoid state loss
+        st.experimental_rerun()
 
 if st.session_state.booking_mode:
     render_booking_form()

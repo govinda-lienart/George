@@ -14,13 +14,14 @@ from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
 # ========================================
-# 📦 Imports for LangChain tools
+# 📦 Imports for LangChain tools and UI
 # ========================================
-# Assuming these files are in a 'tools' directory
+# Assuming these files are in the 'tools' directory
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool  # Placeholder - replace with your actual tool
 from tools.chat_tool import chat_tool    # Placeholder - replace with your actual tool
 from tools.booking_tool import booking_tool # Placeholder - replace with your actual tool
+from chat_ui import render_header, render_chat_bubbles, get_user_input # Import chat_ui here
 
 # ========================================
 # 🔁 Load environment variables

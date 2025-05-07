@@ -46,9 +46,9 @@ You are a routing assistant for an AI hotel receptionist.
 Choose the correct tool for the user's question.
 
 Available tools:
-- sql_tool: check room availability, prices, booking status, or existing reservation details
+- sql_tool: check room availability, prices, booking status, or existing reservation details but never for booking a room
 - vector_tool: room descriptions, hotel policies, breakfast, amenities
-- booking_tool: when the user confirms they want to book
+- booking_tool: when the user confirms they want to book or ask help to book a room then display the form.
 - chat_tool: if the question is unrelated to the hotel (e.g. weather, personal questions, general small talk)
 
 Important:
@@ -131,12 +131,6 @@ with st.sidebar:
     if st.button("🔍 Ping LangSmith (String Only)"):
         msg = streamlit_hello_world()
         st.success(msg)
-
-    st.markdown("### 🔍 LangSmith Debug")
-    st.text(f"Project: {os.environ.get('LANGSMITH_PROJECT')}")
-    st.text(f"Tracing: {os.environ.get('LANGSMITH_TRACING')}")
-    st.text(f"API Key Set: {'✅' if os.environ.get('LANGSMITH_API_KEY') else '❌'}")
-
 
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")

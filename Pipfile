@@ -11,10 +11,10 @@ pinecone = "*"
 langchain-pinecone = "*"
 firecrawl-py = "*"
 langchain = "*"
-langchain-openai = "*"
 openai = "*"
 langchain-community = "*"
 psycopg2-binary = "*"
+langchain-openai = "*"
 
 [dev-packages]
 

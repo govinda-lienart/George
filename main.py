@@ -112,22 +112,26 @@ render_header()
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
-    st.markdown("### 🛠️ Developer Tools")
 
+    st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
 
     st.markdown("### 📄 Documentation")
-    st.markdown(
-        "[🧠 Open Technical Docs](https://www.google.com)",
-        unsafe_allow_html=True
+    st.session_state.show_docs_panel = st.checkbox(
+        "📄 Show Documentation",
+        value=st.session_state.get("show_docs_panel", False)
     )
 
     if st.button("🧪 Send Trace Test Info"):
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")
+
+if st.session_state.get("show_docs_panel"):
+    st.markdown("### 📖 Technical Documentation")
+    st.components.v1.iframe("https://www.google.com")
 
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")

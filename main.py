@@ -73,7 +73,7 @@ Tool:
 """)
 
 # ========================================
-# 🤖 LangChain Agent Setup
+# 🧐 LangChain Agent Setup
 # ========================================
 agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
@@ -131,16 +131,14 @@ render_header()
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
-    st.markdown("### 🛠️ Developer Tools")
-
+    st.markdown("### 🧪 Trace Test")
+    if st.button("✅ Send Trace Test Info"):
+        result = trace_test_info()
+        st.success(f"Traced: {result['status']}")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
-
-    if st.button("🧪 Send Trace Test Info"):
-        result = trace_test_info()
-        st.success(f"Traced: {result['status']}")
 
 # ========================================
 # 🔍 SQL Query Panel
@@ -197,8 +195,6 @@ if st.session_state.show_sql_panel:
 # 💬 George the Assistant
 # ========================================
 if not st.session_state.show_sql_panel:
-
-    # Chat session state
     if "history" not in st.session_state:
         st.session_state.history = []
     if "chat_summary" not in st.session_state:
@@ -212,13 +208,11 @@ if not st.session_state.show_sql_panel:
     render_chat_bubbles(st.session_state.history)
     user_input = get_user_input()
 
-    # ✅ Wrap tools for tracing
     wrapped_sql_tool = RunnableLambda(sql_tool.func).with_config(run_name="SQL Tool")
     wrapped_vector_tool = RunnableLambda(vector_tool.func).with_config(run_name="Vector Tool")
     wrapped_chat_tool = RunnableLambda(chat_tool.func).with_config(run_name="Chat Tool")
     wrapped_booking_tool = RunnableLambda(booking_tool.func).with_config(run_name="Booking Tool")
 
-    # ✅ Tool execution with wrappers
     def execute_tool(tool_name: str, query: str):
         if tool_name == "sql_tool":
             return wrapped_sql_tool.invoke(query)
@@ -235,24 +229,28 @@ if not st.session_state.show_sql_panel:
         st.session_state.history.append(("user", user_input))
         render_chat_bubbles(st.session_state.history)
 
-        with st.chat_message("assistant"):
-            with st.spinner("🤖 George is thinking..."):
-                tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
-                print(f"Tool chosen by router: {tool_choice}")
+        assistant_placeholder = st.empty()
+        with assistant_placeholder.container():
+            with st.chat_message("assistant"):
+                with st.spinner("🤖 George is thinking..."):
+                    tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
+                    print(f"Tool chosen by router: {tool_choice}")
 
-                tool_response = execute_tool(tool_choice, user_input)
+                    tool_response = execute_tool(tool_choice, user_input)
 
-                if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                    print("Tool response was insufficient or an error occurred. Falling back to main agent.")
-                    response = agent_executor.run(user_input)
-                else:
-                    response = str(tool_response)
+                    if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+                        print("Tool response was insufficient or an error occurred. Falling back to main agent.")
+                        response = agent_executor.run(user_input)
+                    else:
+                        response = str(tool_response)
+
+                st.markdown(response)
 
         st.session_state.history.append(("bot", response))
         st.rerun()
 
 # ========================================
-# 📅 Booking Form
+# 🗓️ Booking Form
 # ========================================
 if st.session_state.booking_mode:
     render_booking_form()

@@ -1,4 +1,3 @@
-# main.py
 import os
 import streamlit as st
 import pandas as pd
@@ -9,26 +8,27 @@ from langchain.prompts import PromptTemplate
 from langchain.agents import initialize_agent, AgentType
 from langsmith import traceable
 from langchain_core.tracers.langchain import wait_for_all_tracers
+from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
 # ========================================
 # 📦 Imports for LangChain tools and UI
 # ========================================
-# Assuming these files are in the 'tools' directory
 from tools.sql_tool import sql_tool
-from tools.vector_tool import vector_tool  # Placeholder - replace with your actual tool
-from tools.chat_tool import chat_tool    # Placeholder - replace with your actual tool
-from tools.booking_tool import booking_tool # Placeholder - replace with your actual tool
-from chat_ui import render_header, render_chat_bubbles, get_user_input # Import chat_ui here
+from tools.vector_tool import vector_tool
+from tools.chat_tool import chat_tool
+from tools.booking_tool import booking_tool
+from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
+
 # ========================================
 # 🔁 Load environment variables
 # ========================================
 load_dotenv()
 
 # ========================================
-# ✅ Safe secret getter: Cloud or local
+# ✅ Safe secret getter
 # ========================================
 def get_secret(key: str, default: str = "") -> str:
     try:
@@ -37,7 +37,7 @@ def get_secret(key: str, default: str = "") -> str:
         return os.getenv(key, default)
 
 # ========================================
-# 🧠 Set environment variables before LangChain
+# 🧠 Set environment variables
 # ========================================
 os.environ["LANGSMITH_TRACING"] = get_secret("LANGSMITH_TRACING", "false")
 os.environ["LANGSMITH_API_KEY"] = get_secret("LANGSMITH_API_KEY", "")
@@ -47,14 +47,9 @@ os.environ["OPENAI_API_KEY"] = get_secret("OPENAI_API_KEY", "")
 # ========================================
 # ⚙️ LangChain LLMs and Prompts
 # ========================================
-# Main LLM (from utils.config)
 from utils.config import llm
 
-# Router LLM and Prompt
-router_llm = ChatOpenAI(
-    model_name="gpt-3.5-turbo",
-    temperature=0
-)
+router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist.
@@ -212,10 +207,11 @@ if st.session_state.show_sql_panel:
                     st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
 # ========================================
-# 💬 George the Assistant (chatbot with router as primary)
+# 💬 George the Assistant
 # ========================================
 if not st.session_state.show_sql_panel:
 
+    # Chat session state
     if "history" not in st.session_state:
         st.session_state.history = []
     if "chat_summary" not in st.session_state:
@@ -224,13 +220,29 @@ if not st.session_state.show_sql_panel:
         st.session_state.booking_mode = False
 
     if not st.session_state.history:
-        st.session_state.history.append((
-            "bot",
-            "👋 Hello, I’m George. How can I help you today?"
-        ))
+        st.session_state.history.append(("bot", "👋 Hello, I’m George. How can I help you today?"))
 
     render_chat_bubbles(st.session_state.history)
     user_input = get_user_input()
+
+    # ✅ Wrap tools for tracing
+    wrapped_sql_tool = RunnableLambda(sql_tool.func).with_config(run_name="SQL Tool")
+    wrapped_vector_tool = RunnableLambda(vector_tool.func).with_config(run_name="Vector Tool")
+    wrapped_chat_tool = RunnableLambda(chat_tool.func).with_config(run_name="Chat Tool")
+    wrapped_booking_tool = RunnableLambda(booking_tool.func).with_config(run_name="Booking Tool")
+
+    # ✅ Tool execution with wrappers
+    def execute_tool(tool_name: str, query: str):
+        if tool_name == "sql_tool":
+            return wrapped_sql_tool.invoke(query)
+        elif tool_name == "vector_tool":
+            return wrapped_vector_tool.invoke(query)
+        elif tool_name == "booking_tool":
+            return wrapped_booking_tool.invoke(query)
+        elif tool_name == "chat_tool":
+            return wrapped_chat_tool.invoke(query)
+        else:
+            return f"Error: Tool '{tool_name}' not found."
 
     if user_input:
         st.session_state.history.append(("user", user_input))
@@ -238,42 +250,27 @@ if not st.session_state.show_sql_panel:
 
         with st.chat_message("assistant"):
             with st.spinner("🤖 George is thinking..."):
-                # 1. Router LLM chooses the tool
                 tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
                 print(f"Tool chosen by router: {tool_choice}")
 
-                # 2. Execute the chosen tool
-                def execute_tool(tool_name: str, query: str):
-                    if tool_name == "sql_tool":
-                        return sql_tool.func(query)
-                    elif tool_name == "vector_tool":
-                        return vector_tool.func(query)  # Assuming you have this
-                    elif tool_name == "booking_tool":
-                        return booking_tool.func(query)  # Assuming you have this
-                    elif tool_name == "chat_tool":
-                        return chat_tool.func(query)  # Assuming you have this
-                    else:
-                        return f"Error: Tool '{tool_name}' not found."
-
                 tool_response = execute_tool(tool_choice, user_input)
 
-                # 3. Evaluate the tool's response and fallback if necessary
                 if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
                     print("Tool response was insufficient or an error occurred. Falling back to main agent.")
                     response = agent_executor.run(user_input)
                 else:
-                    response = str(tool_response) # Consider formatting this for the user
+                    response = str(tool_response)
 
         st.session_state.history.append(("bot", response))
         st.rerun()
 
 # ========================================
-# 📅 Show Booking Form if Triggered
+# 📅 Booking Form
 # ========================================
 if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# 🧹 Flush LangSmith traces (Streamlit Cloud safe)
+# 🧹 Flush LangSmith traces
 # ========================================
 wait_for_all_tracers()

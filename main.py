@@ -112,12 +112,17 @@ render_header()
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
-    st.markdown("### 🛠️ Developer Tools")
 
+    st.markdown("### 🛠️ Developer Tools")
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
+
+    st.markdown("### 🛠️ Developer Tools")
+    if st.button("🧪 Send Trace Test Info"):
+        result = trace_test_info()
+        st.success(f"Traced: {result['status']}")
 
     st.markdown("### 📄 Documentation")
     st.markdown(

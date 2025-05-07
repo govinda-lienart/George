@@ -72,7 +72,7 @@ def test_langsmith_trace():
     return llm.invoke("Just say hi to LangSmith.", config={"metadata": {"project_name": "George"}})
 
 # ========================================
-# 🧠 Router LLM Setup
+# 🤖 Router LLM Setup
 # ========================================
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
@@ -128,7 +128,7 @@ if st.session_state.get("show_sql_panel", False):
                 conn.close()
 
 # ========================================
-# 🧠 Chatbot Logic
+# 💬 Chatbot Logic
 # ========================================
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -137,7 +137,7 @@ if "chat_summary" not in st.session_state:
 if "booking_mode" not in st.session_state:
     st.session_state.booking_mode = False
 
-if not st.session_state.show_sql_panel:
+if not st.session_state.get("show_sql_panel", False):
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I’m George. How can I help you today?"))
 
@@ -149,7 +149,7 @@ if not st.session_state.show_sql_panel:
         render_chat_bubbles(st.session_state.history)
 
         with st.chat_message("assistant"):
-            with st.spinner("🧠 George is thinking..."):
+            with st.spinner("🤖 George is thinking..."):
                 selected_tool = router_llm.invoke(router_prompt.format(question=user_input)).content.strip()
 
                 if selected_tool == "chat_tool":
@@ -167,12 +167,12 @@ if not st.session_state.show_sql_panel:
         st.rerun()
 
 # ========================================
-# 🗓️ Booking Form Display
+# 📅 Booking Form Display
 # ========================================
 if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# 🪜 Flush LangSmith traces
+# 🧹 Flush LangSmith traces
 # ========================================
 wait_for_all_tracers()

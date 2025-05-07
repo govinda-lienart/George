@@ -142,11 +142,6 @@ with st.sidebar:
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")
 
-    st.markdown("### 🔍 LangSmith Debug")
-    st.text(f"Project: {os.environ.get('LANGSMITH_PROJECT')}")
-    st.text(f"Tracing: {os.environ.get('LANGSMITH_TRACING')}")
-    st.text(f"API Key Set: {'✅' if os.environ.get('LANGSMITH_API_KEY') else '❌'}")
-
 # ========================================
 # 🔍 SQL Query Panel
 # ========================================

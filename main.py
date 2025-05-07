@@ -151,8 +151,8 @@ if not st.session_state.show_sql_panel:
         st.session_state.chat_summary = ""
     if "booking_mode" not in st.session_state:
         st.session_state.booking_mode = False
-    if "processing" not in st.session_state:
-        st.session_state.processing = False
+    if "is_thinking" not in st.session_state:
+        st.session_state.is_thinking = False
 
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
@@ -183,36 +183,40 @@ if not st.session_state.show_sql_panel:
 
 
     # Process user input and generate response
-    if user_input and not st.session_state.processing:
-        # Set processing flag to prevent duplicate messages
-        st.session_state.processing = True
+    if user_input:
+        if not st.session_state.is_thinking:
+            # Append user message to history and rerun to show it immediately
+            st.session_state.history.append(("user", user_input))
+            st.session_state.is_thinking = True
+            st.rerun()
+        else:
+            # If we're already thinking, generate and display the response
+            try:
+                # Create placeholder for assistant response
+                with st.chat_message("assistant"):
+                    with st.spinner("🤖 George is thinking..."):
+                        # Get tool response
+                        tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
+                        tool_response = execute_tool(tool_choice, user_input)
 
-        # Append user message to history
-        st.session_state.history.append(("user", user_input))
+                        if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+                            response = agent_executor.run(user_input)
+                        else:
+                            response = str(tool_response)
 
-        # Create placeholder for assistant response
-        with st.chat_message("assistant"):
-            with st.spinner("🤖 George is thinking..."):
-                # Get tool response
-                tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
-                tool_response = execute_tool(tool_choice, user_input)
+                        # Display response
+                        st.markdown(response)
 
-                if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                    response = agent_executor.run(user_input)
-                else:
-                    response = str(tool_response)
+                # Add bot response to history
+                st.session_state.history.append(("bot", response))
+            except Exception as e:
+                # Handle any errors
+                st.error(f"An error occurred: {str(e)}")
+                st.session_state.history.append(("bot", f"I'm sorry, I encountered an error. Please try again."))
 
-                # Display response
-                st.markdown(response)
-
-        # Add bot response to history after complete processing
-        st.session_state.history.append(("bot", response))
-
-        # Reset processing flag
-        st.session_state.processing = False
-
-        # Refresh without doing a full rerun to avoid state loss
-        st.experimental_rerun()
+            # Reset thinking state
+            st.session_state.is_thinking = False
+            st.rerun()
 
 if st.session_state.booking_mode:
     render_booking_form()

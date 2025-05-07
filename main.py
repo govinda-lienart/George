@@ -12,9 +12,6 @@ from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
-# ========================================
-# 📦 Imports for LangChain tools and UI
-# ========================================
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
@@ -22,31 +19,19 @@ from tools.booking_tool import booking_tool
 from chat_ui import render_header, render_chat_bubbles, get_user_input
 from booking.calendar import render_booking_form
 
-# ========================================
-# 🔁 Load environment variables
-# ========================================
 load_dotenv()
 
-# ========================================
-# ✅ Safe secret getter
-# ========================================
 def get_secret(key: str, default: str = "") -> str:
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
 
-# ========================================
-# 🧠 Set environment variables
-# ========================================
 os.environ["LANGSMITH_TRACING"] = get_secret("LANGSMITH_TRACING", "false")
 os.environ["LANGSMITH_API_KEY"] = get_secret("LANGSMITH_API_KEY", "")
 os.environ["LANGSMITH_PROJECT"] = get_secret("LANGSMITH_PROJECT", "George")
 os.environ["OPENAI_API_KEY"] = get_secret("OPENAI_API_KEY", "")
 
-# ========================================
-# ⚙️ LangChain LLMs and Prompts
-# ========================================
 from utils.config import llm
 
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
@@ -72,9 +57,6 @@ Question: "{question}"
 Tool:
 """)
 
-# ========================================
-# 🧐 LangChain Agent Setup
-# ========================================
 agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
@@ -99,9 +81,6 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
     }
 )
 
-# ========================================
-# ✅ LangSmith Trace Functions
-# ========================================
 @traceable(name="streamlit_trace_test", run_type="chain", tags=["manual", "test"])
 def trace_test_info():
     return {"status": "✅ Streamlit is tracing properly", "user": "Govinda", "test": True}
@@ -114,9 +93,6 @@ def streamlit_hello_world():
 def test_langsmith_trace():
     return llm.invoke("Just say hi to LangSmith.", config={"metadata": {"project_name": "George"}})
 
-# ========================================
-# ⚙️ Streamlit page config
-# ========================================
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
     page_icon="🏨",
@@ -125,13 +101,10 @@ st.set_page_config(
 )
 render_header()
 
-# ========================================
-# 🧠 Developer Tools Sidebar
-# ========================================
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
-    st.markdown("### 🧪 Trace Test")
+    st.markdown("### 🥪 Trace Test")
     if st.button("✅ Send Trace Test Info"):
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")
@@ -140,25 +113,11 @@ with st.sidebar:
         value=st.session_state.get("show_sql_panel", False)
     )
 
-# ========================================
-# 🔍 SQL Query Panel
-# ========================================
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
-    sql_input = st.text_area(
-        "🔍 Enter SQL query to run:",
-        value="SELECT * FROM bookings LIMIT 10;",
-        height=150,
-        key="sql_input_box"
-    )
-    run_query = st.button("Run Query", key="run_query_button", type="primary")
-    status_container = st.container()
-    result_container = st.container()
-
-    if run_query:
+    sql_input = st.text_area("Enter SQL query:", value="SELECT * FROM bookings LIMIT 10;", height=150)
+    if st.button("Run Query"):
         try:
-            with status_container:
-                st.write("🔐 Connecting to database...")
             conn = mysql.connector.connect(
                 host=get_secret("DB_HOST_READ_ONLY"),
                 port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
@@ -166,34 +125,19 @@ if st.session_state.show_sql_panel:
                 password=get_secret("DB_PASSWORD_READ_ONLY"),
                 database=get_secret("DB_DATABASE_READ_ONLY")
             )
-            with status_container:
-                st.success("✅ Connected to MySQL!")
             cursor = conn.cursor()
             cursor.execute(sql_input)
             rows = cursor.fetchall()
-            col_names = [desc[0] for desc in cursor.description]
-            with result_container:
-                df = pd.DataFrame(rows, columns=col_names)
-                st.dataframe(df, use_container_width=True)
+            df = pd.DataFrame(rows, columns=[desc[0] for desc in cursor.description])
+            st.dataframe(df, use_container_width=True)
         except Exception as e:
-            import traceback
-            with status_container:
-                st.error("❌ Connection failed:")
-                st.code(traceback.format_exc())
+            st.error("SQL Error:")
+            st.code(str(e))
         finally:
-            try:
-                if 'conn' in locals() and conn.is_connected():
-                    cursor.close()
-                    conn.close()
-                    with status_container:
-                        st.info("🔌 Connection closed.")
-            except Exception as close_err:
-                with status_container:
-                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
+            if 'conn' in locals() and conn.is_connected():
+                cursor.close()
+                conn.close()
 
-# ========================================
-# 💬 George the Assistant
-# ========================================
 if not st.session_state.show_sql_panel:
     if "history" not in st.session_state:
         st.session_state.history = []
@@ -234,12 +178,9 @@ if not st.session_state.show_sql_panel:
             with st.chat_message("assistant"):
                 with st.spinner("🤖 George is thinking..."):
                     tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
-                    print(f"Tool chosen by router: {tool_choice}")
-
                     tool_response = execute_tool(tool_choice, user_input)
 
                     if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                        print("Tool response was insufficient or an error occurred. Falling back to main agent.")
                         response = agent_executor.run(user_input)
                     else:
                         response = str(tool_response)
@@ -249,13 +190,7 @@ if not st.session_state.show_sql_panel:
         st.session_state.history.append(("bot", response))
         st.rerun()
 
-# ========================================
-# 🗓️ Booking Form
-# ========================================
 if st.session_state.booking_mode:
     render_booking_form()
 
-# ========================================
-# 🧹 Flush LangSmith traces
-# ========================================
 wait_for_all_tracers()

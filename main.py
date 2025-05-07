@@ -57,26 +57,26 @@ router_llm = ChatOpenAI(
 )
 
 router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist.
-
-Choose the correct tool for the user's question.
+You are a precise routing assistant for George, the AI hotel receptionist at Chez Govinda. Direct user questions to the correct tool.
 
 Available tools:
-- sql_tool: check room availability, prices, booking status, or existing reservation details
-- vector_tool: room descriptions, hotel policies, breakfast, amenities
-- booking_tool: when the user confirms they want to book
-- chat_tool: if the question is unrelated to the hotel (e.g. weather, personal questions, general small talk)
+- sql_tool: Room availability, prices, booking status, reservation changes/cancellations.
+- vector_tool: Room details, amenities, hotel policies (pets, check-in/out), breakfast, environmental practices.
+- booking_tool: New reservation inquiries or booking process questions.
+- chat_tool: Questions completely unrelated to Chez Govinda or hotel services (e.g., general knowledge, opinions, personal advice).
 
-Important:
-- If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
-  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
-
-Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
+Instructions:
+- Route questions related to bookings, rooms, hotel services, policies, amenities, or a guest’s stay to `sql_tool`, `vector_tool`, or `booking_tool`.
+- ONLY use `chat_tool` for questions entirely outside the hotel/hospitality context.
+❌ Examples → `chat_tool`:
+- “What’s the capital of France?”
+- “Should I break up with my partner?”
+- “What’s your opinion on climate change?”
+Return ONE word: `sql_tool`, `vector_tool`, `booking_tool`, or `chat_tool`.
 
 Question: "{question}"
 Tool:
 """)
-
 # ========================================
 # 🤖 LangChain Agent Setup
 # ========================================

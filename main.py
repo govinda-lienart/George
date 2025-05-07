@@ -109,7 +109,6 @@ st.set_page_config(
 )
 render_header()
 
-
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
@@ -118,6 +117,12 @@ with st.sidebar:
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
+    )
+
+    st.markdown("### 📄 Documentation")
+    st.markdown(
+        "[🧠 Open Technical Docs](https://www.google.com)",
+        unsafe_allow_html=True
     )
 
     if st.button("🧪 Send Trace Test Info"):

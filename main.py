@@ -8,7 +8,6 @@ from langchain.prompts import PromptTemplate
 from langchain.agents import initialize_agent, AgentType
 from langsmith import traceable
 from langchain_core.tracers.langchain import wait_for_all_tracers
-from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
@@ -16,7 +15,7 @@ from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
-from chat_ui import render_header, get_user_input
+from chat_ui import render_header, get_user_input, render_chat_bubbles  # Corrected import
 from booking.calendar import render_booking_form
 
 load_dotenv()
@@ -51,7 +50,7 @@ Available tools:
 
 Important:
 - If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
-  "😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?"
+  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -78,7 +77,7 @@ If someone asks about rooms, **always return the full list of the seven room typ
 If a user asks a question unrelated to the hotel, kindly respond with something like:
 "I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
 
-Speak warmly, like a real hotel receptionist. Use phrases like "our hotel," "we offer," etc.
+Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
 """
     }
 )
@@ -107,23 +106,51 @@ st.set_page_config(
 )
 render_header()
 
+
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
-    st.markdown("### 🥪 Trace Test")
-    if st.button("✅ Send Trace Test Info"):
-        result = trace_test_info()
-        st.success(f"Traced: {result['status']}")
+    st.markdown("### 🛠️ Developer Tools")
+
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
 
+    if st.button("🧪 Test LangSmith (LLM)"):
+        result = test_langsmith_trace()
+        st.success(f"LangSmith test: {result}")
+
+    if st.button("🧪 Send Trace Test Info"):
+        result = trace_test_info()
+        st.success(f"Traced: {result['status']}")
+
+    if st.button("🔍 Ping LangSmith (String Only)"):
+        msg = streamlit_hello_world()
+        st.success(msg)
+
+    st.markdown("### 🔍 LangSmith Debug")
+    st.text(f"Project: {os.environ.get('LANGSMITH_PROJECT')}")
+    st.text(f"Tracing: {os.environ.get('LANGSMITH_TRACING')}")
+    st.text(f"API Key Set: {'✅' if os.environ.get('LANGSMITH_API_KEY') else '❌'}")
+
+
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
-    sql_input = st.text_area("Enter SQL query:", value="SELECT * FROM bookings LIMIT 10;", height=150)
-    if st.button("Run Query"):
+    sql_input = st.text_area(
+        "🔍 Enter SQL query to run:",
+        value="SELECT * FROM bookings LIMIT 10;",
+        height=150,
+        key="sql_input_box"
+    )
+    run_query = st.button("Run Query", key="run_query_button", type="primary")
+    status_container = st.container()
+    result_container = st.container()
+
+    if run_query:
         try:
+            with status_container:
+                st.write("🔐 Connecting to database...")
             conn = mysql.connector.connect(
                 host=get_secret("DB_HOST_READ_ONLY"),
                 port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
@@ -131,112 +158,88 @@ if st.session_state.show_sql_panel:
                 password=get_secret("DB_PASSWORD_READ_ONLY"),
                 database=get_secret("DB_DATABASE_READ_ONLY")
             )
+            with status_container:
+                st.success("✅ Connected to MySQL!")
             cursor = conn.cursor()
             cursor.execute(sql_input)
             rows = cursor.fetchall()
-            df = pd.DataFrame(rows, columns=[desc[0] for desc in cursor.description])
-            st.dataframe(df, use_container_width=True)
+            col_names = [desc[0] for desc in cursor.description]
+            with result_container:
+                df = pd.DataFrame(rows, columns=col_names)
+                st.dataframe(df, use_container_width=True)
         except Exception as e:
-            st.error("SQL Error:")
-            st.code(str(e))
+            import traceback
+            with status_container:
+                st.error("❌ Connection failed:")
+                st.code(traceback.format_exc())
         finally:
-            if 'conn' in locals() and conn.is_connected():
-                cursor.close()
-                conn.close()
+            try:
+                if 'conn' in locals() and conn.is_connected():
+                    cursor.close()
+                    conn.close()
+                    with status_container:
+                        st.info("🔌 Connection closed.")
+            except Exception as close_err:
+                with status_container:
+                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
+
 
 if not st.session_state.show_sql_panel:
-    # Initialize session state variables
     if "history" not in st.session_state:
         st.session_state.history = []
     if "chat_summary" not in st.session_state:
         st.session_state.chat_summary = ""
     if "booking_mode" not in st.session_state:
         st.session_state.booking_mode = False
-    if "current_question" not in st.session_state:
-        st.session_state.current_question = None
-    if "pending_response" not in st.session_state:
-        st.session_state.pending_response = False
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = ""  # Initialize user_input
 
-    # Display initial greeting if history is empty
     if not st.session_state.history:
-        st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
+        st.session_state.history.append(("bot", "👋 Hello, I’m George. How can I help you today?"))
 
-    # Custom chat bubble rendering to directly control the UI
-    for i, (role, message) in enumerate(st.session_state.history):
-        if role == "user":
-            with st.chat_message("user"):
-                st.write(message)
-        else:
-            with st.chat_message("assistant"):
-                st.write(message)
+    render_chat_bubbles(st.session_state.history)
 
-    # Get user input
-    user_input = get_user_input()
+    user_input = get_user_input()  # Get input from chat_ui
 
-    # Tool setup
-    wrapped_sql_tool = RunnableLambda(sql_tool.func).with_config(run_name="SQL Tool")
-    wrapped_vector_tool = RunnableLambda(vector_tool.func).with_config(run_name="Vector Tool")
-    wrapped_chat_tool = RunnableLambda(chat_tool.func).with_config(run_name="Chat Tool")
-    wrapped_booking_tool = RunnableLambda(booking_tool.func).with_config(run_name="Booking Tool")
-
-
-    def execute_tool(tool_name: str, query: str):
-        if tool_name == "sql_tool":
-            return wrapped_sql_tool.invoke(query)
-        elif tool_name == "vector_tool":
-            return wrapped_vector_tool.invoke(query)
-        elif tool_name == "booking_tool":
-            return wrapped_booking_tool.invoke(query)
-        elif tool_name == "chat_tool":
-            return wrapped_chat_tool.invoke(query)
-        else:
-            return f"Error: Tool '{tool_name}' not found."
-
-
-    # Process user input with simplified state management
     if user_input:
-        # Save the question to session state
-        st.session_state.current_question = user_input
-
-        # Add user question to history
         st.session_state.history.append(("user", user_input))
+        st.session_state.user_input = user_input  # Store input for processing
+        st.rerun()  # Rerun to process input
 
-        # Set flag to indicate we need to process a response
-        st.session_state.pending_response = True
-
-        # Force a rerun to show the user message immediately
-        st.rerun()
-
-    # Process response if there's a pending question
-    if st.session_state.pending_response and st.session_state.current_question:
-        # Get the current question from state
-        current_question = st.session_state.current_question
-
-        # Display thinking indicator
+    if st.session_state.user_input:  # Process stored input
         with st.chat_message("assistant"):
             with st.spinner("🤖 George is thinking..."):
                 try:
-                    # Generate response
-                    tool_choice = router_llm.predict(router_prompt.format(question=current_question)).strip()
-                    tool_response = execute_tool(tool_choice, current_question)
+                    tool_choice = router_llm.predict(router_prompt.format(question=st.session_state.user_input)).strip()
+
+                    def execute_tool(tool_name: str, query: str):
+                        if tool_name == "sql_tool":
+                            return sql_tool.func(query)
+                        elif tool_name == "vector_tool":
+                            return vector_tool.func(query)
+                        elif tool_name == "booking_tool":
+                            return booking_tool.func(query)
+                        elif tool_name == "chat_tool":
+                            return chat_tool.func(query)
+                        else:
+                            return f"Error: Tool '{tool_name}' not found."
+
+                    tool_response = execute_tool(tool_choice, st.session_state.user_input)
 
                     if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                        response = agent_executor.run(current_question)
+                        response = agent_executor.run(st.session_state.user_input)
                     else:
                         response = str(tool_response)
 
-                    # Display response
-                    st.write(response)
+                    st.write(response)  # Display response
+                    st.session_state.history.append(("bot", response))
                 except Exception as e:
                     response = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
                     st.error(response)
+                    st.session_state.history.append(("bot", response))
 
-        # Add response to history
-        st.session_state.history.append(("bot", response))
-
-        # Clear the pending state
-        st.session_state.pending_response = False
-        st.session_state.current_question = None
+        st.session_state.user_input = ""  # Clear stored input
+        st.rerun()  # Rerun to update UI
 
 if st.session_state.booking_mode:
     render_booking_form()

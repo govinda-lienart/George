@@ -1,6 +1,4 @@
-# Last updated: 2025-05-07 14:45:57
 # main.py
-
 import os
 import streamlit as st
 import pandas as pd
@@ -23,7 +21,7 @@ from tools.vector_tool import vector_tool  # Placeholder - replace with your act
 from tools.chat_tool import chat_tool    # Placeholder - replace with your actual tool
 from tools.booking_tool import booking_tool # Placeholder - replace with your actual tool
 from chat_ui import render_header, render_chat_bubbles, get_user_input # Import chat_ui here
-
+from booking.calendar import render_booking_form
 # ========================================
 # 🔁 Load environment variables
 # ========================================

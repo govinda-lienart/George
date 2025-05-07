@@ -176,3 +176,4 @@ if st.session_state.booking_mode:
 # 🧹 Flush LangSmith traces
 # ========================================
 wait_for_all_tracers()
+

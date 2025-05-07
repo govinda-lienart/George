@@ -257,12 +257,14 @@ if not st.session_state.show_sql_panel:
 
                 tool_response = execute_tool(tool_choice, user_input)
 
-                # 3. Evaluate the tool's response and fallback if necessary
-                if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                    print("Tool response was insufficient or an error occurred. Falling back to main agent.")
-                    response = agent_executor.run(user_input)
+                # 3. Evaluate the tool's response and handle
+                if tool_choice == "chat_tool":
+                    response = str(tool_response)
+                elif not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+                    print(f"Tool '{tool_choice}' response was insufficient or an error occurred.")
+                    response = "I encountered an issue processing your request. Please try again or ask a different question."
                 else:
-                    response = str(tool_response) # Consider formatting this for the user
+                    response = str(tool_response) # Process the tool's successful response
 
         st.session_state.history.append(("bot", response))
         st.rerun()

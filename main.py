@@ -57,19 +57,19 @@ router_llm = ChatOpenAI(
 )
 
 router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist.
+You are a routing assistant for an AI hotel receptionist at Chez Govinda.
 
 Choose the correct tool for the user's question.
 
 Available tools:
 - sql_tool: check room availability, prices, booking status, or existing reservation details
-- vector_tool: room descriptions, hotel policies, breakfast, amenities
+- vector_tool: room descriptions, hotel policies, breakfast, amenities, pet policies
 - booking_tool: when the user confirms they want to book
-- chat_tool: if the question is unrelated to the hotel (e.g. weather, personal questions, general small talk)
+- chat_tool: if the question is clearly and unequivocally unrelated to Chez Govinda, hotel services, policies, bookings, or the user's stay. This includes personal life advice, relationship issues, opinions, general knowledge, or topics with no connection to a hotel.
 
 Important:
-- If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
-  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
+- If the question is about booking, rooms, hotel services, policies, or the user's stay, choose the relevant tool (sql_tool, vector_tool, or booking_tool).
+- **Only choose `chat_tool` for questions like "What's the weather like?", "What's your opinion on politics?", or "I want to divorce my wife." These have absolutely no connection to the hotel.** The assistant will then respond kindly: “😊 I can only help with questions about our hotel and your stay at Chez Govinda. Could you ask something related to your visit?”
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 

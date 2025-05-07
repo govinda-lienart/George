@@ -16,7 +16,7 @@ from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
-from chat_ui import render_header, render_chat_bubbles, get_user_input
+from chat_ui import render_header, get_user_input
 from booking.calendar import render_booking_form
 
 load_dotenv()
@@ -145,24 +145,35 @@ if st.session_state.show_sql_panel:
                 conn.close()
 
 if not st.session_state.show_sql_panel:
+    # Initialize session state variables
     if "history" not in st.session_state:
         st.session_state.history = []
     if "chat_summary" not in st.session_state:
         st.session_state.chat_summary = ""
     if "booking_mode" not in st.session_state:
         st.session_state.booking_mode = False
-    if "is_thinking" not in st.session_state:
-        st.session_state.is_thinking = False
+    if "current_question" not in st.session_state:
+        st.session_state.current_question = None
+    if "pending_response" not in st.session_state:
+        st.session_state.pending_response = False
 
+    # Display initial greeting if history is empty
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
 
-    # Display chat history
-    render_chat_bubbles(st.session_state.history)
+    # Custom chat bubble rendering to directly control the UI
+    for i, (role, message) in enumerate(st.session_state.history):
+        if role == "user":
+            with st.chat_message("user"):
+                st.write(message)
+        else:
+            with st.chat_message("assistant"):
+                st.write(message)
 
     # Get user input
     user_input = get_user_input()
 
+    # Tool setup
     wrapped_sql_tool = RunnableLambda(sql_tool.func).with_config(run_name="SQL Tool")
     wrapped_vector_tool = RunnableLambda(vector_tool.func).with_config(run_name="Vector Tool")
     wrapped_chat_tool = RunnableLambda(chat_tool.func).with_config(run_name="Chat Tool")
@@ -182,41 +193,50 @@ if not st.session_state.show_sql_panel:
             return f"Error: Tool '{tool_name}' not found."
 
 
-    # Process user input and generate response
+    # Process user input with simplified state management
     if user_input:
-        if not st.session_state.is_thinking:
-            # Append user message to history and rerun to show it immediately
-            st.session_state.history.append(("user", user_input))
-            st.session_state.is_thinking = True
-            st.rerun()
-        else:
-            # If we're already thinking, generate and display the response
-            try:
-                # Create placeholder for assistant response
-                with st.chat_message("assistant"):
-                    with st.spinner("🤖 George is thinking..."):
-                        # Get tool response
-                        tool_choice = router_llm.predict(router_prompt.format(question=user_input)).strip()
-                        tool_response = execute_tool(tool_choice, user_input)
+        # Save the question to session state
+        st.session_state.current_question = user_input
 
-                        if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                            response = agent_executor.run(user_input)
-                        else:
-                            response = str(tool_response)
+        # Add user question to history
+        st.session_state.history.append(("user", user_input))
 
-                        # Display response
-                        st.markdown(response)
+        # Set flag to indicate we need to process a response
+        st.session_state.pending_response = True
 
-                # Add bot response to history
-                st.session_state.history.append(("bot", response))
-            except Exception as e:
-                # Handle any errors
-                st.error(f"An error occurred: {str(e)}")
-                st.session_state.history.append(("bot", f"I'm sorry, I encountered an error. Please try again."))
+        # Force a rerun to show the user message immediately
+        st.rerun()
 
-            # Reset thinking state
-            st.session_state.is_thinking = False
-            st.rerun()
+    # Process response if there's a pending question
+    if st.session_state.pending_response and st.session_state.current_question:
+        # Get the current question from state
+        current_question = st.session_state.current_question
+
+        # Display thinking indicator
+        with st.chat_message("assistant"):
+            with st.spinner("🤖 George is thinking..."):
+                try:
+                    # Generate response
+                    tool_choice = router_llm.predict(router_prompt.format(question=current_question)).strip()
+                    tool_response = execute_tool(tool_choice, current_question)
+
+                    if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+                        response = agent_executor.run(current_question)
+                    else:
+                        response = str(tool_response)
+
+                    # Display response
+                    st.write(response)
+                except Exception as e:
+                    response = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
+                    st.error(response)
+
+        # Add response to history
+        st.session_state.history.append(("bot", response))
+
+        # Clear the pending state
+        st.session_state.pending_response = False
+        st.session_state.current_question = None
 
 if st.session_state.booking_mode:
     render_booking_form()

@@ -120,17 +120,9 @@ with st.sidebar:
         value=st.session_state.get("show_sql_panel", False)
     )
 
-    if st.button("🧪 Test LangSmith (LLM)"):
-        result = test_langsmith_trace()
-        st.success(f"LangSmith test: {result}")
-
     if st.button("🧪 Send Trace Test Info"):
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")
-
-    if st.button("🔍 Ping LangSmith (String Only)"):
-        msg = streamlit_hello_world()
-        st.success(msg)
 
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")

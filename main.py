@@ -55,7 +55,7 @@ Choose the correct tool for the user's question, following these guidelines:
 
 Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
-- vector_tool: For room descriptions, hotel policies, breakfast, amenities
+- vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information
 - booking_tool: When the user confirms they want to book a room or asks for help booking
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel
 
@@ -66,13 +66,14 @@ ROUTING RULES:
 4. Hotel services, amenities, policies → vector_tool
 5. Room availability and prices → sql_tool
 6. Booking confirmation → booking_tool
+7. ANY questions about breakfast, dining, food options → vector_tool
 
-Examples of chat_tool questions:
-- "How are you today?"
-- "Should I divorce my wife?"
-- "What's the weather like?"
-- "How's your day going?"
-- "Tell me about politics"
+Examples of specific routing:
+- "Do you have breakfast?" → vector_tool
+- "What time is breakfast served?" → vector_tool
+- "Is breakfast included?" → vector_tool
+- "Are there vegan options at breakfast?" → vector_tool
+- "How much is breakfast?" → vector_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 

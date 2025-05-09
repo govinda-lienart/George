@@ -264,9 +264,9 @@ if not st.session_state.show_sql_panel:
     if st.session_state.booking_mode:
         render_booking_form()
         # Add a cancel button for the booking form
-        if st.button("❌ Cancel Booking", key="cancel_booking_button"):
+        if st.button("❌ Remove Booking Form", key="cancel_booking_button"):
             st.session_state.booking_mode = False
-            st.session_state.history.append(("bot", "Booking cancelled. How else can I help you today?"))
+            st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
             st.rerun()
 
     user_input = get_user_input()

@@ -7,9 +7,10 @@ import streamlit as st
 import mysql.connector
 from datetime import datetime, timedelta
 from booking.email import send_confirmation_email
-
 from dotenv import load_dotenv
 import os
+
+# Load environment variables
 load_dotenv()
 
 # ========================================
@@ -135,16 +136,17 @@ def render_booking_form():
         } for room in rooms
     }
 
+    # Country code dropdown
     country_codes = [
-        "+1 USA/Canada", "+44 UK", "+33 France", "+49 Germany", "+32 Belgium", "+84 Vietnam", "+91 India", "+81 Japan",
-        "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
+        "+32 Belgium", "+1 USA/Canada", "+44 UK", "+33 France", "+49 Germany", "+84 Vietnam",
+        "+91 India", "+81 Japan", "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
     ]
 
     with st.form("booking_form"):
         first_name = st.text_input("First Name")
         last_name = st.text_input("Last Name")
         email = st.text_input("Email")
-        country_code = st.selectbox("Country Code", country_codes)
+        country_code = st.selectbox("Country Code", country_codes, index=0)
         phone_number = st.text_input("Phone Number (without country code)")
         phone = f"{country_code.split()[0]} {phone_number}" if phone_number else ""
         num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
@@ -156,7 +158,7 @@ def render_booking_form():
 
     if submitted:
         if not first_name or not last_name or not email:
-            st.warning("Please fill in all required fields (First Name, Last Name, Email).")
+            st.warning("Please fill in all required fields: First Name, Last Name, Email.")
             return
 
         room_info = room_mapping[selected_room]

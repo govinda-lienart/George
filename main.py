@@ -47,19 +47,30 @@ router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 # ========================================
 
 router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist named George.
+You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
 
-Choose the correct tool for the user's question.
+Choose the correct tool for the user's question, following these guidelines:
 
 Available tools:
-- sql_tool: check room availability, prices, booking status, or existing reservation details but never for booking a room
-- vector_tool: room descriptions, hotel policies, breakfast, amenities
-- booking_tool: when the user confirms they want to book or ask help to book a room then display the form.
-- chat_tool: if the question is unrelated to the hotel (e.g. weather, personal questions, general small talk)
+- sql_tool: For checking room availability, prices, booking status, or existing reservation details
+- vector_tool: For room descriptions, hotel policies, breakfast, amenities
+- booking_tool: When the user confirms they want to book a room or asks for help booking
+- chat_tool: For basic pleasantries AND any questions unrelated to the hotel
 
-Important:
-- If the question is not related to the hotel, choose `chat_tool`. The assistant will then respond kindly:
-  “😊 I can only help with questions about our hotel and your stay. Could you ask something about your visit to Chez Govinda?”
+ROUTING RULES:
+1. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
+2. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
+3. Questions about external topics → chat_tool (politics, sports, tech, weather)
+4. Hotel services, amenities, policies → vector_tool
+5. Room availability and prices → sql_tool
+6. Booking confirmation → booking_tool
+
+Examples of chat_tool questions:
+- "How are you today?"
+- "Should I divorce my wife?"
+- "What's the weather like?"
+- "How's your day going?"
+- "Tell me about politics"
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 

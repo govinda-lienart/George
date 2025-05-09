@@ -22,6 +22,7 @@ from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
 from chat_ui import render_header, get_user_input, render_chat_bubbles
 from booking.calendar import render_booking_form
+from utils.config import llm
 
 # ========================================
 # 🔐 Load environment variables
@@ -39,8 +40,6 @@ def get_secret(key: str, default: str = "") -> str:
 # 🧠 Load LLM & Router
 # ========================================
 
-from utils.config import llm
-
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
 # ========================================
@@ -48,7 +47,7 @@ router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 # ========================================
 
 router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist.
+You are a routing assistant for an AI hotel receptionist named George.
 
 Choose the correct tool for the user's question.
 

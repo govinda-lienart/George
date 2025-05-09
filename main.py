@@ -278,7 +278,7 @@ if not st.session_state.show_sql_panel:
 
     if st.session_state.user_input:
         with st.chat_message("assistant"):
-            with st.spinner("🧠 George is thinking..."):
+            with st.spinner("🧠 George is typing..."):
                 try:
                     response = process_user_query(st.session_state.user_input)
                     st.write(response)

@@ -30,11 +30,13 @@ from utils.config import llm
 
 load_dotenv()
 
+
 def get_secret(key: str, default: str = "") -> str:
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
+
 
 # ========================================
 # 🧠 Load LLM & Router
@@ -101,10 +103,11 @@ If someone asks about rooms, **always return the full list of the seven room typ
 If a user asks a question unrelated to the hotel, kindly respond with something like:
 "I'm here to assist with hotel-related questions only. Could you ask something about your stay?"
 
-Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” “we offer,” etc.
+Speak warmly, like a real hotel receptionist. Use phrases like "our hotel," "we offer," etc.
 """
     }
 )
+
 
 # ========================================
 # 🧪 Traced Query Handler
@@ -112,6 +115,11 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
 
 @traceable(name="GeorgeChatbotTrace", run_type="chain", tags=["chat", "routed"])
 def process_user_query(input_text: str) -> str:
+    # Check if this is a new query while booking form is active
+    # Reset booking mode if user is asking a new question instead of filling the form
+    if st.session_state.get("booking_mode", False) and input_text:
+        st.session_state.booking_mode = False
+
     tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
 
     def execute_tool(tool_name: str, query: str):
@@ -132,6 +140,7 @@ def process_user_query(input_text: str) -> str:
         return agent_executor.run(input_text)
     else:
         return str(tool_response)
+
 
 # ========================================
 # 🌐 Streamlit Configuration
@@ -216,6 +225,7 @@ if st.session_state.show_sql_panel:
                 st.dataframe(df, use_container_width=True)
         except Exception as e:
             import traceback
+
             with status_container:
                 st.error("❌ Connection failed:")
                 st.code(traceback.format_exc())
@@ -245,9 +255,18 @@ if not st.session_state.show_sql_panel:
         st.session_state.user_input = ""
 
     if not st.session_state.history:
-        st.session_state.history.append(("bot", "👋 Hello, I’m George. How can I help you today?"))
+        st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
 
     render_chat_bubbles(st.session_state.history)
+
+    # Only show booking form if in booking mode
+    if st.session_state.booking_mode:
+        render_booking_form()
+        # Add a cancel button for the booking form
+        if st.button("❌ Cancel Booking", key="cancel_booking_button"):
+            st.session_state.booking_mode = False
+            st.session_state.history.append(("bot", "Booking cancelled. How else can I help you today?"))
+            st.rerun()
 
     user_input = get_user_input()
 
@@ -270,13 +289,6 @@ if not st.session_state.show_sql_panel:
 
         st.session_state.user_input = ""
         st.rerun()
-
-# ========================================
-# 📝 Booking Form Mode
-# ========================================
-
-if st.session_state.booking_mode:
-    render_booking_form()
 
 # ========================================
 # 🩵 End Tracing

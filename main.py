@@ -1,5 +1,6 @@
-
-#main w3
+# ========================================
+# 📦 Imports and Initialization
+# ========================================
 
 import os
 import streamlit as st
@@ -14,6 +15,7 @@ from langchain_core.tracers.langchain import wait_for_all_tracers
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
+# Custom tool modules and UI components
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
@@ -21,8 +23,11 @@ from tools.booking_tool import booking_tool
 from chat_ui import render_header, get_user_input, render_chat_bubbles  # Corrected import
 from booking.calendar import render_booking_form
 
-load_dotenv()
+# ========================================
+# 🔐 Load environment variables
+# ========================================
 
+load_dotenv()
 
 def get_secret(key: str, default: str = "") -> str:
     try:
@@ -31,14 +36,17 @@ def get_secret(key: str, default: str = "") -> str:
         return os.getenv(key, default)
 
 
-os.environ["LANGSMITH_TRACING"] = get_secret("LANGSMITH_TRACING", "false")
-os.environ["LANGSMITH_API_KEY"] = get_secret("LANGSMITH_API_KEY", "")
-os.environ["LANGSMITH_PROJECT"] = get_secret("LANGSMITH_PROJECT", "George")
-os.environ["OPENAI_API_KEY"] = get_secret("OPENAI_API_KEY", "")
+# ========================================
+# 🤖 Load LLM & Router
+# ========================================
 
 from utils.config import llm
 
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+
+# ========================================
+# 🧠 Routing Prompt Template
+# ========================================
 
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist.
@@ -60,6 +68,10 @@ Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 Question: "{question}"
 Tool:
 """)
+
+# ========================================
+# 🎭 LangChain Agent Setup
+# ========================================
 
 agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
@@ -85,21 +97,25 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
     }
 )
 
+# ========================================
+# 🧪 LangSmith Trace Test Functions
+# ========================================
 
 @traceable(name="streamlit_trace_test", run_type="chain", tags=["manual", "test"])
 def trace_test_info():
     return {"status": "✅ Streamlit is tracing properly", "user": "Govinda", "test": True}
 
-
 @traceable(name="pure_streamlit_trace", run_type="chain")
 def streamlit_hello_world():
     return "✅ Hello from Streamlit with LangSmith!"
-
 
 @traceable(name="langsmith_test_trace", run_type="chain")
 def test_langsmith_trace():
     return llm.invoke("Just say hi to LangSmith.", config={"metadata": {"project_name": "George"}})
 
+# ========================================
+# 🌐 Streamlit App Configuration
+# ========================================
 
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
@@ -108,6 +124,10 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 render_header()
+
+# ========================================
+# 🧰 Sidebar: Tools & Developer Options
+# ========================================
 
 with st.sidebar:
     logo = Image.open("assets/logo.png")
@@ -129,9 +149,17 @@ with st.sidebar:
         result = trace_test_info()
         st.success(f"Traced: {result['status']}")
 
+# ========================================
+# 📚 Show Docs Panel (if enabled)
+# ========================================
+
 if st.session_state.get("show_docs_panel"):
     st.markdown("### 📖 Technical Documentation")
     st.components.v1.iframe("https://www.google.com")
+
+# ========================================
+# 🧾 SQL Query Panel (Manual Debugging)
+# ========================================
 
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
@@ -181,6 +209,9 @@ if st.session_state.show_sql_panel:
                 with status_container:
                     st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
+# ========================================
+# 💬 Chatbot Interface
+# ========================================
 
 if not st.session_state.show_sql_panel:
     if "history" not in st.session_state:
@@ -239,7 +270,15 @@ if not st.session_state.show_sql_panel:
         st.session_state.user_input = ""  # Clear stored input
         st.rerun()  # Rerun to update UI
 
+# ========================================
+# 📝 Booking Form Mode
+# ========================================
+
 if st.session_state.booking_mode:
     render_booking_form()
+
+# ========================================
+# 🧵 End Tracing
+# ========================================
 
 wait_for_all_tracers()

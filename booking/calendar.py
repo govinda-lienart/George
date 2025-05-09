@@ -135,11 +135,18 @@ def render_booking_form():
         } for room in rooms
     }
 
+    country_codes = [
+        "+1 USA/Canada", "+44 UK", "+33 France", "+49 Germany", "+32 Belgium", "+84 Vietnam", "+91 India", "+81 Japan",
+        "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
+    ]
+
     with st.form("booking_form"):
         first_name = st.text_input("First Name")
         last_name = st.text_input("Last Name")
         email = st.text_input("Email")
-        phone = st.text_input("Phone")
+        country_code = st.selectbox("Country Code", country_codes)
+        phone_number = st.text_input("Phone Number (without country code)")
+        phone = f"{country_code.split()[0]} {phone_number}" if phone_number else ""
         num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
         selected_room = st.selectbox("Select a Room", room_names)
         check_in = st.date_input("Check-in Date", min_value=datetime.today())
@@ -148,6 +155,10 @@ def render_booking_form():
         submitted = st.form_submit_button("Book Now")
 
     if submitted:
+        if not first_name or not last_name or not email:
+            st.warning("Please fill in all required fields (First Name, Last Name, Email).")
+            return
+
         room_info = room_mapping[selected_room]
         nights = (check_out - check_in).days
         total_price = room_info["price"] * nights * num_guests

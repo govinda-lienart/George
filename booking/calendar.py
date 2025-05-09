@@ -1,22 +1,29 @@
-# Last updated: 2025-05-07 14:45:57
-# update Last updated: calendar
+# Last updated: 2025-05-09
+
+# ========================================
+# 📦 Imports & Configuration
+# ========================================
 import streamlit as st
 import mysql.connector
 from datetime import datetime, timedelta
 from booking.email import send_confirmation_email
 
-# ✅ Load secrets from Streamlit or fallback to local .env
 from dotenv import load_dotenv
 import os
 load_dotenv()
 
+# ========================================
+# 🔐 Secure Secret Access
+# ========================================
 def get_secret(key, default=None):
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
 
-# ✅ DB connection config for FORM user
+# ========================================
+# 🛠️ DB Connection for Booking Form
+# ========================================
 db_config = {
     "host": get_secret("DB_HOST_FORM"),
     "port": int(get_secret("DB_PORT_FORM", 3306)),
@@ -25,6 +32,9 @@ db_config = {
     "database": get_secret("DB_DATABASE_FORM")
 }
 
+# ========================================
+# 🏨 Room Fetch Utility
+# ========================================
 def get_rooms():
     try:
         conn = mysql.connector.connect(**db_config)
@@ -42,10 +52,16 @@ def get_rooms():
         except:
             pass
 
+# ========================================
+# 🆔 Booking Number Generator
+# ========================================
 def generate_booking_number(booking_id):
     today_str = datetime.today().strftime("%Y%m%d")
     return f"BKG-{today_str}-{str(booking_id).zfill(4)}"
 
+# ========================================
+# 🧾 Booking Insert Logic
+# ========================================
 def insert_booking(data):
     try:
         conn = mysql.connector.connect(**db_config)
@@ -98,6 +114,9 @@ def insert_booking(data):
         except:
             pass
 
+# ========================================
+# 📋 Booking Form Renderer
+# ========================================
 def render_booking_form():
     rooms = get_rooms()
     if not rooms:
@@ -155,6 +174,7 @@ def render_booking_form():
                 check_in, check_out, total_price, num_guests, phone, room_type
             )
             st.success("✅ Booking confirmed!")
+            st.balloons()
             st.info(
                 f"**Booking Number:** {booking_number}\n"
                 f"**Room Type:** {room_type}\n"
@@ -162,8 +182,7 @@ def render_booking_form():
                 f"**Total Price:** €{total_price}\n\n"
                 f"A confirmation email has been sent to {email}."
             )
-            st.session_state.booking_mode = False  # ✅ Hide form next run
-            # st.experimental_rerun()  # ❌ Removed for safety
+            st.session_state.booking_mode = False
         else:
             st.error(f"❌ Booking failed: {result}")
 

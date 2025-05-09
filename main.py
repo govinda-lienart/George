@@ -20,7 +20,7 @@ from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
-from chat_ui import render_header, get_user_input, render_chat_bubbles  # Corrected import
+from chat_ui import render_header, get_user_input, render_chat_bubbles
 from booking.calendar import render_booking_form
 
 # ========================================
@@ -35,9 +35,8 @@ def get_secret(key: str, default: str = "") -> str:
     except Exception:
         return os.getenv(key, default)
 
-
 # ========================================
-# 🤖 Load LLM & Router
+# 🧠 Load LLM & Router
 # ========================================
 
 from utils.config import llm
@@ -98,23 +97,34 @@ Speak warmly, like a real hotel receptionist. Use phrases like “our hotel,” 
 )
 
 # ========================================
-# 🧪 LangSmith Trace Test Functions
+# 🧪 Traced Query Handler
 # ========================================
 
-@traceable(name="streamlit_trace_test", run_type="chain", tags=["manual", "test"])
-def trace_test_info():
-    return {"status": "✅ Streamlit is tracing properly", "user": "Govinda", "test": True}
+@traceable(name="GeorgeChatbotTrace", run_type="chain", tags=["chat", "routed"])
+def process_user_query(input_text: str) -> str:
+    tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
 
-@traceable(name="pure_streamlit_trace", run_type="chain")
-def streamlit_hello_world():
-    return "✅ Hello from Streamlit with LangSmith!"
+    def execute_tool(tool_name: str, query: str):
+        if tool_name == "sql_tool":
+            return sql_tool.func(query)
+        elif tool_name == "vector_tool":
+            return vector_tool.func(query)
+        elif tool_name == "booking_tool":
+            return booking_tool.func(query)
+        elif tool_name == "chat_tool":
+            return chat_tool.func(query)
+        else:
+            return f"Error: Tool '{tool_name}' not found."
 
-@traceable(name="langsmith_test_trace", run_type="chain")
-def test_langsmith_trace():
-    return llm.invoke("Just say hi to LangSmith.", config={"metadata": {"project_name": "George"}})
+    tool_response = execute_tool(tool_choice, input_text)
+
+    if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
+        return agent_executor.run(input_text)
+    else:
+        return str(tool_response)
 
 # ========================================
-# 🌐 Streamlit App Configuration
+# 🌐 Streamlit Configuration
 # ========================================
 
 st.set_page_config(
@@ -126,7 +136,7 @@ st.set_page_config(
 render_header()
 
 # ========================================
-# 🧰 Sidebar: Tools & Developer Options
+# 🛠️ Sidebar: Tools & Dev Panel
 # ========================================
 
 with st.sidebar:
@@ -145,12 +155,13 @@ with st.sidebar:
         value=st.session_state.get("show_docs_panel", False)
     )
 
-    if st.button("🧪 Send Trace Test Info"):
-        result = trace_test_info()
-        st.success(f"Traced: {result['status']}")
+    if st.button("🧪 Run Chat Routing Test"):
+        result = process_user_query("Can I book a room with breakfast?")
+        st.success("✅ Test Response:")
+        st.info(result)
 
 # ========================================
-# 📚 Show Docs Panel (if enabled)
+# 📚 Docs Panel
 # ========================================
 
 if st.session_state.get("show_docs_panel"):
@@ -158,7 +169,7 @@ if st.session_state.get("show_docs_panel"):
     st.components.v1.iframe("https://www.google.com")
 
 # ========================================
-# 🧾 SQL Query Panel (Manual Debugging)
+# 🗒️ SQL Debug Panel
 # ========================================
 
 if st.session_state.show_sql_panel:
@@ -221,54 +232,34 @@ if not st.session_state.show_sql_panel:
     if "booking_mode" not in st.session_state:
         st.session_state.booking_mode = False
     if "user_input" not in st.session_state:
-        st.session_state.user_input = ""  # Initialize user_input
+        st.session_state.user_input = ""
 
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I’m George. How can I help you today?"))
 
     render_chat_bubbles(st.session_state.history)
 
-    user_input = get_user_input()  # Get input from chat_ui
+    user_input = get_user_input()
 
     if user_input:
         st.session_state.history.append(("user", user_input))
-        st.session_state.user_input = user_input  # Store input for processing
-        st.rerun()  # Rerun to process input
+        st.session_state.user_input = user_input
+        st.rerun()
 
-    if st.session_state.user_input:  # Process stored input
+    if st.session_state.user_input:
         with st.chat_message("assistant"):
-            with st.spinner("🤖 George is thinking..."):
+            with st.spinner("🧠 George is thinking..."):
                 try:
-                    tool_choice = router_llm.predict(router_prompt.format(question=st.session_state.user_input)).strip()
-
-                    def execute_tool(tool_name: str, query: str):
-                        if tool_name == "sql_tool":
-                            return sql_tool.func(query)
-                        elif tool_name == "vector_tool":
-                            return vector_tool.func(query)
-                        elif tool_name == "booking_tool":
-                            return booking_tool.func(query)
-                        elif tool_name == "chat_tool":
-                            return chat_tool.func(query)
-                        else:
-                            return f"Error: Tool '{tool_name}' not found."
-
-                    tool_response = execute_tool(tool_choice, st.session_state.user_input)
-
-                    if not tool_response or str(tool_response).strip() == "[]" or "SQL ERROR" in str(tool_response):
-                        response = agent_executor.run(st.session_state.user_input)
-                    else:
-                        response = str(tool_response)
-
-                    st.write(response)  # Display response
+                    response = process_user_query(st.session_state.user_input)
+                    st.write(response)
                     st.session_state.history.append(("bot", response))
                 except Exception as e:
                     response = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
                     st.error(response)
                     st.session_state.history.append(("bot", response))
 
-        st.session_state.user_input = ""  # Clear stored input
-        st.rerun()  # Rerun to update UI
+        st.session_state.user_input = ""
+        st.rerun()
 
 # ========================================
 # 📝 Booking Form Mode
@@ -278,7 +269,7 @@ if st.session_state.booking_mode:
     render_booking_form()
 
 # ========================================
-# 🧵 End Tracing
+# 🩵 End Tracing
 # ========================================
 
 wait_for_all_tracers()

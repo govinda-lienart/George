@@ -56,7 +56,7 @@ Choose the correct tool for the user's question, following these guidelines:
 Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
 - vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information
-- booking_tool: When the user confirms they want to book a room or asks for help booking
+- booking_tool: When the user confirms they want to book a room, asks for help booking, OR wants to see a visual calendar of room availability
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel
 
 ROUTING RULES:
@@ -67,6 +67,7 @@ ROUTING RULES:
 5. Room availability and prices → sql_tool
 6. Booking confirmation → booking_tool
 7. ANY questions about breakfast, dining, food options → vector_tool
+8. Requests to see a visual calendar or availability chart → booking_tool
 
 Examples of specific routing:
 - "Do you have breakfast?" → vector_tool
@@ -74,6 +75,10 @@ Examples of specific routing:
 - "Is breakfast included?" → vector_tool
 - "Are there vegan options at breakfast?" → vector_tool
 - "How much is breakfast?" → vector_tool
+- "Show me a calendar of available rooms" → booking_tool 
+- "I want to see which dates are available" → booking_tool
+- "When are rooms free?" → booking_tool
+- "Can I see the room availability calendar?" → booking_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -98,6 +103,7 @@ Always follow these rules:
 - ✅ Use `vector_tool` for room types, room descriptions, hotel policies, breakfast, and amenities.
 - ❌ Never use `sql_tool` for room descriptions or general hotel info.
 - ✅ Use `sql_tool` only for checking availability, bookings, or price queries.
+- ✅ Use `booking_tool` when users want to book a room OR see a visual calendar of room availability.
 
 If someone asks about rooms, **always return the full list of the seven room types** from hotel documentation in the database.
 
@@ -246,6 +252,7 @@ if st.session_state.show_sql_panel:
 # ========================================
 
 if not st.session_state.show_sql_panel:
+    # Initialize session state variables if they don't exist
     if "history" not in st.session_state:
         st.session_state.history = []
     if "chat_summary" not in st.session_state:
@@ -254,6 +261,14 @@ if not st.session_state.show_sql_panel:
         st.session_state.booking_mode = False
     if "user_input" not in st.session_state:
         st.session_state.user_input = ""
+    if "show_calendar" not in st.session_state:
+        st.session_state.show_calendar = False
+    if "pre_selected_room_id" not in st.session_state:
+        st.session_state.pre_selected_room_id = None
+    if "pre_selected_check_in" not in st.session_state:
+        st.session_state.pre_selected_check_in = None
+    if "pre_selected_check_out" not in st.session_state:
+        st.session_state.pre_selected_check_out = None
 
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
@@ -266,6 +281,7 @@ if not st.session_state.show_sql_panel:
         # Add a cancel button for the booking form
         if st.button("❌ Remove Booking Form", key="cancel_booking_button"):
             st.session_state.booking_mode = False
+            st.session_state.show_calendar = False
             st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
             st.rerun()
 

@@ -68,6 +68,7 @@ ROUTING RULES:
 6. Booking confirmation → booking_tool
 7. ANY questions about breakfast, dining, food options → vector_tool
 8. Requests to see a visual calendar or availability chart → booking_tool
+9. Requests to cancel, exit, or reset booking flow → booking_tool (e.g., "cancel booking", "exit booking", "reset")
 
 Examples of specific routing:
 - "Do you have breakfast?" → vector_tool
@@ -79,6 +80,9 @@ Examples of specific routing:
 - "I want to see which dates are available" → booking_tool
 - "When are rooms free?" → booking_tool
 - "Can I see the room availability calendar?" → booking_tool
+- "Cancel my booking" → booking_tool
+- "Exit the booking form" → booking_tool
+- "Go back to chat" → booking_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -104,6 +108,7 @@ Always follow these rules:
 - ❌ Never use `sql_tool` for room descriptions or general hotel info.
 - ✅ Use `sql_tool` only for checking availability, bookings, or price queries.
 - ✅ Use `booking_tool` when users want to book a room OR see a visual calendar of room availability.
+- ✅ Use `booking_tool` when users want to cancel, exit, or reset the booking process.
 
 If someone asks about rooms, **always return the full list of the seven room types** from hotel documentation in the database.
 
@@ -123,9 +128,17 @@ Speak warmly, like a real hotel receptionist. Use phrases like "our hotel," "we 
 @traceable(name="GeorgeChatbotTrace", run_type="chain", tags=["chat", "routed"])
 def process_user_query(input_text: str) -> str:
     # Check if this is a new query while booking form is active
-    # Reset booking mode if user is asking a new question instead of filling the form
-    if st.session_state.get("booking_mode", False) and input_text:
-        st.session_state.booking_mode = False
+    # Only reset booking mode if the query is not related to the booking process
+    cancel_keywords = ["cancel", "exit", "quit", "remove", "stop", "back", "reset"]
+
+    if (st.session_state.get("booking_mode", False) and input_text and
+            not any(keyword in input_text.lower() for keyword in cancel_keywords)):
+        tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
+
+        # Only exit booking mode if the query is not related to booking
+        if tool_choice != "booking_tool":
+            st.session_state.booking_mode = False
+            st.session_state.show_calendar = False
 
     tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
 
@@ -177,138 +190,4 @@ with st.sidebar:
 
     st.markdown("### 📄 Documentation")
     st.session_state.show_docs_panel = st.checkbox(
-        "📄 Show Documentation",
-        value=st.session_state.get("show_docs_panel", False)
-    )
-
-    if st.button("🧪 Run Chat Routing Test"):
-        result = process_user_query("Can I book a room with breakfast?")
-        st.success("✅ Test Response:")
-        st.info(result)
-
-# ========================================
-# 📚 Docs Panel
-# ========================================
-
-if st.session_state.get("show_docs_panel"):
-    st.markdown("### 📖 Technical Documentation")
-    st.components.v1.iframe("https://www.google.com")
-
-# ========================================
-# 🗒️ SQL Debug Panel
-# ========================================
-
-if st.session_state.show_sql_panel:
-    st.markdown("### 🔍 SQL Query Panel")
-    sql_input = st.text_area(
-        "🔍 Enter SQL query to run:",
-        value="SELECT * FROM bookings LIMIT 10;",
-        height=150,
-        key="sql_input_box"
-    )
-    run_query = st.button("Run Query", key="run_query_button", type="primary")
-    status_container = st.container()
-    result_container = st.container()
-
-    if run_query:
-        try:
-            with status_container:
-                st.write("🔐 Connecting to database...")
-            conn = mysql.connector.connect(
-                host=get_secret("DB_HOST_READ_ONLY"),
-                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
-                user=get_secret("DB_USERNAME_READ_ONLY"),
-                password=get_secret("DB_PASSWORD_READ_ONLY"),
-                database=get_secret("DB_DATABASE_READ_ONLY")
-            )
-            with status_container:
-                st.success("✅ Connected to MySQL!")
-            cursor = conn.cursor()
-            cursor.execute(sql_input)
-            rows = cursor.fetchall()
-            col_names = [desc[0] for desc in cursor.description]
-            with result_container:
-                df = pd.DataFrame(rows, columns=col_names)
-                st.dataframe(df, use_container_width=True)
-        except Exception as e:
-            import traceback
-
-            with status_container:
-                st.error("❌ Connection failed:")
-                st.code(traceback.format_exc())
-        finally:
-            try:
-                if 'conn' in locals() and conn.is_connected():
-                    cursor.close()
-                    conn.close()
-                    with status_container:
-                        st.info("🔌 Connection closed.")
-            except Exception as close_err:
-                with status_container:
-                    st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
-
-# ========================================
-# 💬 Chatbot Interface
-# ========================================
-
-if not st.session_state.show_sql_panel:
-    # Initialize session state variables if they don't exist
-    if "history" not in st.session_state:
-        st.session_state.history = []
-    if "chat_summary" not in st.session_state:
-        st.session_state.chat_summary = ""
-    if "booking_mode" not in st.session_state:
-        st.session_state.booking_mode = False
-    if "user_input" not in st.session_state:
-        st.session_state.user_input = ""
-    if "show_calendar" not in st.session_state:
-        st.session_state.show_calendar = False
-    if "pre_selected_room_id" not in st.session_state:
-        st.session_state.pre_selected_room_id = None
-    if "pre_selected_check_in" not in st.session_state:
-        st.session_state.pre_selected_check_in = None
-    if "pre_selected_check_out" not in st.session_state:
-        st.session_state.pre_selected_check_out = None
-
-    if not st.session_state.history:
-        st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
-
-    render_chat_bubbles(st.session_state.history)
-
-    # Only show booking form if in booking mode
-    if st.session_state.booking_mode:
-        render_booking_form()
-        # Add a cancel button for the booking form
-        if st.button("❌ Remove Booking Form", key="cancel_booking_button"):
-            st.session_state.booking_mode = False
-            st.session_state.show_calendar = False
-            st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
-            st.rerun()
-
-    user_input = get_user_input()
-
-    if user_input:
-        st.session_state.history.append(("user", user_input))
-        st.session_state.user_input = user_input
-        st.rerun()
-
-    if st.session_state.user_input:
-        with st.chat_message("assistant"):
-            with st.spinner("🧠 George is typing..."):
-                try:
-                    response = process_user_query(st.session_state.user_input)
-                    st.write(response)
-                    st.session_state.history.append(("bot", response))
-                except Exception as e:
-                    response = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
-                    st.error(response)
-                    st.session_state.history.append(("bot", response))
-
-        st.session_state.user_input = ""
-        st.rerun()
-
-# ========================================
-# 🩵 End Tracing
-# ========================================
-
-wait_for_all_tracers()
+        "

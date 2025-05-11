@@ -150,10 +150,11 @@ def display_availability_calendar(room_id=None, selected_room_type=None):
     col1, col2 = st.columns([5, 1])
     with col2:
         if st.button("🔄 Reset", key="reset_calendar"):
-            st.session_state.show_calendar = False
-            st.session_state.pre_selected_room_id = None
-            st.session_state.pre_selected_check_in = None
-            st.session_state.pre_selected_check_out = None
+            # Clear all booking-related session state
+            for key in ['show_calendar', 'pre_selected_room_id', 'pre_selected_check_in',
+                        'pre_selected_check_out', 'booking_mode']:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.rerun()
 
     # Get list of rooms if room_id not specified
@@ -338,11 +339,13 @@ def render_booking_form():
     col1, col2 = st.columns([5, 1])
     with col2:
         if st.button("🔄 Reset", key="reset_booking_form"):
-            st.session_state.booking_mode = False
-            st.session_state.show_calendar = False
-            st.session_state.pre_selected_room_id = None
-            st.session_state.pre_selected_check_in = None
-            st.session_state.pre_selected_check_out = None
+            # Clear all booking-related session state
+            for key in ['booking_mode', 'show_calendar', 'pre_selected_room_id',
+                        'pre_selected_check_in', 'pre_selected_check_out']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            # Add a message to the history
+            st.session_state.history.append(("bot", "I've reset the booking form. How else can I help you today?"))
             st.rerun()
 
     try:
@@ -386,13 +389,15 @@ def render_booking_form():
                     pre_selected_room_option = room_option
                     break
 
-        # Clear pre-selection after use
-        if pre_selected_room_id:
-            del st.session_state.pre_selected_room_id
-        if pre_selected_check_in:
-            del st.session_state.pre_selected_check_in
-        if pre_selected_check_out:
-            del st.session_state.pre_selected_check_out
+        # Clear pre-selection after use to avoid repeated display
+        # Only clear if we have successfully found and are using them
+        if pre_selected_room_option:
+            if "pre_selected_room_id" in st.session_state:
+                del st.session_state.pre_selected_room_id
+            if "pre_selected_check_in" in st.session_state:
+                del st.session_state.pre_selected_check_in
+            if "pre_selected_check_out" in st.session_state:
+                del st.session_state.pre_selected_check_out
 
         # Country code dropdown
         country_codes = [
@@ -471,16 +476,24 @@ def render_booking_form():
                     st.warning(f"Booking confirmed but email could not be sent: {str(e)}")
                     email_sent = False
 
-                st.success("✅ Booking confirmed!")
-                st.balloons()
-                st.info(
+                success_message = (
+                    f"✅ Booking confirmed!\n\n"
                     f"**Booking Number:** {booking_number}\n"
                     f"**Room Type:** {room_type}\n"
                     f"**Guests:** {num_guests}\n"
                     f"**Total Price:** €{total_price}\n\n"
                     f"{'A confirmation email has been sent to ' + email if email_sent else 'Please save your booking number as confirmation.'}"
                 )
+
+                st.success(success_message)
+                st.balloons()
+
+                # Update chat history with booking confirmation
+                st.session_state.history.append(("bot", success_message))
+
+                # Exit booking mode
                 st.session_state.booking_mode = False
+                st.rerun()
             else:
                 st.error(f"❌ Booking failed: {result}")
                 if "already booked" in result:

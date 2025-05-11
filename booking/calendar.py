@@ -9,6 +9,7 @@ import pandas as pd
 from booking.email import send_confirmation_email
 from dotenv import load_dotenv
 import os
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -27,30 +28,40 @@ def get_secret(key, default=None):
 # ========================================
 # 🛠️ DB Connection for Booking Form
 # ========================================
-db_config = {
-    "host": get_secret("DB_HOST_FORM"),
-    "port": int(get_secret("DB_PORT_FORM", 3306)),
-    "user": get_secret("DB_USERNAME_FORM"),
-    "password": get_secret("DB_PASSWORD_FORM") or '',
-    "database": get_secret("DB_DATABASE_FORM")
-}
+def get_db_config():
+    return {
+        "host": get_secret("DB_HOST_FORM"),
+        "port": int(get_secret("DB_PORT_FORM", 3306)),
+        "user": get_secret("DB_USERNAME_FORM"),
+        "password": get_secret("DB_PASSWORD_FORM") or '',
+        "database": get_secret("DB_DATABASE_FORM")
+    }
 
 
 # ========================================
-# 🏨 Room Fetch Utility
+# 🏨 Room Fetch Utility with Error Handling
 # ========================================
 def get_rooms():
     try:
+        db_config = get_db_config()
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM rooms")
-        return cursor.fetchall()
+        rooms = cursor.fetchall()
+        if not rooms:
+            st.warning("No rooms found in the database.")
+        return rooms
+    except mysql.connector.Error as db_err:
+        st.error(f"Database error: {db_err}")
+        st.info("If this error persists, please contact support.")
+        return []
     except Exception as e:
         st.error(f"Error retrieving rooms: {e}")
+        st.info("Please try again in a few moments.")
         return []
     finally:
         try:
-            if conn.is_connected():
+            if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
         except:
@@ -66,7 +77,7 @@ def generate_booking_number(booking_id):
 
 
 # ========================================
-# 📊 Room Availability Visualization
+# 📊 Room Availability Visualization with Error Handling
 # ========================================
 def visualize_availability(room_id, start_date, end_date):
     """
@@ -74,6 +85,7 @@ def visualize_availability(room_id, start_date, end_date):
     Returns a dictionary mapping dates to availability status
     """
     try:
+        db_config = get_db_config()
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
 
@@ -117,10 +129,11 @@ def visualize_availability(room_id, start_date, end_date):
 
     except Exception as e:
         st.error(f"Error checking availability: {e}")
+        st.info("Unable to load availability data. Please try again.")
         return {}
     finally:
         try:
-            if conn.is_connected():
+            if 'conn' in locals() and conn.is_connected():
                 cursor.close()
                 conn.close()
         except:
@@ -128,14 +141,28 @@ def visualize_availability(room_id, start_date, end_date):
 
 
 # ========================================
-# 📅 Availability Calendar Display
+# 📅 Availability Calendar Display with Reset Option
 # ========================================
 def display_availability_calendar(room_id=None, selected_room_type=None):
     """Display a visual calendar for room availability"""
 
+    # Add emergency reset button
+    col1, col2 = st.columns([5, 1])
+    with col2:
+        if st.button("🔄 Reset", key="reset_calendar"):
+            st.session_state.show_calendar = False
+            st.session_state.pre_selected_room_id = None
+            st.session_state.pre_selected_check_in = None
+            st.session_state.pre_selected_check_out = None
+            st.rerun()
+
     # Get list of rooms if room_id not specified
+    rooms = get_rooms()
+    if not rooms:
+        st.warning("Could not load room data. Please try again.")
+        return
+
     if room_id is None:
-        rooms = get_rooms()
         room_options = [f"{room['room_type']} (ID: {room['room_id']})" for room in rooms]
         selected_option = st.selectbox("Select Room", room_options)
         room_id = int(selected_option.split("ID: ")[1].split(")")[0])
@@ -166,77 +193,85 @@ def display_availability_calendar(room_id=None, selected_room_type=None):
     # Legend
     st.write("**Legend:** 🟢 Available  |  🔴 Booked")
 
-    # Display monthly calendars
-    current_month = start_date.month
-    current_year = start_date.year
-    end_month = end_date.month
-    end_year = end_date.year
+    try:
+        # Display monthly calendars
+        current_month = start_date.month
+        current_year = start_date.year
+        end_month = end_date.month
+        end_year = end_date.year
 
-    # Calculate the total number of months to display
-    total_months = (end_year - current_year) * 12 + (end_month - current_month) + 1
+        # Calculate the total number of months to display
+        total_months = (end_year - current_year) * 12 + (end_month - current_month) + 1
 
-    # Display each month
-    for month_offset in range(total_months):
-        # Calculate the month and year
-        display_month = (current_month + month_offset - 1) % 12 + 1
-        display_year = current_year + (current_month + month_offset - 1) // 12
+        # Display each month
+        for month_offset in range(total_months):
+            # Calculate the month and year
+            display_month = (current_month + month_offset - 1) % 12 + 1
+            display_year = current_year + (current_month + month_offset - 1) // 12
 
-        # Get the first day of the month (0 = Monday)
-        first_day, days_in_month = calendar.monthrange(display_year, display_month)
+            # Get the first day of the month (0 = Monday)
+            first_day, days_in_month = calendar.monthrange(display_year, display_month)
 
-        # Display month and year
-        st.write(f"#### {calendar.month_name[display_month]} {display_year}")
+            # Display month and year
+            st.write(f"#### {calendar.month_name[display_month]} {display_year}")
 
-        # Create the day headers
-        cols = st.columns(7)
-        for i, day in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
-            cols[i].write(f"**{day}**")
-
-        # Create the calendar grid
-        day = 1
-        for week in range(6):  # Calendar can have up to 6 weeks
-            if day > days_in_month:
-                break
-
+            # Create the day headers
             cols = st.columns(7)
+            for i, day in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
+                cols[i].write(f"**{day}**")
 
-            for weekday in range(7):
-                if (week == 0 and weekday < first_day) or day > days_in_month:
-                    # Empty cell
-                    cols[weekday].write("")
-                else:
-                    # Create date object for this day
-                    this_date = datetime(display_year, display_month, day).date()
+            # Create the calendar grid
+            day = 1
+            for week in range(6):  # Calendar can have up to 6 weeks
+                if day > days_in_month:
+                    break
 
-                    # Check if this date is within our range
-                    if start_date <= this_date <= end_date:
-                        is_available = availability.get(this_date, False)
-                        if is_available:
-                            cols[weekday].markdown(f"🟢 **{day}**")
-                        else:
-                            cols[weekday].markdown(f"🔴 **{day}**")
+                cols = st.columns(7)
+
+                for weekday in range(7):
+                    if (week == 0 and weekday < first_day) or day > days_in_month:
+                        # Empty cell
+                        cols[weekday].write("")
                     else:
-                        # Date out of range, show in gray
-                        cols[weekday].markdown(f"<span style='color:gray'>{day}</span>", unsafe_allow_html=True)
+                        # Create date object for this day
+                        this_date = datetime(display_year, display_month, day).date()
 
-                    day += 1
+                        # Check if this date is within our range
+                        if start_date <= this_date <= end_date:
+                            is_available = availability.get(this_date, False)
+                            if is_available:
+                                cols[weekday].markdown(f"🟢 **{day}**")
+                            else:
+                                cols[weekday].markdown(f"🔴 **{day}**")
+                        else:
+                            # Date out of range, show in gray
+                            cols[weekday].markdown(f"<span style='color:gray'>{day}</span>", unsafe_allow_html=True)
 
-    # Add a button to proceed to booking
-    if st.button("📝 Book This Room"):
-        # Store info for pre-filling the booking form
-        st.session_state.pre_selected_room_id = room_id
-        st.session_state.pre_selected_check_in = start_date
-        st.session_state.pre_selected_check_out = end_date
-        st.session_state.show_calendar = False
-        st.session_state.booking_mode = True
-        st.rerun()
+                        day += 1
+
+        # Add a button to proceed to booking
+        if st.button("📝 Book This Room"):
+            # Store info for pre-filling the booking form
+            st.session_state.pre_selected_room_id = room_id
+            st.session_state.pre_selected_check_in = start_date
+            st.session_state.pre_selected_check_out = end_date
+            st.session_state.show_calendar = False
+            st.session_state.booking_mode = True
+            st.rerun()
+
+    except Exception as e:
+        st.error(f"Error rendering calendar: {e}")
+        st.info("Please try refreshing the page.")
 
 
 # ========================================
-# 🧾 Booking Insert Logic
+# 🧾 Booking Insert Logic with Error Handling
 # ========================================
 def insert_booking(data):
+    conn = None
+    cursor = None
     try:
+        db_config = get_db_config()
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
@@ -277,147 +312,188 @@ def insert_booking(data):
 
         return True, (booking_number, data['total_price'], data['room_type'])
 
+    except mysql.connector.Error as db_err:
+        error_msg = f"Database error: {db_err}"
+        return False, error_msg
     except Exception as e:
-        return False, str(e)
+        error_msg = f"Unexpected error: {str(e)}"
+        return False, error_msg
     finally:
         try:
-            if conn.is_connected():
+            if cursor:
                 cursor.close()
+            if conn and conn.is_connected():
                 conn.close()
         except:
             pass
 
 
 # ========================================
-# 📋 Booking Form Renderer
+# 📋 Booking Form Renderer with Improved Error Handling
 # ========================================
 def render_booking_form():
-    rooms = get_rooms()
-    if not rooms:
-        st.warning("No rooms available or failed to load room list.")
-        return
+    """Render the booking form with error handling and recovery options"""
 
-    ROOM_NAME_KEY = "room_type"
-    ROOM_PRICE_KEY = "price"
+    # Add emergency reset button
+    col1, col2 = st.columns([5, 1])
+    with col2:
+        if st.button("🔄 Reset", key="reset_booking_form"):
+            st.session_state.booking_mode = False
+            st.session_state.show_calendar = False
+            st.session_state.pre_selected_room_id = None
+            st.session_state.pre_selected_check_in = None
+            st.session_state.pre_selected_check_out = None
+            st.rerun()
 
-    room_names = [f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})" for room in rooms]
-    room_mapping = {
-        f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": {
-            "id": room["room_id"],
-            "type": room[ROOM_NAME_KEY],
-            "price": room[ROOM_PRICE_KEY]
-        } for room in rooms
-    }
-
-    # Add option to view availability calendar
-    show_calendar = st.checkbox("📅 Check Room Availability", value=st.session_state.get("show_calendar", False))
-
-    if show_calendar:
-        # Show the availability calendar
-        display_availability_calendar()
-        return  # Return early - user will click 'Book This Room' to continue
-
-    # Get pre-selected values if available
-    pre_selected_room_id = st.session_state.get("pre_selected_room_id")
-    pre_selected_check_in = st.session_state.get("pre_selected_check_in")
-    pre_selected_check_out = st.session_state.get("pre_selected_check_out")
-
-    # Find pre-selected room in options
-    pre_selected_room_option = None
-    if pre_selected_room_id:
-        for room_option in room_names:
-            if f"id: {pre_selected_room_id}" in room_option:
-                pre_selected_room_option = room_option
-                break
-
-    # Clear pre-selection after use
-    if pre_selected_room_id:
-        del st.session_state.pre_selected_room_id
-    if pre_selected_check_in:
-        del st.session_state.pre_selected_check_in
-    if pre_selected_check_out:
-        del st.session_state.pre_selected_check_out
-
-    # Country code dropdown
-    country_codes = [
-        "+32 Belgium", "+1 USA/Canada", "+44 UK", "+33 France", "+49 Germany", "+84 Vietnam",
-        "+91 India", "+81 Japan", "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
-    ]
-
-    with st.form("booking_form"):
-        first_name = st.text_input("First Name")
-        last_name = st.text_input("Last Name")
-        email = st.text_input("Email")
-        country_code = st.selectbox("Country Phone Code", country_codes, index=0)
-        phone_number = st.text_input("Phone Number (without country code)")
-        phone = f"{country_code.split()[0]} {phone_number}" if phone_number else ""
-        num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
-
-        # Use pre-selected room if available
-        if pre_selected_room_option:
-            selected_room = st.selectbox("Select a Room", room_names,
-                                         index=room_names.index(pre_selected_room_option))
-        else:
-            selected_room = st.selectbox("Select a Room", room_names)
-
-        # Use pre-selected dates if available
-        if pre_selected_check_in:
-            check_in = st.date_input("Check-in Date", pre_selected_check_in, min_value=datetime.today())
-        else:
-            check_in = st.date_input("Check-in Date", min_value=datetime.today())
-
-        if pre_selected_check_out:
-            check_out = st.date_input("Check-out Date", pre_selected_check_out,
-                                      min_value=check_in + timedelta(days=1))
-        else:
-            check_out = st.date_input("Check-out Date",
-                                      min_value=check_in + timedelta(days=1))
-
-        special_requests = st.text_area("Special Requests", placeholder="Optional")
-        submitted = st.form_submit_button("Book Now")
-
-    if submitted:
-        if not first_name or not last_name or not email:
-            st.warning("Please fill in all required fields: First Name, Last Name, Email.")
+    try:
+        rooms = get_rooms()
+        if not rooms:
+            st.warning("No rooms available or failed to load room list.")
+            if st.button("Try Again", key="retry_rooms"):
+                st.rerun()
             return
 
-        room_info = room_mapping[selected_room]
-        nights = (check_out - check_in).days
-        total_price = room_info["price"] * nights * num_guests
+        ROOM_NAME_KEY = "room_type"
+        ROOM_PRICE_KEY = "price"
 
-        booking_data = {
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
-            "phone": phone,
-            "room_id": room_info["id"],
-            "room_type": room_info["type"],
-            "check_in": check_in,
-            "check_out": check_out,
-            "num_guests": num_guests,
-            "total_price": total_price,
-            "special_requests": special_requests
+        room_names = [f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})" for room in rooms]
+        room_mapping = {
+            f"{room[ROOM_NAME_KEY]} (id: {room['room_id']})": {
+                "id": room["room_id"],
+                "type": room[ROOM_NAME_KEY],
+                "price": room[ROOM_PRICE_KEY]
+            } for room in rooms
         }
 
-        success, result = insert_booking(booking_data)
-        if success:
-            booking_number, total_price, room_type = result
-            send_confirmation_email(
-                email, first_name, last_name, booking_number,
-                check_in, check_out, total_price, num_guests, phone, room_type
-            )
-            st.success("✅ Booking confirmed!")
-            st.balloons()
-            st.info(
-                f"**Booking Number:** {booking_number}\n"
-                f"**Room Type:** {room_type}\n"
-                f"**Guests:** {num_guests}\n"
-                f"**Total Price:** €{total_price}\n\n"
-                f"A confirmation email has been sent to {email}."
-            )
+        # Add option to view availability calendar
+        show_calendar = st.checkbox("📅 Check Room Availability", value=st.session_state.get("show_calendar", False))
+
+        if show_calendar:
+            # Show the availability calendar
+            display_availability_calendar()
+            return  # Return early - user will click 'Book This Room' to continue
+
+        # Get pre-selected values if available
+        pre_selected_room_id = st.session_state.get("pre_selected_room_id")
+        pre_selected_check_in = st.session_state.get("pre_selected_check_in")
+        pre_selected_check_out = st.session_state.get("pre_selected_check_out")
+
+        # Find pre-selected room in options
+        pre_selected_room_option = None
+        if pre_selected_room_id:
+            for room_option in room_names:
+                if f"id: {pre_selected_room_id}" in room_option:
+                    pre_selected_room_option = room_option
+                    break
+
+        # Clear pre-selection after use
+        if pre_selected_room_id:
+            del st.session_state.pre_selected_room_id
+        if pre_selected_check_in:
+            del st.session_state.pre_selected_check_in
+        if pre_selected_check_out:
+            del st.session_state.pre_selected_check_out
+
+        # Country code dropdown
+        country_codes = [
+            "+32 Belgium", "+1 USA/Canada", "+44 UK", "+33 France", "+49 Germany", "+84 Vietnam",
+            "+91 India", "+81 Japan", "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
+        ]
+
+        with st.form("booking_form"):
+            st.write("### 📝 Book a Room")
+            first_name = st.text_input("First Name")
+            last_name = st.text_input("Last Name")
+            email = st.text_input("Email")
+            country_code = st.selectbox("Country Phone Code", country_codes, index=0)
+            phone_number = st.text_input("Phone Number (without country code)")
+            phone = f"{country_code.split()[0]} {phone_number}" if phone_number else ""
+            num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
+
+            # Use pre-selected room if available
+            if pre_selected_room_option:
+                selected_room = st.selectbox("Select a Room", room_names,
+                                             index=room_names.index(pre_selected_room_option))
+            else:
+                selected_room = st.selectbox("Select a Room", room_names)
+
+            # Use pre-selected dates if available
+            if pre_selected_check_in:
+                check_in = st.date_input("Check-in Date", pre_selected_check_in, min_value=datetime.today())
+            else:
+                check_in = st.date_input("Check-in Date", min_value=datetime.today())
+
+            if pre_selected_check_out:
+                check_out = st.date_input("Check-out Date", pre_selected_check_out,
+                                          min_value=check_in + timedelta(days=1))
+            else:
+                check_out = st.date_input("Check-out Date",
+                                          min_value=check_in + timedelta(days=1))
+
+            special_requests = st.text_area("Special Requests", placeholder="Optional")
+            submitted = st.form_submit_button("Book Now")
+
+        if submitted:
+            if not first_name or not last_name or not email:
+                st.warning("Please fill in all required fields: First Name, Last Name, Email.")
+                return
+
+            room_info = room_mapping[selected_room]
+            nights = (check_out - check_in).days
+            total_price = room_info["price"] * nights * num_guests
+
+            booking_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "phone": phone,
+                "room_id": room_info["id"],
+                "room_type": room_info["type"],
+                "check_in": check_in,
+                "check_out": check_out,
+                "num_guests": num_guests,
+                "total_price": total_price,
+                "special_requests": special_requests
+            }
+
+            with st.spinner("Processing your booking..."):
+                success, result = insert_booking(booking_data)
+
+            if success:
+                booking_number, total_price, room_type = result
+                try:
+                    send_confirmation_email(
+                        email, first_name, last_name, booking_number,
+                        check_in, check_out, total_price, num_guests, phone, room_type
+                    )
+                    email_sent = True
+                except Exception as e:
+                    st.warning(f"Booking confirmed but email could not be sent: {str(e)}")
+                    email_sent = False
+
+                st.success("✅ Booking confirmed!")
+                st.balloons()
+                st.info(
+                    f"**Booking Number:** {booking_number}\n"
+                    f"**Room Type:** {room_type}\n"
+                    f"**Guests:** {num_guests}\n"
+                    f"**Total Price:** €{total_price}\n\n"
+                    f"{'A confirmation email has been sent to ' + email if email_sent else 'Please save your booking number as confirmation.'}"
+                )
+                st.session_state.booking_mode = False
+            else:
+                st.error(f"❌ Booking failed: {result}")
+                if "already booked" in result:
+                    st.info("Please try different dates or select another room.")
+                else:
+                    st.info("Please try again. If the issue persists, contact our support team.")
+
+    except Exception as e:
+        st.error(f"Error with booking form: {str(e)}")
+        st.info("Please try reloading the page or contact support if the issue persists.")
+        if st.button("Reset Form"):
             st.session_state.booking_mode = False
-        else:
-            st.error(f"❌ Booking failed: {result}")
+            st.rerun()
 
 
 # ✅ Export explicitly for import in booking_tool

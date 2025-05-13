@@ -146,7 +146,7 @@ def render_booking_form():
         first_name = st.text_input("First Name")
         last_name = st.text_input("Last Name")
         email = st.text_input("Email")
-        country_code = st.selectbox("Country Phone Code", country_codes, index=0)
+        country_code = st.selectbox("Country Code", country_codes, index=0)
         phone_number = st.text_input("Phone Number (without country code)")
         phone = f"{country_code.split()[0]} {phone_number}" if phone_number else ""
         num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)

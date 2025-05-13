@@ -36,8 +36,8 @@ data = (
     "jane.doe@example.com",
     "+1234567890",
     2,                  # room_id
-    "2025-05-05",       # check_in
-    "2025-05-07",       # check_out
+    "2025-06-05",       # check_in
+    "2025-06-07",       # check_out
     2,                  # num_guests
     300.00,             # total_price
     "No peanuts",       # special_requests

@@ -1,1 +1,14 @@
 .env
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+
+# Ignore IDE files
+.idea/
+*.iml
+
+# macOS Finder junk
+.DS_Store
+
+# Optional: VSCode settings
+.vscode/

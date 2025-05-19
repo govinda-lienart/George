@@ -1,10 +1,11 @@
-# Last updated: 2025-05-19 — fixed "Query:" prefix issue
+# Last updated: 2025-05-19 — prompt updated + fallback regex added
 
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm
 import mysql.connector
 import os
+import re
 import streamlit as st
 
 # --- Prompt Template for SQL generation ---
@@ -54,29 +55,34 @@ Rules:
 - Use `check_out`, not `check_out_date`.
 - Use `booking_number` (not reservation ID).
 - DO NOT include backticks or markdown formatting like ```sql.
-- If the user provides a reference like BKG-YYYYMMDD-NNNN, it refers to booking_number.
-- If unsure, always try matching BKG codes to booking_number.
+- DO NOT include explanations or commentary.
+- ONLY return the raw SQL query.
 
 Example:
 User: “Can you get me the details for BKG-20250401-0003?”
-Query: SELECT * FROM bookings WHERE booking_number = 'BKG-20250401-0003';
+SELECT * FROM bookings WHERE booking_number = 'BKG-20250401-0003';
+
 User: "{input}"
+
+Respond ONLY with the SQL query, and NOTHING else.
 """
 )
 
-# --- Clean the SQL string ---
+# --- Clean the SQL string safely ---
 def clean_sql(raw_sql: str) -> str:
-    return (
+    cleaned = (
         raw_sql.strip()
-        .removeprefix("```sql")
-        .removesuffix("```")
+        .replace("```sql", "")
         .replace("```", "")
-        .replace("Query:", "")  # ✅ Fixes the bug by removing the prefix
-        .strip()
+        .replace("Query:", "")
     )
+    # Fallback: extract the first SELECT ... ; block if present
+    match = re.search(r"(SELECT\s+.*?;)", cleaned, re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return cleaned.strip()
 
 # --- Execute the SQL query safely ---
-#####
 def run_sql(query: str):
     cleaned = clean_sql(query)
     st.write(f"🔍 SQL query received:\n```sql\n{cleaned}\n```")

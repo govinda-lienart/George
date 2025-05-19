@@ -260,13 +260,30 @@ if not st.session_state.show_sql_panel:
 if st.session_state.get("show_log_panel"):
     st.markdown("### 📋 Log Output")
 
-    logs = log_stream.getvalue()
-    if logs.strip():
+    raw_logs = log_stream.getvalue()
+
+    # Filter out "App launched" lines
+    filtered_logs = "\n".join(
+        line for line in raw_logs.splitlines()
+        if "App launched" not in line
+    )
+
+    if filtered_logs.strip():
         st.markdown(
             f"""
-            <div style="overflow-x: auto; padding: 1em; background-color: #f9f9f9; border-radius: 8px;">
-                <pre style="white-space: pre; font-size: 0.85rem;">{logs}</pre>
-            </div>
+            <style>
+                .log-box {{
+                    background-color: #f9f9f9;
+                    padding: 1.2em;
+                    border-radius: 8px;
+                    overflow-x: auto;
+                    font-family: monospace;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    font-size: 0.85rem;
+                }}
+            </style>
+            <div class="log-box">{filtered_logs}</div>
             """,
             unsafe_allow_html=True
         )
@@ -275,7 +292,7 @@ if st.session_state.get("show_log_panel"):
 
     st.download_button(
         label="⬇️ Download Log File",
-        data=logs,
+        data=filtered_logs,
         file_name="general_log.log",
         mime="text/plain"
     )

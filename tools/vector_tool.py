@@ -1,4 +1,4 @@
-# Last updated: 2025-05-19 — memory support + improved vector logging
+# Last updated: 2025-05-19 — memory support + score logging for vector results
 
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
@@ -80,10 +80,11 @@ def vector_tool_func(user_input: str) -> str:
 
         seen, unique_docs = set(), []
         for doc, score in filtered:
-            snippet = doc.page_content[:100]
+            snippet = doc.page_content[:100].replace("\n", " ").strip()
             if snippet not in seen:
                 unique_docs.append((doc, score))
                 seen.add(snippet)
+                logger.debug(f"📄 Score: {score:.3f} — Snippet: {snippet}")
 
         logger.info(f"🧹 {len(unique_docs)} unique documents retained after de-duplication")
 

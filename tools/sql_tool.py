@@ -1,4 +1,4 @@
-# Last updated: 2025-05-19 — temporary SQL steps removed from UI
+# Last updated: 2025-05-19 — SQL steps hidden from UI, logging only
 
 from langchain.agents import Tool
 from utils.config import llm
@@ -7,6 +7,7 @@ import os
 import re
 from langchain.prompts import PromptTemplate
 from logger import logger
+import streamlit as st  # Needed for session_state, but no UI output is used here
 
 # --- Prompt Template for SQL generation ---
 sql_prompt = PromptTemplate(

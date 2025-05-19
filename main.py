@@ -36,11 +36,13 @@ if "george_memory" not in st.session_state:
         return_messages=False
     )
 
+
 def get_secret(key: str, default: str = "") -> str:
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
+
 
 # 🧠 Lightweight Tool Router LLM
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
@@ -88,7 +90,6 @@ def execute_tool(tool_name: str, query: str):
 
 
 def process_user_query(input_text: str) -> str:
-
     # Invoke the router chain and capture the output
     route_result = router_chain.invoke(
         {"question": input_text},

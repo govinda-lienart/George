@@ -1,3 +1,5 @@
+# Last updated: 2025-05-19 — follow-up aware SQL prompt, memory support, cleaner structure
+
 from langchain.agents import Tool
 from utils.config import llm
 import mysql.connector
@@ -7,6 +9,7 @@ import streamlit as st
 from langchain.prompts import PromptTemplate
 from logger import logger
 
+# --- Prompt Template for SQL generation ---
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -47,6 +50,8 @@ room_availability(
   is_available
 )
 
+Use prior information (like booking numbers) mentioned in the summary if the current question doesn’t repeat them.
+
 Rules:
 - Use exact column names.
 - Use `check_in`, not `check_in_date`.
@@ -66,11 +71,13 @@ Respond ONLY with the SQL query, and NOTHING else.
 """
 )
 
+# --- SQL string cleaner ---
 def clean_sql(raw_sql: str) -> str:
     cleaned = raw_sql.strip().replace("```sql", "").replace("```", "").replace("Query:", "")
     match = re.search(r"(SELECT\s+.*?;)", cleaned, re.IGNORECASE | re.DOTALL)
     return match.group(1).strip() if match else cleaned.strip()
 
+# --- SQL query executor ---
 def run_sql(query: str):
     cleaned = clean_sql(query)
     logger.info(f"🧠 Generated SQL query: {cleaned}")
@@ -86,21 +93,25 @@ def run_sql(query: str):
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_DATABASE")
         )
+
         with conn.cursor() as cursor:
             cursor.execute(cleaned)
             result = cursor.fetchall()
             logger.info(f"✅ Query executed. Rows returned: {len(result)}")
             return result
+
     except Exception as e:
         logger.error(f"❌ SQL ERROR: {str(e)}", exc_info=True)
         return f"SQL ERROR: {e}"
+
     finally:
         try:
             conn.close()
         except:
             pass
 
-def explain_sql(user_question, result):
+# --- LLM Explanation of SQL result ---
+def explain_sql(user_question: str, result) -> str:
     logger.info(f"💬 User question: {user_question}")
     prompt = PromptTemplate(
         input_variables=["question", "result"],
@@ -117,13 +128,20 @@ Response:
         "question": user_question,
         "result": str(result)
     }).content.strip()
+    logger.info(f"🤖 Assistant response: {response}")
     return response
 
+# --- LangChain Tool definition ---
 sql_tool = Tool(
     name="sql",
-    func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({
-        "summary": st.session_state.george_memory.load_memory_variables({}).get("summary", ""),
-        "input": q
-    }).content)),
+    func=lambda q: explain_sql(
+        q,
+        run_sql(
+            (sql_prompt | llm).invoke({
+                "summary": st.session_state.george_memory.load_memory_variables({}).get("summary", ""),
+                "input": q
+            }).content
+        )
+    ),
     description="Access bookings, availability, prices, and reservations from the SQL database."
 )

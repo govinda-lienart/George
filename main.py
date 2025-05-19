@@ -195,7 +195,6 @@ if not st.session_state.show_sql_panel:
             with st.spinner("🧠 George is typing..."):
                 try:
                     response = process_user_query(st.session_state.user_input)
-                    logger.info(f"Assistant response: {response}")
                     st.write(response)
                     st.session_state.history.append(("bot", response))
                 except Exception as e:

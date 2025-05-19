@@ -1,11 +1,10 @@
-# Last updated: 2025-05-19 — logging fixed and deduplicated
+# Last updated: 2025-05-19 — temporary SQL steps removed from UI
 
 from langchain.agents import Tool
 from utils.config import llm
 import mysql.connector
 import os
 import re
-import streamlit as st
 from langchain.prompts import PromptTemplate
 from logger import logger
 
@@ -86,12 +85,10 @@ def clean_sql(raw_sql: str) -> str:
 def run_sql(query: str):
     cleaned = clean_sql(query)
     logger.info(f"🧠 Generated SQL query: {cleaned}")
-    st.markdown(f"🔍 **SQL query received:**\n```sql\n{cleaned}\n```")
 
     try:
         db_user = os.getenv("DB_USERNAME")
         logger.info(f"👤 Using DB user: {db_user}")
-        st.write(f"👤 Using DB user: {db_user}")
 
         conn = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
@@ -100,7 +97,6 @@ def run_sql(query: str):
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_DATABASE")
         )
-        st.success("✅ Connected to database")
 
         with conn.cursor() as cursor:
             cursor.execute(cleaned)
@@ -110,7 +106,6 @@ def run_sql(query: str):
 
     except Exception as e:
         logger.error(f"❌ SQL ERROR: {str(e)}", exc_info=True)
-        st.error(f"❌ SQL ERROR: {e}")
         return f"SQL ERROR: {e}"
 
     finally:
@@ -137,7 +132,7 @@ Response:
         "question": user_question,
         "result": str(result)
     }).content.strip()
-    return response  # ❗ No more redundant log here
+    return response
 
 # --- LangChain Tool definition ---
 sql_tool = Tool(

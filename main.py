@@ -76,7 +76,7 @@ Conversation History:
 {history}
 
 Question: "{question}"
-Tool:
+Tool: (Return ONLY the tool name - sql_tool, vector_tool, booking_tool, or chat_tool)
 """)
 
 router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")

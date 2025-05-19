@@ -76,6 +76,7 @@ def clean_sql(raw_sql: str) -> str:
     )
 
 # --- Execute the SQL query safely ---
+#####
 def run_sql(query: str):
     cleaned = clean_sql(query)
     st.write(f"🔍 SQL query received:\n```sql\n{cleaned}\n```")

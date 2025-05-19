@@ -6,51 +6,9 @@ from utils.config import llm, vectorstore
 from logger import logger
 import streamlit as st
 
-# --- Hardcoded fallback links per category ---
-HARDCODED_LINKS = {
-    "environment": "https://sites.google.com/view/chez-govinda/environmental-commitment",
-    "rooms": "https://sites.google.com/view/chez-govinda/rooms",
-    "breakfast": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-    "amenities": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-    "wellness": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
-    "policy": "https://sites.google.com/view/chez-govinda/policy",
-    "contactlocation": "https://sites.google.com/view/chez-govinda/contact-location"
-}
-
-link_map = {
-    "environment": (
-        ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
-        "🌱 You can read more on our [Environmental Commitment page]({link})."
-    ),
-    "rooms": (
-        ["rooms", "accommodation", "suites", "bedroom", "stay", "lodging"],
-        "🛏️ You can explore our [Rooms page]({link})."
-    ),
-    "breakfast": (
-        ["breakfast", "dining", "food", "plant-based", "vegan", "vegetarian", "organic", "morning meal"],
-        "🍳 More about [Breakfast and Guest Amenities]({link})."
-    ),
-    "amenities": (
-        ["amenities", "facilities", "services", "Wi-Fi", "garden", "yoga", "honesty bar"],
-        "✨ View all our [Amenities]({link})."
-    ),
-    "wellness": (
-        ["wellness", "relaxation", "peace", "meditation", "yoga", "mindfulness", "garden access"],
-        "🧘 Learn more on our [Wellness page]({link})."
-    ),
-    "policy": (
-        ["policy", "policies", "rules", "terms", "conditions", "pet", "dog", "cat", "animal"],
-        "📄 Review our full [Hotel Policy here]({link})."
-    ),
-    "contactlocation": (
-        ["contact", "location", "address", "directions", "map", "navigate"],
-        "📍 Visit [Contact & Location]({link})."
-    )
-}
-
 # --- Prompt template for response generation ---
 vector_prompt = PromptTemplate(
-    input_variables=["summary", "context", "question", "source_link"],
+    input_variables=["summary", "context", "question"],
     template="""
 You are George, the friendly AI receptionist at *Chez Govinda*.
 
@@ -62,15 +20,35 @@ Hotel Knowledge Base:
 
 User: {question}
 
-Important guidance:
-- When discussing rooms or accommodations, always list all 7 room types (Single, Double, Suite, Economy, Romantic, Family, and Kids Friendly)
-- For room-related questions, ensure you include our rooms page link at the end of your response
-- If you mention breakfast, amenities, wellness, policies, or our location, include the relevant webpage link
+When responding, always include the appropriate link based on the topic:
+
+1. For questions about rooms or accommodations:
+   "You can find more details [here](https://sites.google.com/view/chez-govinda/rooms)."
+
+2. For questions about our environmental commitments:
+   "You can read more on our [Environmental Commitment page](https://sites.google.com/view/chez-govinda/environmental-commitment)."
+
+3. For questions about breakfast or dining:
+   "More about [Breakfast and Guest Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
+
+4. For questions about amenities or facilities:
+   "View all our [Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
+
+5. For questions about wellness or relaxation options:
+   "Learn more on our [Wellness page](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
+
+6. For questions about policies or rules:
+   "Review our full [Hotel Policy here](https://sites.google.com/view/chez-govinda/policy)."
+
+7. For questions about contact or location:
+   "Visit [Contact & Location](https://sites.google.com/view/chez-govinda/contact-location)."
+
+When discussing rooms, always list all 7 room types: Single Room, Double Room, Suite Room, Economy Room, Romantic Room, Family Room, and Kids Friendly Room.
 
 Respond as George from the hotel team. Use a warm and concise tone. Never refer to Chez Govinda in third person.
-If available, append: "You can find more details [here]({source_link})."
 """
 )
+
 
 # --- Tool logic ---
 def vector_tool_func(user_input: str) -> str:
@@ -107,34 +85,17 @@ def vector_tool_func(user_input: str) -> str:
         top_docs = [doc for doc, _ in unique_docs[:10]]
         context = "\n\n".join(doc.page_content for doc in top_docs)
 
-        # Determine source link
-        matched_link = None
-        for category, (keywords, _) in link_map.items():
-            if any(k in user_input.lower() for k in keywords):
-                for doc in top_docs:
-                    source = doc.metadata.get("source", "")
-                    if category in source.lower():
-                        matched_link = source
-                        logger.info(f"🔗 Matched source: {source} (from vector metadata)")
-                        break
-                if not matched_link:
-                    matched_link = HARDCODED_LINKS.get(category)
-                    logger.info(f"🔗 Using hardcoded fallback link for category: {category} → {matched_link}")
-                break
-
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
         logger.debug("📥 Prompt inputs for LLM:")
         logger.debug(f"→ Summary: {summary[:100]}...")
         logger.debug(f"→ Context: {context[:100]}...")
         logger.debug(f"→ Question: {user_input}")
-        logger.debug(f"→ Source Link: {matched_link}")
 
         response = (vector_prompt | llm).invoke({
             "summary": summary,
             "context": context,
-            "question": user_input,
-            "source_link": matched_link or ""
+            "question": user_input
         }).content.strip()
 
         st.session_state.george_memory.save_context(
@@ -147,7 +108,8 @@ def vector_tool_func(user_input: str) -> str:
 
     except Exception as e:
         logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
-        return "Sorry, I couldn’t retrieve relevant information right now."
+        return "Sorry, I couldn't retrieve relevant information right now."
+
 
 # --- LangChain tool definition ---
 vector_tool = Tool(

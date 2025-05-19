@@ -263,19 +263,28 @@ if st.session_state.get("show_log_panel"):
     raw_logs = log_stream.getvalue()
 
     # Filter out "App launched" lines
-    filtered_logs = "\n".join(
+    filtered_lines = [
         line for line in raw_logs.splitlines()
         if "App launched" not in line
-    )
+    ]
 
-    if filtered_logs.strip():
+    # Add formatting: bold timestamp + spacing
+    formatted_logs = ""
+    for line in filtered_lines:
+        if "—" in line:
+            timestamp, rest = line.split("—", 1)
+            formatted_logs += f"\n\n**{timestamp.strip()}** — {rest.strip()}"
+        else:
+            formatted_logs += f"\n{line}"
+
+    if formatted_logs.strip():
         st.markdown(
             f"""
             <style>
                 .log-box {{
                     background-color: #f9f9f9;
-                    padding: 1.2em;
-                    border-radius: 8px;
+                    padding: 1.5em;
+                    border-radius: 10px;
                     overflow-x: auto;
                     font-family: monospace;
                     white-space: pre-wrap;
@@ -283,7 +292,7 @@ if st.session_state.get("show_log_panel"):
                     font-size: 0.85rem;
                 }}
             </style>
-            <div class="log-box">{filtered_logs}</div>
+            <div class="log-box">{formatted_logs}</div>
             """,
             unsafe_allow_html=True
         )
@@ -292,7 +301,7 @@ if st.session_state.get("show_log_panel"):
 
     st.download_button(
         label="⬇️ Download Log File",
-        data=filtered_logs,
+        data="\n".join(filtered_lines),
         file_name="general_log.log",
         mime="text/plain"
     )

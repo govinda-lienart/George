@@ -45,6 +45,8 @@ def get_secret(key: str, default: str = "") -> str:
 
 
 # 🧠 Lightweight Tool Router LLM
+router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
 

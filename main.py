@@ -11,13 +11,12 @@ from langchain.prompts import PromptTemplate
 from langchain.chat_models import ChatOpenAI
 from dotenv import load_dotenv
 from logger import logger, log_stream
-import time
 
 # LangChain memory (for better follow-up understanding)
 from langchain.memory import ConversationSummaryMemory
 
-# LangSmith tracing
-from langchain.callbacks.tracers import LangChainTracer
+# Updated imports for LangSmith tracing
+from langchain.callbacks.tracers.langchain import LangChainTracer
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.tracers import ConsoleCallbackHandler
 
@@ -30,14 +29,14 @@ from chat_ui import render_header, get_user_input, render_chat_bubbles
 from booking.calendar import render_booking_form
 from utils.config import llm
 
+logger.info("App launched")
+load_dotenv()
+
 # Enable LangSmith tracing
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGSMITH_API_KEY")  # Get from environment variables
 os.environ["LANGCHAIN_PROJECT"] = "chez-govinda-assistant"
-
-logger.info("App launched")
-load_dotenv()
 
 # ✅ Initialize lightweight conversation memory
 if "george_memory" not in st.session_state:
@@ -85,68 +84,53 @@ Tool:
 """)
 
 
-# ✅ Direct tool executor with LangSmith tracing
+# ✅ Updated process_user_query with proper LangSmith tracing
 def process_user_query(input_text: str) -> str:
-    # Set up LangSmith tracing
-    run_id = f"query_{int(time.time())}"
-    langsmith_tracer = LangChainTracer(project_name="chez-govinda-assistant")
+    # Set up tracers and callback manager
     console_handler = ConsoleCallbackHandler()
-    callback_manager = CallbackManager([langsmith_tracer, console_handler])
+    langchain_tracer = LangChainTracer(project_name="chez-govinda-assistant")
+    callback_manager = CallbackManager([langchain_tracer, console_handler])
 
-    # Start a trace for the entire query process
-    with langsmith_tracer.start_trace(name=f"Full Query Process: {input_text[:50]}...") as trace:
-        # Add metadata about the query
-        trace.add_metadata({
-            "query": input_text,
-            "timestamp": time.time(),
-            "conversation_memory": st.session_state.george_memory.load_memory_variables({}).get("summary",
-                                                                                                "No previous context")
-        })
+    # Log the start of query processing
+    logger.info(f"Processing query: {input_text}")
 
-        # Step 1: Router decision - trace this separately
-        with langsmith_tracer.start_trace(name="Router Decision", parent_run_id=trace.id) as router_trace:
-            router_trace.add_metadata({"query": input_text})
+    # First, use the router to determine which tool to use
+    tool_choice_prompt = router_prompt.format(question=input_text)
 
-            # Get tool choice with callbacks
-            tool_choice = router_llm.predict(
-                router_prompt.format(question=input_text),
-                callbacks=[callback_manager]
-            ).strip()
+    try:
+        # Get tool choice with callbacks to trace this step
+        tool_choice = router_llm.predict(
+            tool_choice_prompt,
+            callbacks=[callback_manager]
+        ).strip()
 
-            router_trace.add_metadata({"selected_tool": tool_choice})
-            logger.info(f"Tool selected: {tool_choice}")
+        logger.info(f"Tool selected: {tool_choice}")
 
-        # Step 2: Execute the selected tool with tracing
-        with langsmith_tracer.start_trace(name=f"Tool Execution: {tool_choice}", parent_run_id=trace.id) as tool_trace:
-            tool_trace.add_metadata({
-                "tool": tool_choice,
-                "query": input_text
-            })
+        # Execute the appropriate tool with callbacks for tracing
+        def execute_tool(tool_name: str, query: str):
+            try:
+                # Add metadata for tracing
+                run_id = f"tool_execution_{tool_name}_{hash(query) % 10000}"
 
-            # Define how to execute each tool with callbacks
-            def execute_tool(tool_name: str, query: str):
-                try:
-                    if tool_name == "sql_tool":
-                        return sql_tool.func(query, callbacks=[callback_manager])
-                    elif tool_name == "vector_tool":
-                        return vector_tool.func(query, callbacks=[callback_manager])
-                    elif tool_name == "booking_tool":
-                        return booking_tool.func(query, callbacks=[callback_manager])
-                    elif tool_name == "chat_tool":
-                        return chat_tool.func(query, callbacks=[callback_manager])
-                    else:
-                        error_msg = f"Error: Tool '{tool_name}' not found."
-                        tool_trace.add_metadata({"error": error_msg})
-                        return error_msg
-                except Exception as e:
-                    error_msg = f"Error executing {tool_name}: {str(e)}"
-                    logger.error(error_msg, exc_info=True)
-                    tool_trace.add_metadata({"error": error_msg})
-                    return f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
+                if tool_name == "sql_tool":
+                    return sql_tool.func(query, callbacks=[callback_manager])
+                elif tool_name == "vector_tool":
+                    return vector_tool.func(query, callbacks=[callback_manager])
+                elif tool_name == "booking_tool":
+                    return booking_tool.func(query, callbacks=[callback_manager])
+                elif tool_name == "chat_tool":
+                    return chat_tool.func(query, callbacks=[callback_manager])
+                else:
+                    error_msg = f"Error: Tool '{tool_name}' not found."
+                    logger.error(error_msg)
+                    return error_msg
+            except Exception as e:
+                error_msg = f"Error executing {tool_name}: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                return f"I'm sorry, I encountered an error while processing your request. Please try again."
 
-            # Execute the tool and get response
-            tool_response = execute_tool(tool_choice, input_text)
-            tool_trace.add_metadata({"response": tool_response})
+        # Execute the tool and get response
+        tool_response = execute_tool(tool_choice, input_text)
 
         # Save interaction to memory
         st.session_state.george_memory.save_context(
@@ -154,17 +138,15 @@ def process_user_query(input_text: str) -> str:
             {"output": tool_response}
         )
 
-        # Add final metadata to the main trace
-        trace.add_metadata({
-            "final_response": tool_response,
-            "execution_time": time.time() - trace.start_time
-        })
+        # Save trace URL for UI
+        st.session_state.langsmith_project_url = "https://smith.langchain.com/projects/chez-govinda-assistant"
 
-        # Save the trace URL for UI display
-        st.session_state.langsmith_trace_id = trace.id
-        st.session_state.langsmith_trace_url = f"https://smith.langchain.com/traces/{trace.id}"
+        return str(tool_response)
 
-    return str(tool_response)
+    except Exception as e:
+        error_msg = f"Error in process_user_query: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
 
 
 # 🌐 Streamlit Config
@@ -273,11 +255,11 @@ if not st.session_state.show_sql_panel:
                     st.session_state.history.append(("bot", response))
 
                     # Display LangSmith trace link if enabled
-                    if st.session_state.get("show_langsmith") and "langsmith_trace_url" in st.session_state:
+                    if st.session_state.get("show_langsmith") and "langsmith_project_url" in st.session_state:
                         st.markdown(
                             f"""<div style="padding: 10px; background-color: #f0f2f6; border-radius: 5px; margin-top: 10px;">
-                            <p><b>🔍 Query Trace:</b> <a href="{st.session_state.langsmith_trace_url}" target="_blank">
-                            View execution trace in LangSmith</a></p>
+                            <p><b>🔍 Query Traces:</b> <a href="{st.session_state.langsmith_project_url}" target="_blank">
+                            View execution traces in LangSmith</a></p>
                             </div>""",
                             unsafe_allow_html=True
                         )

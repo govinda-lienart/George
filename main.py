@@ -257,27 +257,29 @@ if not st.session_state.show_sql_panel:
         st.rerun()
 
 # 📋 Log Panel Display
-# 📋 Log Panel Display
 if st.session_state.get("show_log_panel"):
     st.markdown("### 📋 Log Output")
 
     logs = log_stream.getvalue()
-    filtered_logs = "\n".join(
-        line for line in logs.splitlines()
-        if any(level in line for level in ["ERROR", "WARNING", "INFO"])
-    )
-
-    if filtered_logs.strip():
-        st.markdown(f"<pre style='overflow-x: auto; white-space: pre-wrap; word-break: break-word; background: #f9f9f9; padding: 1em; border-radius: 8px;'>{filtered_logs}</pre>", unsafe_allow_html=True)
+    if logs.strip():
+        st.markdown(
+            f"""
+            <div style="overflow-x: auto; padding: 1em; background-color: #f9f9f9; border-radius: 8px;">
+                <pre style="white-space: pre; font-size: 0.85rem;">{logs}</pre>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     else:
         st.info("No logs yet.")
 
     st.download_button(
         label="⬇️ Download Log File",
-        data=filtered_logs,
+        data=logs,
         file_name="general_log.log",
         mime="text/plain"
     )
+
 
 
 # 🖥️ End Tracing

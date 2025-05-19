@@ -1,4 +1,5 @@
 # Last updated: 2025-05-19 — logging fixed and deduplicated
+
 from langchain.agents import Tool
 from utils.config import llm
 import mysql.connector
@@ -85,7 +86,7 @@ def clean_sql(raw_sql: str) -> str:
 def run_sql(query: str):
     cleaned = clean_sql(query)
     logger.info(f"🧠 Generated SQL query: {cleaned}")
-    st.write(f"🔍 SQL query received:\n```sql\n{cleaned}\n```")
+    st.markdown(f"🔍 **SQL query received:**\n```sql\n{cleaned}\n```")
 
     try:
         db_user = os.getenv("DB_USERNAME")
@@ -99,21 +100,21 @@ def run_sql(query: str):
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_DATABASE")
         )
-        st.write("✅ Connected to DB")
-        cursor = conn.cursor()
-        cursor.execute(cleaned)
-        result = cursor.fetchall()
-        logger.info(f"✅ Query executed. Rows returned: {len(result)}")
-        return result
+        st.success("✅ Connected to database")
+
+        with conn.cursor() as cursor:
+            cursor.execute(cleaned)
+            result = cursor.fetchall()
+            logger.info(f"✅ Query executed. Rows returned: {len(result)}")
+            return result
 
     except Exception as e:
         logger.error(f"❌ SQL ERROR: {str(e)}", exc_info=True)
-        st.write(f"❌ SQL ERROR: {e}")
+        st.error(f"❌ SQL ERROR: {e}")
         return f"SQL ERROR: {e}"
 
     finally:
         try:
-            cursor.close()
             conn.close()
         except:
             pass
@@ -136,8 +137,7 @@ Response:
         "question": user_question,
         "result": str(result)
     }).content.strip()
-    logger.info(f"🤖 Assistant response: {response}")
-    return response
+    return response  # ❗ No more redundant log here
 
 # --- LangChain Tool definition ---
 sql_tool = Tool(

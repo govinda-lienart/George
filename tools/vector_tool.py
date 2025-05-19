@@ -1,4 +1,4 @@
-# Last updated: 2025-05-19 — memory support + score logging for vector results
+# Last updated: 2025-05-19 — memory support + detailed score logging
 
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
@@ -48,7 +48,6 @@ link_map = {
     )
 }
 
-# --- Prompt template for response generation ---
 vector_prompt = PromptTemplate(
     input_variables=["summary", "context", "question", "source_link"],
     template="""
@@ -67,12 +66,10 @@ If available, append: "You can find more details [here]({source_link})."
 """
 )
 
-# --- Tool logic ---
 def vector_tool_func(user_input: str) -> str:
     try:
         logger.info(f"🔍 Vector search started for: {user_input}")
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
-
         logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
 
         filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
@@ -84,9 +81,12 @@ def vector_tool_func(user_input: str) -> str:
             if snippet not in seen:
                 unique_docs.append((doc, score))
                 seen.add(snippet)
-                logger.debug(f"📄 Score: {score:.3f} — Snippet: {snippet}")
 
         logger.info(f"🧹 {len(unique_docs)} unique documents retained after de-duplication")
+
+        # ✅ Log similarity scores clearly
+        for i, (doc, score) in enumerate(unique_docs[:10], start=1):
+            logger.info(f"📊 Match {i}: Score={score:.4f} — Snippet: {doc.page_content[:80].strip().replace(chr(10), ' ')}")
 
         if not unique_docs:
             return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
@@ -103,7 +103,6 @@ def vector_tool_func(user_input: str) -> str:
         top_docs = [doc for doc, _ in unique_docs[:10]]
         context = "\n\n".join(doc.page_content for doc in top_docs)
 
-        # Determine source link
         matched_link = None
         for category, (keywords, _) in link_map.items():
             if any(k in user_input.lower() for k in keywords):
@@ -119,12 +118,6 @@ def vector_tool_func(user_input: str) -> str:
                 break
 
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
-
-        logger.debug("📥 Prompt inputs for LLM:")
-        logger.debug(f"→ Summary: {summary[:100]}...")
-        logger.debug(f"→ Context: {context[:100]}...")
-        logger.debug(f"→ Question: {user_input}")
-        logger.debug(f"→ Source Link: {matched_link}")
 
         response = (vector_prompt | llm).invoke({
             "summary": summary,
@@ -145,7 +138,6 @@ def vector_tool_func(user_input: str) -> str:
         logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
         return "Sorry, I couldn’t retrieve relevant information right now."
 
-# --- LangChain tool definition ---
 vector_tool = Tool(
     name="vector_tool",
     func=vector_tool_func,

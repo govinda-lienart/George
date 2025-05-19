@@ -70,7 +70,7 @@ Question: "{question}"
 Tool:
 """)
 
-# ✅ Direct tool executor (not agent)
+# ✅ Direct tool executor (no agent)
 def process_user_query(input_text: str) -> str:
     tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
     logger.info(f"Tool selected: {tool_choice}")
@@ -89,7 +89,7 @@ def process_user_query(input_text: str) -> str:
 
     tool_response = execute_tool(tool_choice, input_text)
 
-    # Save this interaction to memory for follow-up questions
+    # Save to memory for better follow-ups
     st.session_state.george_memory.save_context(
         {"input": input_text},
         {"output": tool_response}
@@ -106,7 +106,7 @@ st.set_page_config(
 )
 render_header()
 
-# 🧠 Sidebar Panels
+# 🧠 Sidebar Tools
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
@@ -169,6 +169,8 @@ if not st.session_state.show_sql_panel:
         st.session_state.history = []
     if "user_input" not in st.session_state:
         st.session_state.user_input = ""
+    if "response_generated" not in st.session_state:
+        st.session_state.response_generated = False
 
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
@@ -184,27 +186,30 @@ if not st.session_state.show_sql_panel:
 
     user_input = get_user_input()
 
-    if user_input:
+    # 🧠 One-pass user response handler
+    if user_input and not st.session_state.response_generated:
         logger.info(f"User asked: {user_input}")
         st.session_state.history.append(("user", user_input))
         st.session_state.user_input = user_input
-        st.rerun()
 
-    if st.session_state.user_input:
         with st.chat_message("assistant"):
             with st.spinner("🧠 George is typing..."):
                 try:
-                    response = process_user_query(st.session_state.user_input)
-                    st.write(response)
+                    response = process_user_query(user_input)
+                    logger.info(f"Assistant response: {response}")
                     st.session_state.history.append(("bot", response))
                 except Exception as e:
                     error_msg = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
                     logger.error(error_msg, exc_info=True)
-                    st.error(error_msg)
                     st.session_state.history.append(("bot", error_msg))
 
         st.session_state.user_input = ""
+        st.session_state.response_generated = True
         st.rerun()
+
+    # 🧼 Reset flag if user types again
+    if user_input:
+        st.session_state.response_generated = False
 
 # 📋 Log Panel
 if st.session_state.get("show_log_panel"):

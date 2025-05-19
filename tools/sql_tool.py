@@ -1,4 +1,5 @@
-# Last updated: 2025-05-07 14:45:57
+# Last updated: 2025-05-19 — fixed "Query:" prefix issue
+
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm
@@ -70,6 +71,7 @@ def clean_sql(raw_sql: str) -> str:
         .removeprefix("```sql")
         .removesuffix("```")
         .replace("```", "")
+        .replace("Query:", "")  # ✅ Fixes the bug by removing the prefix
         .strip()
     )
 

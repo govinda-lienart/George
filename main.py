@@ -45,8 +45,6 @@ def get_secret(key: str, default: str = "") -> str:
 
 
 # 🧠 Lightweight Tool Router LLM
-router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
 
@@ -56,16 +54,21 @@ Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
 - vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information
 - booking_tool: When the user confirms they want to book a room or asks for help booking
-- chat_tool: For basic pleasantries AND any questions unrelated to the hotel
+- chat_tool: For basic pleasantries AND any questions unrelated to the hotel, OR SPECIFICALLY ABOUT: website, smoking, quiet hours, parties, events, languages spoken.
 
 ROUTING RULES:
 1. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
 2. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
 3. Questions about external topics → chat_tool (politics, sports, tech, weather)
-4. Hotel services, amenities, policies → vector_tool
-5. Room availability and prices → sql_tool
-6. Booking confirmation → booking_tool
-7. ANY questions about breakfast, dining, food options → vector_tool
+4. **ANY question containing keywords: smoke, smoking, where can I smoke → chat_tool**
+5. **ANY question containing keywords: website, link, url → chat_tool**
+6. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
+7. **ANY question containing keywords: parties, events, gatherings → chat_tool**
+8. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
+9. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
+10. Room availability and prices → sql_tool
+11. Booking confirmation → booking_tool
+12. ANY questions about breakfast, dining, food options → vector_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 

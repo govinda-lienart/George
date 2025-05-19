@@ -1,12 +1,11 @@
-# Last updated: 2025-05-19 — logging fixed and improved
-
+# Last updated: 2025-05-19 — logging fixed and deduplicated
 from langchain.agents import Tool
-from langchain.prompts import PromptTemplate
 from utils.config import llm
 import mysql.connector
 import os
 import re
 import streamlit as st
+from langchain.prompts import PromptTemplate
 from logger import logger
 
 # --- Prompt Template for SQL generation ---
@@ -85,7 +84,7 @@ def clean_sql(raw_sql: str) -> str:
 # --- Execute the SQL query safely ---
 def run_sql(query: str):
     cleaned = clean_sql(query)
-    logger.info(f"🧠 Generated SQL query:\n{cleaned}")
+    logger.info(f"🧠 Generated SQL query: {cleaned}")
     st.write(f"🔍 SQL query received:\n```sql\n{cleaned}\n```")
 
     try:
@@ -104,7 +103,6 @@ def run_sql(query: str):
         cursor = conn.cursor()
         cursor.execute(cleaned)
         result = cursor.fetchall()
-
         logger.info(f"✅ Query executed. Rows returned: {len(result)}")
         return result
 
@@ -122,7 +120,7 @@ def run_sql(query: str):
 
 # --- Generate explanation of SQL results ---
 def explain_sql(user_question, result):
-    logger.info(f"📣 Explaining result for user question: {user_question}")
+    logger.info(f"💬 User question: {user_question}")
     prompt = PromptTemplate(
         input_variables=["question", "result"],
         template="""
@@ -138,7 +136,7 @@ Response:
         "question": user_question,
         "result": str(result)
     }).content.strip()
-    logger.info(f"✅ Generated explanation: {response}")
+    logger.info(f"🤖 Assistant response: {response}")
     return response
 
 # --- LangChain Tool definition ---

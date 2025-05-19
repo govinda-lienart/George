@@ -1,12 +1,21 @@
-# Last updated: 2025-05-07 14:45:57
+# Last updated: 2025-05-19 — logging improved
+
 from langchain.agents import Tool
 import streamlit as st
 from booking.calendar import render_booking_form
+from logger import logger
 
+# ========================================
+# 🤖 Booking Handler
+# ========================================
 def handle_booking_flow(query: str) -> str:
+    logger.info(f"📅 Booking flow triggered by user query: {query}")
     st.session_state.booking_mode = True
-    return ""  # 👈 Do not return a long message that LLM could treat as "final answer"
+    return ""  # Don't return text — the form will take over the UI
 
+# ========================================
+# 🧰 LangChain Tool Wrapper
+# ========================================
 booking_tool = Tool(
     name="booking",
     func=handle_booking_flow,

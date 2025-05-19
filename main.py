@@ -1,5 +1,5 @@
 # ========================================
-# 📦 Imports and Initialization
+# 📆 Imports and Initialization
 # ========================================
 
 import os
@@ -24,12 +24,12 @@ from chat_ui import render_header, get_user_input, render_chat_bubbles
 from booking.calendar import render_booking_form
 from utils.config import llm
 
-# ========================================
+# 🔐 logger
+from logger import logger, log_stream
+logger.info("App launched")
+
 # 🔐 Load environment variables
-# ========================================
-
 load_dotenv()
-
 
 def get_secret(key: str, default: str = "") -> str:
     try:
@@ -37,17 +37,10 @@ def get_secret(key: str, default: str = "") -> str:
     except Exception:
         return os.getenv(key, default)
 
-
-# ========================================
 # 🧠 Load LLM & Router
-# ========================================
-
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
-# ========================================
 # 🧠 Routing Prompt Template
-# ========================================
-
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
 
@@ -68,23 +61,13 @@ ROUTING RULES:
 6. Booking confirmation → booking_tool
 7. ANY questions about breakfast, dining, food options → vector_tool
 
-Examples of specific routing:
-- "Do you have breakfast?" → vector_tool
-- "What time is breakfast served?" → vector_tool
-- "Is breakfast included?" → vector_tool
-- "Are there vegan options at breakfast?" → vector_tool
-- "How much is breakfast?" → vector_tool
-
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
 Question: "{question}"
 Tool:
 """)
 
-# ========================================
 # 🎭 LangChain Agent Setup
-# ========================================
-
 agent_executor = initialize_agent(
     tools=[sql_tool, vector_tool, chat_tool, booking_tool],
     llm=llm,
@@ -94,7 +77,6 @@ agent_executor = initialize_agent(
         "system_message": """You are George, the friendly AI receptionist at Chez Govinda.
 
 Always follow these rules:
-
 - ✅ Use `vector_tool` for room types, room descriptions, hotel policies, breakfast, and amenities.
 - ❌ Never use `sql_tool` for room descriptions or general hotel info.
 - ✅ Use `sql_tool` only for checking availability, bookings, or price queries.
@@ -109,19 +91,14 @@ Speak warmly, like a real hotel receptionist. Use phrases like "our hotel," "we 
     }
 )
 
-
-# ========================================
 # 🧪 Traced Query Handler
-# ========================================
-
 @traceable(name="GeorgeChatbotTrace", run_type="chain", tags=["chat", "routed"])
 def process_user_query(input_text: str) -> str:
-    # Check if this is a new query while booking form is active
-    # Reset booking mode if user is asking a new question instead of filling the form
     if st.session_state.get("booking_mode", False) and input_text:
         st.session_state.booking_mode = False
 
     tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
+    logger.info(f"Tool selected: {tool_choice}")
 
     def execute_tool(tool_name: str, query: str):
         if tool_name == "sql_tool":
@@ -142,11 +119,7 @@ def process_user_query(input_text: str) -> str:
     else:
         return str(tool_response)
 
-
-# ========================================
 # 🌐 Streamlit Configuration
-# ========================================
-
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
     page_icon="🏨",
@@ -155,10 +128,7 @@ st.set_page_config(
 )
 render_header()
 
-# ========================================
 # 🛠️ Sidebar: Tools & Dev Panel
-# ========================================
-
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
@@ -169,10 +139,14 @@ with st.sidebar:
         value=st.session_state.get("show_sql_panel", False)
     )
 
-    st.markdown("### 📄 Documentation")
     st.session_state.show_docs_panel = st.checkbox(
         "📄 Show Documentation",
         value=st.session_state.get("show_docs_panel", False)
+    )
+
+    st.session_state.show_log_panel = st.checkbox(
+        "📋 Show General Log Panel",
+        value=st.session_state.get("show_log_panel", False)
     )
 
     if st.button("🧪 Run Chat Routing Test"):
@@ -180,18 +154,12 @@ with st.sidebar:
         st.success("✅ Test Response:")
         st.info(result)
 
-# ========================================
 # 📚 Docs Panel
-# ========================================
-
 if st.session_state.get("show_docs_panel"):
     st.markdown("### 📖 Technical Documentation")
     st.components.v1.iframe("https://www.google.com")
 
-# ========================================
 # 🗒️ SQL Debug Panel
-# ========================================
-
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
     sql_input = st.text_area(
@@ -226,7 +194,6 @@ if st.session_state.show_sql_panel:
                 st.dataframe(df, use_container_width=True)
         except Exception as e:
             import traceback
-
             with status_container:
                 st.error("❌ Connection failed:")
                 st.code(traceback.format_exc())
@@ -241,10 +208,7 @@ if st.session_state.show_sql_panel:
                 with status_container:
                     st.warning(f"⚠️ Error closing connection:\n\n{close_err}")
 
-# ========================================
 # 💬 Chatbot Interface
-# ========================================
-
 if not st.session_state.show_sql_panel:
     if "history" not in st.session_state:
         st.session_state.history = []
@@ -260,10 +224,8 @@ if not st.session_state.show_sql_panel:
 
     render_chat_bubbles(st.session_state.history)
 
-    # Only show booking form if in booking mode
     if st.session_state.booking_mode:
         render_booking_form()
-        # Add a cancel button for the booking form
         if st.button("❌ Remove Booking Form", key="cancel_booking_button"):
             st.session_state.booking_mode = False
             st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
@@ -272,6 +234,7 @@ if not st.session_state.show_sql_panel:
     user_input = get_user_input()
 
     if user_input:
+        logger.info(f"User asked: {user_input}")
         st.session_state.history.append(("user", user_input))
         st.session_state.user_input = user_input
         st.rerun()
@@ -281,18 +244,33 @@ if not st.session_state.show_sql_panel:
             with st.spinner("🧠 George is typing..."):
                 try:
                     response = process_user_query(st.session_state.user_input)
+                    logger.info(f"Assistant response: {response}")
                     st.write(response)
                     st.session_state.history.append(("bot", response))
                 except Exception as e:
                     response = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
+                    logger.error(response, exc_info=True)
                     st.error(response)
                     st.session_state.history.append(("bot", response))
 
         st.session_state.user_input = ""
         st.rerun()
 
-# ========================================
-# 🩵 End Tracing
-# ========================================
+# 📋 Log Panel Display
+if st.session_state.get("show_log_panel"):
+    st.markdown("### 📋 Log Output")
+    logs = log_stream.getvalue()
+    if logs:
+        st.code(logs, language="text")
+    else:
+        st.info("No logs yet.")
 
+    st.download_button(
+        label="⬇️ Download Log File",
+        data=logs,
+        file_name="general_log.log",
+        mime="text/plain"
+    )
+
+# 🖥️ End Tracing
 wait_for_all_tracers()

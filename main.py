@@ -1,230 +1,145 @@
-# ========================================
-# 📆 Imports and Initialization
-# ========================================
+# Last updated: 2025-05-19 — memory support + detailed score logging
 
-import os
-import streamlit as st
-import pandas as pd
-import mysql.connector
-from PIL import Image
+from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
-from langchain.chat_models import ChatOpenAI
-from dotenv import load_dotenv
-from logger import logger, log_stream
+from utils.config import llm, vectorstore
+from logger import logger
+import streamlit as st
 
-# LangChain memory (for better follow-up understanding)
-from langchain.memory import ConversationSummaryMemory
+# --- Hardcoded fallback links per category ---
+HARDCODED_LINKS = {
+    "environment": "https://sites.google.com/view/chez-govinda/environmental-commitment",
+    "rooms": "https://sites.google.com/view/chez-govinda/rooms",
+    "breakfast": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+    "amenities": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+    "wellness": "https://sites.google.com/view/chez-govinda/breakfast-guest-amenities",
+    "policy": "https://sites.google.com/view/chez-govinda/policy",
+    "contactlocation": "https://sites.google.com/view/chez-govinda/contact-location"
+}
 
-# 🔧 Custom tool modules
-from tools.sql_tool import sql_tool
-from tools.vector_tool import vector_tool
-from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool
-from chat_ui import render_header, get_user_input, render_chat_bubbles
-from booking.calendar import render_booking_form
-from utils.config import llm
-
-logger.info("App launched")
-load_dotenv()
-
-# ✅ Initialize lightweight conversation memory
-if "george_memory" not in st.session_state:
-    st.session_state.george_memory = ConversationSummaryMemory(
-        llm=ChatOpenAI(model_name="gpt-3.5-turbo"),
-        memory_key="summary",
-        return_messages=False
+link_map = {
+    "environment": (
+        ["environment", "eco", "green", "sustainab", "organic", "nature", "footprint"],
+        "🌱 You can read more on our [Environmental Commitment page]({link})."
+    ),
+    "rooms": (
+        ["rooms", "accommodation", "suites", "bedroom", "stay", "lodging"],
+        "🛏️ You can explore our [Rooms page]({link})."
+    ),
+    "breakfast": (
+        ["breakfast", "dining", "food", "plant-based", "vegan", "vegetarian", "organic", "morning meal"],
+        "🍳 More about [Breakfast and Guest Amenities]({link})."
+    ),
+    "amenities": (
+        ["amenities", "facilities", "services", "Wi-Fi", "garden", "yoga", "honesty bar"],
+        "✨ View all our [Amenities]({link})."
+    ),
+    "wellness": (
+        ["wellness", "relaxation", "peace", "meditation", "yoga", "mindfulness", "garden access"],
+        "🧘 Learn more on our [Wellness page]({link})."
+    ),
+    "policy": (
+        ["policy", "policies", "rules", "terms", "conditions", "pet", "dog", "cat", "animal"],
+        "📄 Review our full [Hotel Policy here]({link})."
+    ),
+    "contactlocation": (
+        ["contact", "location", "address", "directions", "map", "navigate"],
+        "📍 Visit [Contact & Location]({link})."
     )
+}
 
-def get_secret(key: str, default: str = "") -> str:
-    try:
-        return st.secrets[key]
-    except Exception:
-        return os.getenv(key, default)
+vector_prompt = PromptTemplate(
+    input_variables=["summary", "context", "question", "source_link"],
+    template="""
+You are George, the friendly AI receptionist at *Chez Govinda*.
 
-# 🧠 Lightweight Tool Router LLM
-router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+Conversation so far:
+{summary}
 
-router_prompt = PromptTemplate.from_template("""
-You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
+Hotel Knowledge Base:
+{context}
 
-Choose the correct tool for the user's question, following these guidelines:
+User: {question}
 
-Available tools:
-- sql_tool: For checking room availability, prices, booking status, or existing reservation details
-- vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information
-- booking_tool: When the user confirms they want to book a room or asks for help booking
-- chat_tool: For basic pleasantries AND any questions unrelated to the hotel
-
-ROUTING RULES:
-1. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
-2. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
-3. Questions about external topics → chat_tool (politics, sports, tech, weather)
-4. Hotel services, amenities, policies → vector_tool
-5. Room availability and prices → sql_tool
-6. Booking confirmation → booking_tool
-7. ANY questions about breakfast, dining, food options → vector_tool
-
-Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
-
-Question: "{question}"
-Tool:
-""")
-
-# ✅ Direct tool executor (no agent)
-def process_user_query(input_text: str) -> str:
-    tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
-    logger.info(f"Tool selected: {tool_choice}")
-
-    def execute_tool(tool_name: str, query: str):
-        if tool_name == "sql_tool":
-            return sql_tool.func(query)
-        elif tool_name == "vector_tool":
-            return vector_tool.func(query)
-        elif tool_name == "booking_tool":
-            return booking_tool.func(query)
-        elif tool_name == "chat_tool":
-            return chat_tool.func(query)
-        else:
-            return f"Error: Tool '{tool_name}' not found."
-
-    tool_response = execute_tool(tool_choice, input_text)
-
-    # Save to memory for better follow-ups
-    st.session_state.george_memory.save_context(
-        {"input": input_text},
-        {"output": tool_response}
-    )
-
-    return str(tool_response)
-
-# 🌐 Streamlit Config
-st.set_page_config(
-    page_title="Chez Govinda – AI Hotel Assistant",
-    page_icon="🏨",
-    layout="centered",
-    initial_sidebar_state="auto"
+Respond as George from the hotel team. Use a warm and concise tone. Never refer to Chez Govinda in third person.
+If available, append: "You can find more details [here]({source_link})."
+"""
 )
-render_header()
 
-# 🧠 Sidebar Tools
-with st.sidebar:
-    logo = Image.open("assets/logo.png")
-    st.image(logo, use_container_width=True)
+def vector_tool_func(user_input: str) -> str:
+    try:
+        logger.info(f"🔍 Vector search started for: {user_input}")
+        docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
+        logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
 
-    st.markdown("### 🛠️ Developer Tools")
-    st.session_state.show_sql_panel = st.checkbox(
-        "🧠 Enable SQL Query Panel",
-        value=st.session_state.get("show_sql_panel", False)
-    )
-    st.session_state.show_docs_panel = st.checkbox(
-        "📄 Show Documentation",
-        value=st.session_state.get("show_docs_panel", False)
-    )
-    st.session_state.show_log_panel = st.checkbox(
-        "📋 Show General Log Panel",
-        value=st.session_state.get("show_log_panel", False)
-    )
+        filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
+        logger.info(f"🔍 {len(filtered)} documents passed minimum length filter (≥ 50 chars)")
 
-    if st.button("🧪 Run Chat Routing Test"):
-        result = process_user_query("Can I book a room with breakfast?")
-        st.success("✅ Test Response:")
-        st.info(result)
+        seen, unique_docs = set(), []
+        for doc, score in filtered:
+            snippet = doc.page_content[:100].replace("\n", " ").strip()
+            if snippet not in seen:
+                unique_docs.append((doc, score))
+                seen.add(snippet)
 
-# 📚 Docs Panel
-if st.session_state.get("show_docs_panel"):
-    st.markdown("### 📖 Technical Documentation")
-    st.components.v1.iframe("https://www.google.com")
+        logger.info(f"🧹 {len(unique_docs)} unique documents retained after de-duplication")
 
-# 🧪 SQL Debug Panel
-if st.session_state.show_sql_panel:
-    st.markdown("### 🔍 SQL Query Panel")
-    sql_input = st.text_area("🔍 Enter SQL query to run:", "SELECT * FROM bookings LIMIT 10;")
-    if st.button("Run Query"):
-        try:
-            conn = mysql.connector.connect(
-                host=get_secret("DB_HOST_READ_ONLY"),
-                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
-                user=get_secret("DB_USERNAME_READ_ONLY"),
-                password=get_secret("DB_PASSWORD_READ_ONLY"),
-                database=get_secret("DB_DATABASE_READ_ONLY")
+        # ✅ Log similarity scores clearly
+        for i, (doc, score) in enumerate(unique_docs[:10], start=1):
+            logger.info(f"📊 Match {i}: Score={score:.4f} — Snippet: {doc.page_content[:80].strip().replace(chr(10), ' ')}")
+
+        if not unique_docs:
+            return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
+
+        boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
+        if any(term in user_input.lower() for term in boost_terms):
+            logger.info("⚡ Boost terms detected — reordering results for eco-relevance")
+            unique_docs = sorted(
+                unique_docs,
+                key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
+                reverse=True
             )
-            cursor = conn.cursor()
-            cursor.execute(sql_input)
-            rows = cursor.fetchall()
-            cols = [desc[0] for desc in cursor.description]
-            df = pd.DataFrame(rows, columns=cols)
-            st.dataframe(df, use_container_width=True)
-        except Exception as e:
-            st.error(f"❌ SQL Error: {e}")
-        finally:
-            try:
-                cursor.close()
-                conn.close()
-            except:
-                pass
 
-# 💬 Chat Interface
-if not st.session_state.show_sql_panel:
-    if "history" not in st.session_state:
-        st.session_state.history = []
-    if "user_input" not in st.session_state:
-        st.session_state.user_input = ""
-    if "response_generated" not in st.session_state:
-        st.session_state.response_generated = False
+        top_docs = [doc for doc, _ in unique_docs[:10]]
+        context = "\n\n".join(doc.page_content for doc in top_docs)
 
-    if not st.session_state.history:
-        st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
+        matched_link = None
+        for category, (keywords, _) in link_map.items():
+            if any(k in user_input.lower() for k in keywords):
+                for doc in top_docs:
+                    source = doc.metadata.get("source", "")
+                    if category in source.lower():
+                        matched_link = source
+                        logger.info(f"🔗 Matched source: {source} (from vector metadata)")
+                        break
+                if not matched_link:
+                    matched_link = HARDCODED_LINKS.get(category)
+                    logger.info(f"🔗 Using hardcoded fallback link for category: {category} → {matched_link}")
+                break
 
-    render_chat_bubbles(st.session_state.history)
+        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
-    if st.session_state.get("booking_mode"):
-        render_booking_form()
-        if st.button("❌ Remove Booking Form"):
-            st.session_state.booking_mode = False
-            st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
-            st.rerun()
+        response = (vector_prompt | llm).invoke({
+            "summary": summary,
+            "context": context,
+            "question": user_input,
+            "source_link": matched_link or ""
+        }).content.strip()
 
-    user_input = get_user_input()
+        st.session_state.george_memory.save_context(
+            {"input": user_input},
+            {"output": response}
+        )
 
-    # 🧠 One-pass user response handler
-    if user_input and not st.session_state.response_generated:
-        logger.info(f"User asked: {user_input}")
-        st.session_state.history.append(("user", user_input))
-        st.session_state.user_input = user_input
+        logger.info(f"🤖 Vector tool response: {response}")
+        return response
 
-        with st.chat_message("assistant"):
-            with st.spinner("🧠 George is typing..."):
-                try:
-                    response = process_user_query(user_input)
-                    logger.info(f"Assistant response: {response}")
-                    st.session_state.history.append(("bot", response))
-                except Exception as e:
-                    error_msg = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
-                    logger.error(error_msg, exc_info=True)
-                    st.session_state.history.append(("bot", error_msg))
+    except Exception as e:
+        logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
+        return "Sorry, I couldn’t retrieve relevant information right now."
 
-        st.session_state.user_input = ""
-        st.session_state.response_generated = True
-        st.rerun()
-
-    # 🧼 Reset flag if user types again
-    if user_input:
-        st.session_state.response_generated = False
-
-# 📋 Log Panel
-if st.session_state.get("show_log_panel"):
-    st.markdown("### 📋 Log Output")
-    raw_logs = log_stream.getvalue()
-    filtered_lines = [line for line in raw_logs.splitlines() if "App launched" not in line]
-    formatted_logs = ""
-    for line in filtered_lines:
-        if "—" in line:
-            ts, msg = line.split("—", 1)
-            formatted_logs += f"\n\n**{ts.strip()}** — {msg.strip()}"
-        else:
-            formatted_logs += f"\n{line}"
-    if formatted_logs.strip():
-        st.markdown(f"<div class='log-box'>{formatted_logs}</div>", unsafe_allow_html=True)
-    else:
-        st.info("No logs yet.")
-    st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")
+vector_tool = Tool(
+    name="vector_tool",
+    func=vector_tool_func,
+    description="Answers questions about rooms, policies, amenities, and hotel info from embedded documents."
+)

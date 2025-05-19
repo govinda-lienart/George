@@ -11,9 +11,10 @@ from langchain.prompts import PromptTemplate
 from langchain.chat_models import ChatOpenAI
 from dotenv import load_dotenv
 from logger import logger, log_stream
-
-# LangChain memory (for better follow-up understanding)
+from langchain.chains import LLMChain
+from langchain.callbacks import LangChainTracer
 from langchain.memory import ConversationSummaryMemory
+from langchain_core.runnables import RunnablePassthrough
 
 # 🔧 Custom tool modules
 from tools.sql_tool import sql_tool
@@ -70,22 +71,32 @@ Question: "{question}"
 Tool:
 """)
 
-# ✅ Direct tool executor (not agent)
-def process_user_query(input_text: str) -> str:
-    tool_choice = router_llm.predict(router_prompt.format(question=input_text)).strip()
-    logger.info(f"Tool selected: {tool_choice}")
+router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")
 
-    def execute_tool(tool_name: str, query: str):
-        if tool_name == "sql_tool":
-            return sql_tool.func(query)
-        elif tool_name == "vector_tool":
-            return vector_tool.func(query)
-        elif tool_name == "booking_tool":
-            return booking_tool.func(query)
-        elif tool_name == "chat_tool":
-            return chat_tool.func(query)
-        else:
-            return f"Error: Tool '{tool_name}' not found."
+
+def execute_tool(tool_name: str, query: str):
+    if tool_name == "sql_tool":
+        return sql_tool.func(query)
+    elif tool_name == "vector_tool":
+        return vector_tool.func(query)
+    elif tool_name == "booking_tool":
+        return booking_tool.func(query)
+    elif tool_name == "chat_tool":
+        return chat_tool.func(query)
+    else:
+        return f"Error: Tool '{tool_name}' not found."
+
+
+def process_user_query(input_text: str) -> str:
+
+    # Invoke the router chain and capture the output
+    route_result = router_chain.invoke(
+        {"question": input_text},
+        config={"callbacks": [LangChainTracer()]}  # Trace the router
+    )
+    tool_choice = route_result["tool_choice"].strip()
+
+    logger.info(f"Tool selected: {tool_choice}")
 
     tool_response = execute_tool(tool_choice, input_text)
 
@@ -96,6 +107,7 @@ def process_user_query(input_text: str) -> str:
     )
 
     return str(tool_response)
+
 
 # 🌐 Streamlit Config
 st.set_page_config(

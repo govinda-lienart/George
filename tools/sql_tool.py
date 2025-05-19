@@ -1,13 +1,13 @@
-# Last updated: 2025-05-19 — SQL steps hidden from UI, logging only
+# Last updated: 2025-05-19 — fixed runtime session_state bug, no SQL steps shown
 
 from langchain.agents import Tool
 from utils.config import llm
 import mysql.connector
 import os
 import re
+import streamlit as st
 from langchain.prompts import PromptTemplate
 from logger import logger
-import streamlit as st  # Needed for session_state, but no UI output is used here
 
 # --- Prompt Template for SQL generation ---
 sql_prompt = PromptTemplate(
@@ -135,12 +135,17 @@ Response:
     }).content.strip()
     return response
 
-# --- LangChain Tool definition ---
+# --- LangChain Tool definition (deferred session_state access) ---
+def run_sql_tool(query):
+    summary = st.session_state.get("chat_summary", "")
+    sql_query = (sql_prompt | llm).invoke({
+        "summary": summary,
+        "input": query
+    }).content
+    return explain_sql(query, run_sql(sql_query))
+
 sql_tool = Tool(
     name="sql",
-    func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({
-        "summary": st.session_state.chat_summary,
-        "input": q
-    }).content)),
+    func=run_sql_tool,
     description="Access bookings, availability, prices, and reservations from the SQL database."
 )

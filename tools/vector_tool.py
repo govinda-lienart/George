@@ -5,6 +5,8 @@ from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 from logger import logger
 import streamlit as st
+from langchain.callbacks import LangChainTracer  # Import the tracer
+from langchain.chains import RetrievalQA
 
 # --- Prompt template for response generation ---
 vector_prompt = PromptTemplate(
@@ -22,26 +24,26 @@ User: {question}
 
 When responding, always include the appropriate link based on the topic:
 
-1. For questions about rooms or accommodations:
-   "You can find more details [here](https://sites.google.com/view/chez-govinda/rooms)."
+1.  For questions about rooms or accommodations:
+    "You can find more details [here](https://sites.google.com/view/chez-govinda/rooms)."
 
-2. For questions about our environmental commitments:
-   "You can read more on our [Environmental Commitment page](https://sites.google.com/view/chez-govinda/environmental-commitment)."
+2.  For questions about our environmental commitments:
+    "You can read more on our [Environmental Commitment page](https://sites.google.com/view/chez-govinda/environmental-commitment)."
 
-3. For questions about breakfast or dining:
-   "More about [Breakfast and Guest Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
+3.  For questions about breakfast or dining:
+    "More about [Breakfast and Guest Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
 
-4. For questions about amenities or facilities:
-   "View all our [Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
+4.  For questions about amenities or facilities:
+    "View all our [Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
 
-5. For questions about wellness or relaxation options:
-   "Learn more on our [Wellness page](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
+5.  For questions about wellness or relaxation options:
+    "Learn more on our [Wellness page](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)."
 
-6. For questions about policies or rules:
-   "Review our full [Hotel Policy here](https://sites.google.com/view/chez-govinda/policy)."
+6.  For questions about policies or rules:
+    "Review our full [Hotel Policy here](https://sites.google.com/view/chez-govinda/policy)."
 
-7. For questions about contact or location:
-   "Visit [Contact & Location](https://sites.google.com/view/chez-govinda/contact-location)."
+7.  For questions about contact or location:
+    "Visit [Contact & Location](https://sites.google.com/view/chez-govinda/contact-location)."
 
 When discussing rooms, always list all 7 room types: Single Room, Double Room, Suite Room, Economy Room, Romantic Room, Family Room, and Kids Friendly Room.
 
@@ -52,8 +54,13 @@ Respond as George from the hotel team. Use a warm and concise tone. Never refer 
 
 # --- Tool logic ---
 def vector_tool_func(user_input: str) -> str:
+    logger.info(f"🔍 Vector tool processing: {user_input}")
+
     try:
-        logger.info(f"🔍 Vector search started for: {user_input}")
+        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
+
+        # --- Retrieval ---
+        logger.info("📚 Performing similarity search...")
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
 
         logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
@@ -92,11 +99,10 @@ def vector_tool_func(user_input: str) -> str:
         logger.debug(f"→ Context: {context[:100]}...")
         logger.debug(f"→ Question: {user_input}")
 
-        response = (vector_prompt | llm).invoke({
-            "summary": summary,
-            "context": context,
-            "question": user_input
-        }).content.strip()
+        response = (vector_prompt | llm).invoke(
+            {"summary": summary, "context": context, "question": user_input},
+            config={"callbacks": [LangChainTracer()]}  # Trace the LLM call
+        ).content.strip()
 
         st.session_state.george_memory.save_context(
             {"input": user_input},

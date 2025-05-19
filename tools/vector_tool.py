@@ -1,9 +1,11 @@
-# Last updated: 2025-05-19 18:26:37
+# Last updated: 2025-05-19 — memory support + logging & link routing
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
 from logger import logger
+import streamlit as st
 
+# --- Hardcoded fallback links per category ---
 HARDCODED_LINKS = {
     "environment": "https://sites.google.com/view/chez-govinda/environmental-commitment",
     "rooms": "https://sites.google.com/view/chez-govinda/rooms",
@@ -45,75 +47,93 @@ link_map = {
     )
 }
 
-def vector_search(query):
-    logger.info(f"🔍 Vector search started for: {query}")
-    docs_and_scores = vectorstore.similarity_search_with_score(query, k=30)
-
-    if not docs_and_scores:
-        return "❌ I couldn’t find anything relevant in our documents."
-
-    filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
-    seen, unique_docs = set(), []
-    for doc, score in filtered:
-        snippet = doc.page_content[:100]
-        if snippet not in seen:
-            unique_docs.append((doc, score))
-            seen.add(snippet)
-
-    if not unique_docs:
-        return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
-
-    boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
-    if any(term in query.lower() for term in boost_terms):
-        unique_docs = sorted(
-            unique_docs,
-            key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
-            reverse=True
-        )
-
-    top_docs = [doc for doc, _ in unique_docs[:10]]
-    context = "\n\n".join(doc.page_content for doc in top_docs)
-
-    matched_link = None
-    for category, (keywords, _) in link_map.items():
-        if any(k in query.lower() for k in keywords):
-            for doc in top_docs:
-                source = doc.metadata.get("source", "")
-                if category in source.lower():
-                    matched_link = source
-                    break
-            if not matched_link:
-                matched_link = HARDCODED_LINKS.get(category)
-            break
-
-    prompt = PromptTemplate(
-        input_variables=["context", "question", "source_link"],
-        template="""
+# --- Prompt template for response generation ---
+vector_prompt = PromptTemplate(
+    input_variables=["summary", "context", "question", "source_link"],
+    template="""
 You are George, the friendly AI receptionist at *Chez Govinda*.
 
-You always speak **as part of the hotel team**, so say **"our hotel"**, **"we offer"**, or **"our rooms"** — never use "their hotel" or talk about Chez Govinda in third person.
-If someone asks about rooms, **always return the full list of the seven room types** from hotel documentation in the database.
+Conversation so far:
+{summary}
 
-Answer the user's question in a warm, concise paragraph using only the information below.
-If a helpful page is available about rooms and other topics, conclude with a sentence like: "You can find more details [here]({source_link})."
-
+Hotel Knowledge Base:
 {context}
 
 User: {question}
+
+Respond as George from the hotel team. Use a warm and concise tone. Never refer to Chez Govinda in third person.
+If available, append: "You can find more details [here]({source_link})."
 """
-    )
+)
 
-    logger.info(f"💬 User question: {query}")
-    response = (prompt | llm).invoke({
-        "context": context,
-        "question": query,
-        "source_link": matched_link or ""
-    }).content.strip()
-    logger.info(f"🤖 Assistant response: {response}")
-    return response
+# --- Tool logic ---
+def vector_tool_func(user_input: str) -> str:
+    try:
+        logger.info(f"🔍 Vector search started for: {user_input}")
+        docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
 
+        if not docs_and_scores:
+            return "❌ I couldn’t find anything relevant in our documents."
+
+        filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
+        seen, unique_docs = set(), []
+        for doc, score in filtered:
+            snippet = doc.page_content[:100]
+            if snippet not in seen:
+                unique_docs.append((doc, score))
+                seen.add(snippet)
+
+        if not unique_docs:
+            return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
+
+        boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
+        if any(term in user_input.lower() for term in boost_terms):
+            unique_docs = sorted(
+                unique_docs,
+                key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
+                reverse=True
+            )
+
+        top_docs = [doc for doc, _ in unique_docs[:10]]
+        context = "\n\n".join(doc.page_content for doc in top_docs)
+
+        # Determine source link
+        matched_link = None
+        for category, (keywords, _) in link_map.items():
+            if any(k in user_input.lower() for k in keywords):
+                for doc in top_docs:
+                    source = doc.metadata.get("source", "")
+                    if category in source.lower():
+                        matched_link = source
+                        break
+                if not matched_link:
+                    matched_link = HARDCODED_LINKS.get(category)
+                break
+
+        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
+
+        response = (vector_prompt | llm).invoke({
+            "summary": summary,
+            "context": context,
+            "question": user_input,
+            "source_link": matched_link or ""
+        }).content.strip()
+
+        st.session_state.george_memory.save_context(
+            {"input": user_input},
+            {"output": response}
+        )
+
+        logger.info(f"🤖 Vector tool response: {response}")
+        return response
+
+    except Exception as e:
+        logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
+        return "Sorry, I couldn’t retrieve relevant information right now."
+
+# --- LangChain tool definition ---
 vector_tool = Tool(
-    name="vector",
-    func=vector_search,
-    description="Hotel details and policies."
+    name="vector_tool",
+    func=vector_tool_func,
+    description="Answers questions about rooms, policies, amenities, and hotel info from embedded documents."
 )

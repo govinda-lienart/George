@@ -1,5 +1,3 @@
-# Last updated: 2025-05-19 18:26:37
-
 from langchain.agents import Tool
 from utils.config import llm
 import mysql.connector
@@ -9,7 +7,6 @@ import streamlit as st
 from langchain.prompts import PromptTemplate
 from logger import logger
 
-# --- Prompt Template for SQL generation ---
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -69,20 +66,11 @@ Respond ONLY with the SQL query, and NOTHING else.
 """
 )
 
-# --- Clean the SQL string safely ---
 def clean_sql(raw_sql: str) -> str:
-    cleaned = (
-        raw_sql.strip()
-        .replace("```sql", "")
-        .replace("```", "")
-        .replace("Query:", "")
-    )
+    cleaned = raw_sql.strip().replace("```sql", "").replace("```", "").replace("Query:", "")
     match = re.search(r"(SELECT\s+.*?;)", cleaned, re.IGNORECASE | re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    return cleaned.strip()
+    return match.group(1).strip() if match else cleaned.strip()
 
-# --- Execute the SQL query safely ---
 def run_sql(query: str):
     cleaned = clean_sql(query)
     logger.info(f"🧠 Generated SQL query: {cleaned}")
@@ -98,24 +86,20 @@ def run_sql(query: str):
             password=os.getenv("DB_PASSWORD"),
             database=os.getenv("DB_DATABASE")
         )
-
         with conn.cursor() as cursor:
             cursor.execute(cleaned)
             result = cursor.fetchall()
             logger.info(f"✅ Query executed. Rows returned: {len(result)}")
             return result
-
     except Exception as e:
         logger.error(f"❌ SQL ERROR: {str(e)}", exc_info=True)
         return f"SQL ERROR: {e}"
-
     finally:
         try:
             conn.close()
         except:
             pass
 
-# --- Generate explanation of SQL results ---
 def explain_sql(user_question, result):
     logger.info(f"💬 User question: {user_question}")
     prompt = PromptTemplate(
@@ -135,17 +119,11 @@ Response:
     }).content.strip()
     return response
 
-# --- LangChain Tool definition (deferred session_state access) ---
-def run_sql_tool(query):
-    summary = st.session_state.get("chat_summary", "")
-    sql_query = (sql_prompt | llm).invoke({
-        "summary": summary,
-        "input": query
-    }).content
-    return explain_sql(query, run_sql(sql_query))
-
 sql_tool = Tool(
     name="sql",
-    func=run_sql_tool,
+    func=lambda q: explain_sql(q, run_sql((sql_prompt | llm).invoke({
+        "summary": st.session_state.george_memory.load_memory_variables({}).get("summary", ""),
+        "input": q
+    }).content)),
     description="Access bookings, availability, prices, and reservations from the SQL database."
 )

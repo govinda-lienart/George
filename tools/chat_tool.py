@@ -1,12 +1,11 @@
-# Last updated: 2025-05-19 18:26:37
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm
 from logger import logger
+import streamlit as st
 import os
 
-# --- Load hotel facts from static file ---
-HOTEL_FACTS_PATH = os.path.join("static", "hotel_facts.txt")
+HOTEL_FACTS_PATH = "static/hotel_facts.txt"
 
 try:
     with open(HOTEL_FACTS_PATH, "r", encoding="utf-8") as f:
@@ -16,36 +15,43 @@ except Exception as e:
     hotel_facts_text = ""
     logger.error(f"❌ Failed to load hotel facts: {e}")
 
-# --- Prompt Template ---
-chat_prompt = PromptTemplate.from_template("""
+chat_prompt = PromptTemplate(
+    input_variables=["summary", "facts", "input"],
+    template="""
 You are George, the friendly hotel assistant at Chez Govinda.
 
-Use only the information provided below to answer the user's question:
+Conversation so far:
+{summary}
 
+Hotel Facts:
 {facts}
-
-If you cannot find the answer in the provided facts, respond:
-🙁 I'm sorry, I don't have the answer to that question.  
-For further assistance, feel free to contact us by phone or email — our staff will be happy to help with your inquiry. Thank you!
 
 User: {input}
 Response:
-""")
+"""
+)
 
-# --- Tool Function ---
 def chat_tool_func(user_input: str) -> str:
     try:
+        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
+
         response = (chat_prompt | llm).invoke({
             "input": user_input,
-            "facts": hotel_facts_text
+            "facts": hotel_facts_text,
+            "summary": summary
         }).content.strip()
+
+        st.session_state.george_memory.save_context(
+            {"input": user_input},
+            {"output": response}
+        )
+
         logger.info(f"🤖 Assistant response: {response}")
         return response
     except Exception as e:
         logger.error(f"❌ chat_tool_func error: {e}", exc_info=True)
         return "I'm sorry, something went wrong while processing your question."
 
-# --- LangChain Tool Definition ---
 chat_tool = Tool(
     name="chat_tool",
     func=chat_tool_func,

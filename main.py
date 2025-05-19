@@ -187,4 +187,39 @@ if not st.session_state.show_sql_panel:
     if user_input:
         logger.info(f"User asked: {user_input}")
         st.session_state.history.append(("user", user_input))
-        st.session_state.user_
+        st.session_state.user_input = user_input
+        st.rerun()
+
+    if st.session_state.user_input:
+        with st.chat_message("assistant"):
+            with st.spinner("🧠 George is typing..."):
+                try:
+                    response = process_user_query(st.session_state.user_input)
+                    st.write(response)
+                    st.session_state.history.append(("bot", response))
+                except Exception as e:
+                    error_msg = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
+                    logger.error(error_msg, exc_info=True)
+                    st.error(error_msg)
+                    st.session_state.history.append(("bot", error_msg))
+
+        st.session_state.user_input = ""
+        st.rerun()
+
+# 📋 Log Panel
+if st.session_state.get("show_log_panel"):
+    st.markdown("### 📋 Log Output")
+    raw_logs = log_stream.getvalue()
+    filtered_lines = [line for line in raw_logs.splitlines() if "App launched" not in line]
+    formatted_logs = ""
+    for line in filtered_lines:
+        if "—" in line:
+            ts, msg = line.split("—", 1)
+            formatted_logs += f"\n\n**{ts.strip()}** — {msg.strip()}"
+        else:
+            formatted_logs += f"\n{line}"
+    if formatted_logs.strip():
+        st.markdown(f"<div class='log-box'>{formatted_logs}</div>", unsafe_allow_html=True)
+    else:
+        st.info("No logs yet.")
+    st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")

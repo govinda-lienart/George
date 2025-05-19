@@ -1,4 +1,5 @@
-# Last updated: 2025-05-19 — memory support + logging & link routing
+# Last updated: 2025-05-19 — memory support + improved vector logging
+
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm, vectorstore
@@ -72,10 +73,11 @@ def vector_tool_func(user_input: str) -> str:
         logger.info(f"🔍 Vector search started for: {user_input}")
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
 
-        if not docs_and_scores:
-            return "❌ I couldn’t find anything relevant in our documents."
+        logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
 
         filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
+        logger.info(f"🔍 {len(filtered)} documents passed minimum length filter (≥ 50 chars)")
+
         seen, unique_docs = set(), []
         for doc, score in filtered:
             snippet = doc.page_content[:100]
@@ -83,11 +85,14 @@ def vector_tool_func(user_input: str) -> str:
                 unique_docs.append((doc, score))
                 seen.add(snippet)
 
+        logger.info(f"🧹 {len(unique_docs)} unique documents retained after de-duplication")
+
         if not unique_docs:
             return "Hmm, I found some documents but they seem too short to be helpful. Could you rephrase your question?"
 
         boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
         if any(term in user_input.lower() for term in boost_terms):
+            logger.info("⚡ Boost terms detected — reordering results for eco-relevance")
             unique_docs = sorted(
                 unique_docs,
                 key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
@@ -105,12 +110,20 @@ def vector_tool_func(user_input: str) -> str:
                     source = doc.metadata.get("source", "")
                     if category in source.lower():
                         matched_link = source
+                        logger.info(f"🔗 Matched source: {source} (from vector metadata)")
                         break
                 if not matched_link:
                     matched_link = HARDCODED_LINKS.get(category)
+                    logger.info(f"🔗 Using hardcoded fallback link for category: {category} → {matched_link}")
                 break
 
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
+
+        logger.debug("📥 Prompt inputs for LLM:")
+        logger.debug(f"→ Summary: {summary[:100]}...")
+        logger.debug(f"→ Context: {context[:100]}...")
+        logger.debug(f"→ Question: {user_input}")
+        logger.debug(f"→ Source Link: {matched_link}")
 
         response = (vector_prompt | llm).invoke({
             "summary": summary,

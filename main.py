@@ -140,15 +140,15 @@ with st.sidebar:
         value=st.session_state.get("show_pipeline", False)
     )
 
-    st.markdown("### 🔗 Technical Documentation")
-    link1_text = "Ch"  # You can customize the text here
-    link1_url = "#"  # Replace with your desired URL
+    st.markdown("### 🔗 Useful Links")
+    link1_text = "Technical Documentation"  # You can customize the text here
+    link1_url = "https://govindalienart.notion.site/George-Online-AI-Hotel-Receptionist-1f95d3b67d38809889e1fa689107b5ea?pvs=4"  # Replace with your desired URL
     st.markdown(
         f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>',
         unsafe_allow_html=True)
 
     link2_text = "Chez Govinda Website"  # You can customize the text here
-    link2_url = "#"  # Replace with your desired URL
+    link2_url = "https://sites.google.com/view/chez-govinda/home"  # Replace with your desired URL
     st.markdown(
         f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
         unsafe_allow_html=True)

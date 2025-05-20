@@ -163,7 +163,7 @@ if st.session_state.get("show_pipeline"):
         </div>
     """, height=700)
 elif not st.session_state.show_sql_panel:
-    st.markdown("### 🏨 Talk with our AI Hotel Receptionist")
+    st.markdown("### 🤖 Talk with our AI Hotel Receptionist")
     # Only render chat interface when SQL panel is disabled
     if "history" not in st.session_state:
         st.session_state.history = []

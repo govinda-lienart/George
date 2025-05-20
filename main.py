@@ -95,18 +95,15 @@ def execute_tool(tool_name: str, query: str):
 
 
 def process_user_query(input_text: str) -> str:
-    # Invoke the router chain and capture the output
     route_result = router_chain.invoke(
         {"question": input_text},
-        config={"callbacks": [LangChainTracer()]}  # Trace the router
+        config={"callbacks": [LangChainTracer()]}
     )
     tool_choice = route_result["tool_choice"].strip()
-
     logger.info(f"Tool selected: {tool_choice}")
 
     tool_response = execute_tool(tool_choice, input_text)
 
-    # Save this interaction to memory for follow-up questions
     st.session_state.george_memory.save_context(
         {"input": input_text},
         {"output": tool_response}
@@ -119,8 +116,8 @@ def process_user_query(input_text: str) -> str:
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
     page_icon="🏨",
-    layout="centered",
-    initial_sidebar_state="auto"
+    layout="wide",  # Full width layout
+    initial_sidebar_state="expanded"
 )
 render_header()
 
@@ -142,11 +139,29 @@ with st.sidebar:
         "📋 Show General Log Panel",
         value=st.session_state.get("show_log_panel", False)
     )
+    st.session_state.show_pipeline = st.checkbox(
+        "🔄 Show Pipeline",
+        value=st.session_state.get("show_pipeline", False)
+    )
+    if st.button("🧪 Run Chat Routing Test"):
+        result = process_user_query("Can I book a room with breakfast?")
+        st.success("✅ Test Response:")
+        st.info(result)
+
+# 🔄 Pipeline Panel
+if st.session_state.get("show_pipeline"):
+    st.markdown("### 🔄 George's Assistant Pipeline Overview")
+    pipeline_svg_url = "https://www.mermaidchart.com/raw/89841b63-50c1-4817-b115-f31ae565470f?theme=light&version=v0.1&format=svg"
+    st.components.v1.html(f"""
+        <div style='display: flex; justify-content: center;'>
+            <img src="{pipeline_svg_url}" style="width: 95%; max-width: 1600px;">
+        </div>
+    """, height=700)
 
 # 📚 Docs Panel
 if st.session_state.get("show_docs_panel"):
     st.markdown("### 📖 Technical Documentation")
-    st.components.v1.iframe("https://www.google.com")
+    st.components.v1.iframe("https://www.google.com", height=600)
 
 # 🧪 SQL Debug Panel
 if st.session_state.show_sql_panel:
@@ -177,7 +192,7 @@ if st.session_state.show_sql_panel:
                 pass
 
 # 💬 Chat Interface
-if not st.session_state.show_sql_panel:
+if not st.session_state.show_sql_panel and not st.session_state.show_pipeline:
     if "history" not in st.session_state:
         st.session_state.history = []
     if "user_input" not in st.session_state:

@@ -131,10 +131,7 @@ with st.sidebar:
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
-    st.session_state.show_docs_panel = st.checkbox(
-        "📄 Show Documentation",
-        value=st.session_state.get("show_docs_panel", False)
-    )
+    # Removed the "Show Documentation" checkbox
     st.session_state.show_log_panel = st.checkbox(
         "📋 Show General Log Panel",
         value=st.session_state.get("show_log_panel", False)
@@ -144,13 +141,12 @@ with st.sidebar:
         value=st.session_state.get("show_pipeline", False)
     )
 
-    st.markdown("---")
     st.markdown("### 🔗 Useful Links")
-    link1_text = "Link 1"  # You can customize the text here
+    link1_text = "Technical Documentation"  # You can customize the text here
     link1_url = "#"       # Replace with your desired URL
     st.markdown(f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>', unsafe_allow_html=True)
 
-    link2_text = "Link 2"  # You can customize the text here
+    link2_text = "Website"  # You can customize the text here
     link2_url = "#"       # Replace with your desired URL
     st.markdown(f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>', unsafe_allow_html=True)
 

@@ -131,7 +131,6 @@ with st.sidebar:
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
-    # Removed the "Show Documentation" checkbox
     st.session_state.show_log_panel = st.checkbox(
         "📋 Show General Log Panel",
         value=st.session_state.get("show_log_panel", False)
@@ -142,11 +141,11 @@ with st.sidebar:
     )
 
     st.markdown("### 🔗 Useful Links")
-    link1_text = "Technical Documentation"  # You can customize the text here
+    link1_text = "Link 1"  # You can customize the text here
     link1_url = "#"       # Replace with your desired URL
     st.markdown(f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>', unsafe_allow_html=True)
 
-    link2_text = "Website"  # You can customize the text here
+    link2_text = "Link 2"  # You can customize the text here
     link2_url = "#"       # Replace with your desired URL
     st.markdown(f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>', unsafe_allow_html=True)
 
@@ -160,42 +159,7 @@ if st.session_state.get("show_pipeline"):
             <img src="{pipeline_svg_url}" style="width: 95%; max-width: 1600px;">
         </div>
     """, height=700)
-
-# 📚 Docs Panel
-if st.session_state.get("show_docs_panel"):
-    st.markdown("### 📖 Technical Documentation")
-    st.components.v1.iframe("https://www.google.com", height=600)
-
-# 🧪 SQL Debug Panel
-if st.session_state.show_sql_panel:
-    st.markdown("### 🔍 SQL Query Panel")
-    sql_input = st.text_area("🔍 Enter SQL query to run:", "SELECT * FROM bookings LIMIT 10;")
-    if st.button("Run Query"):
-        try:
-            conn = mysql.connector.connect(
-                host=get_secret("DB_HOST_READ_ONLY"),
-                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
-                user=get_secret("DB_USERNAME_READ_ONLY"),
-                password=get_secret("DB_PASSWORD_READ_ONLY"),
-                database=get_secret("DB_DATABASE_READ_ONLY")
-            )
-            cursor = conn.cursor()
-            cursor.execute(sql_input)
-            rows = cursor.fetchall()
-            cols = [desc[0] for desc in cursor.description]
-            df = pd.DataFrame(rows, columns=cols)
-            st.dataframe(df, use_container_width=True)
-        except Exception as e:
-            st.error(f"❌ SQL Error: {e}")
-        finally:
-            try:
-                cursor.close()
-                conn.close()
-            except:
-                pass
-
-# 💬 Chat Interface
-if not st.session_state.show_sql_panel and not st.session_state.show_pipeline:
+else:
     if "history" not in st.session_state:
         st.session_state.history = []
     if "user_input" not in st.session_state:

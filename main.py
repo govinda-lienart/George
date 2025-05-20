@@ -119,7 +119,10 @@ st.set_page_config(
     layout="wide",  # Full width layout
     initial_sidebar_state="expanded"
 )
-render_header()
+
+# Conditionally render the header and chat interface
+if not st.session_state.get("show_pipeline"):
+    render_header()
 
 # 🧠 Sidebar Panels
 with st.sidebar:

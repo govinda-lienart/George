@@ -164,7 +164,7 @@ if st.session_state.get("show_pipeline"):
     """, height=700)
 elif not st.session_state.show_sql_panel:
     # --- UPDATED HEADER HERE ---
-    st.header("🤖 Talk with our AI Hotel Receptionist", divider='rainbow')
+    st.header("🤖 CHAT WITH OUT AI HOTEL RECEPTIONIST", divider='black')
     # --- END UPDATED HEADER ---
 
     # Only render chat interface when SQL panel is disabled

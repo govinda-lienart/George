@@ -1,5 +1,5 @@
 # ========================================
-# 📆 Imports and Initialization ##
+# 📆 Imports and Initialization ###
 # ========================================
 
 import os
@@ -21,7 +21,7 @@ from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
-from chat_ui import get_user_input, render_chat_bubbles
+from chat_ui import get_user_input, render_chat_bubbles # Removed render_header from import
 from booking.calendar import render_booking_form
 from utils.config import llm
 
@@ -119,7 +119,7 @@ st.set_page_config(
     layout="wide",  # Full width layout
     initial_sidebar_state="expanded"
 )
-# render_header()
+# render_header() # This line remains commented out
 
 # 🧠 Sidebar Panels
 with st.sidebar:
@@ -163,7 +163,10 @@ if st.session_state.get("show_pipeline"):
         </div>
     """, height=700)
 elif not st.session_state.show_sql_panel:
-    st.markdown("### 🤖 Talk with our AI Hotel Receptionist")
+    # --- UPDATED HEADER HERE ---
+    st.header("🤖 Talk with our AI Hotel Receptionist", divider='rainbow')
+    # --- END UPDATED HEADER ---
+
     # Only render chat interface when SQL panel is disabled
     if "history" not in st.session_state:
         st.session_state.history = []

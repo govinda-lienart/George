@@ -119,6 +119,7 @@ st.set_page_config(
     layout="wide",  # Full width layout
     initial_sidebar_state="expanded"
 )
+render_header()
 
 # 🧠 Sidebar Panels
 with st.sidebar:
@@ -152,7 +153,7 @@ with st.sidebar:
         f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
         unsafe_allow_html=True)
 
-# Display the appropriate title based on the mode
+# Display the appropriate title and interface
 if st.session_state.get("show_pipeline"):
     st.markdown("### 🔄 George's Assistant Pipeline Overview")
     pipeline_svg_url = "https://www.mermaidchart.com/raw/89841b63-50c1-4817-b115-f31ae565470f?theme=light&version=v0.1&format=svg"
@@ -161,9 +162,9 @@ if st.session_state.get("show_pipeline"):
             <img src="{pipeline_svg_url}" style="width: 95%; max-width: 1600px;">
         </div>
     """, height=700)
-else:
+elif not st.session_state.show_sql_panel:
     st.markdown("### 🏨 Talk with our AI Hotel Receptionist")
-    # Only render chat interface when not in pipeline mode
+    # Only render chat interface when SQL panel is disabled
     if "history" not in st.session_state:
         st.session_state.history = []
     if "user_input" not in st.session_state:
@@ -204,6 +205,33 @@ else:
 
         st.session_state.user_input = ""
         st.rerun()
+# 🧪 SQL Debug Panel
+if st.session_state.show_sql_panel:
+    st.markdown("### 🔍 SQL Query Panel")
+    sql_input = st.text_area("🔍 Enter SQL query to run:", "SELECT * FROM bookings LIMIT 10;")
+    if st.button("Run Query"):
+        try:
+            conn = mysql.connector.connect(
+                host=get_secret("DB_HOST_READ_ONLY"),
+                port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
+                user=get_secret("DB_USERNAME_READ_ONLY"),
+                password=get_secret("DB_PASSWORD_READ_ONLY"),
+                database=get_secret("DB_DATABASE_READ_ONLY")
+            )
+            cursor = conn.cursor()
+            cursor.execute(sql_input)
+            rows = cursor.fetchall()
+            cols = [desc[0] for desc in cursor.description]
+            df = pd.DataFrame(rows, columns=cols)
+            st.dataframe(df, use_container_width=True)
+        except Exception as e:
+            st.error(f"❌ SQL Error: {e}")
+        finally:
+            try:
+                cursor.close()
+                conn.close()
+            except:
+                pass
 
 # 📋 Log Panel
 if st.session_state.get("show_log_panel"):

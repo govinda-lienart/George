@@ -13,20 +13,6 @@ def render_page_config():
     )
 
 # ========================================
-# 🏨 Render Header
-# ========================================
-def render_header():
-    # You can add content here if you want a visible header
-    st.markdown(
-        """
-        <h1 style='font-size: 1.5rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;'>
-
-        </h1>
-        """,
-        unsafe_allow_html=True
-    )
-
-# ========================================
 # 💬 Display Chat Messages
 # ========================================
 def render_chat_bubbles(history):

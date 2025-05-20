@@ -21,7 +21,7 @@ from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool
-from chat_ui import render_header, get_user_input, render_chat_bubbles
+from chat_ui import get_user_input, render_chat_bubbles
 from booking.calendar import render_booking_form
 from utils.config import llm
 
@@ -119,7 +119,7 @@ st.set_page_config(
     layout="wide",  # Full width layout
     initial_sidebar_state="expanded"
 )
-render_header()
+# render_header()
 
 # 🧠 Sidebar Panels
 with st.sidebar:

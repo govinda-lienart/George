@@ -1,7 +1,6 @@
 # ========================================
 # 📆 Imports and Initialization
 # ========================================
-
 import os
 import streamlit as st
 import pandas as pd
@@ -95,10 +94,9 @@ def execute_tool(tool_name: str, query: str):
 
 
 def process_user_query(input_text: str) -> str:
-    # Invoke the router chain and capture the output
     route_result = router_chain.invoke(
         {"question": input_text},
-        config={"callbacks": [LangChainTracer()]}  # Trace the router
+        config={"callbacks": [LangChainTracer()]}
     )
     tool_choice = route_result["tool_choice"].strip()
 
@@ -106,7 +104,6 @@ def process_user_query(input_text: str) -> str:
 
     tool_response = execute_tool(tool_choice, input_text)
 
-    # Save this interaction to memory for follow-up questions
     st.session_state.george_memory.save_context(
         {"input": input_text},
         {"output": tool_response}
@@ -124,36 +121,56 @@ st.set_page_config(
 )
 render_header()
 
-# 🧠 Sidebar Panels
+# ========================================
+# 🧭 SIDEBAR – Developer Options
+# ========================================
 with st.sidebar:
     logo = Image.open("assets/logo.png")
     st.image(logo, use_container_width=True)
 
     st.markdown("### 🛠️ Developer Tools")
+
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
+
     st.session_state.show_docs_panel = st.checkbox(
         "📄 Show Documentation",
         value=st.session_state.get("show_docs_panel", False)
     )
+
     st.session_state.show_log_panel = st.checkbox(
         "📋 Show General Log Panel",
         value=st.session_state.get("show_log_panel", False)
     )
 
-    if st.button("🧪 Run Chat Routing Test"):
-        result = process_user_query("Can I book a room with breakfast?")
-        st.success("✅ Test Response:")
-        st.info(result)
+    # ✅ New checkbox to toggle the pipeline diagram
+    st.session_state.show_pipeline_diagram = st.checkbox(
+        "📊 Show Pipeline Diagram",
+        value=st.session_state.get("show_pipeline_diagram", False)
+    )
 
-# 📚 Docs Panel
+
+# ========================================
+# 📊 MAIN – Pipeline Diagram Display
+# ========================================
+if st.session_state.get("show_pipeline_diagram"):
+    st.subheader("🛠️ Pipeline Overview")
+
+    svg_url = "https://www.mermaidchart.com/raw/89841b63-50c1-4817-b115-f31ae565470f?theme=light&version=v0.1&format=svg"
+    st.image(svg_url, caption="Current Pipeline Diagram", use_column_width=True)
+
+# ========================================
+# 📄 Documentation Panel
+# ========================================
 if st.session_state.get("show_docs_panel"):
     st.markdown("### 📖 Technical Documentation")
     st.components.v1.iframe("https://www.google.com")
 
+# ========================================
 # 🧪 SQL Debug Panel
+# ========================================
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
     sql_input = st.text_area("🔍 Enter SQL query to run:", "SELECT * FROM bookings LIMIT 10;")
@@ -181,7 +198,9 @@ if st.session_state.show_sql_panel:
             except:
                 pass
 
-# 💬 Chat Interface
+# ========================================
+# 💬 Chat Interface with Booking
+# ========================================
 if not st.session_state.show_sql_panel:
     if "history" not in st.session_state:
         st.session_state.history = []
@@ -224,7 +243,9 @@ if not st.session_state.show_sql_panel:
         st.session_state.user_input = ""
         st.rerun()
 
-# 📋 Log Panel
+# ========================================
+# 📋 General Log Panel
+# ========================================
 if st.session_state.get("show_log_panel"):
     st.markdown("### 📋 Log Output")
     raw_logs = log_stream.getvalue()

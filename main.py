@@ -54,7 +54,7 @@ Choose the correct tool for the user's question, following these guidelines:
 
 Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
-- vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information
+- vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information, location, address, street
 - booking_tool: When the user confirms they want to book a room or asks for help booking
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel, OR SPECIFICALLY ABOUT: website, smoking, quiet hours, parties, events, languages spoken.
 

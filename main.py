@@ -123,7 +123,7 @@ st.set_page_config(
 
 # 🧠 Sidebar Panels
 with st.sidebar:
-    logo = Image.open("assets/logo.png")
+    logo = Image.open("assets/george_foto.png")
     st.image(logo, use_container_width=True)
 
     st.markdown("### 🛠️ Developer Tools")

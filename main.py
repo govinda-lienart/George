@@ -120,10 +120,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Conditionally render the header and chat interface
-if not st.session_state.get("show_pipeline"):
-    render_header()
-
 # 🧠 Sidebar Panels
 with st.sidebar:
     logo = Image.open("assets/logo.png")
@@ -145,13 +141,19 @@ with st.sidebar:
 
     st.markdown("### 🔗 Useful Links")
     link1_text = "Link 1"  # You can customize the text here
-    link1_url = "#"       # Replace with your desired URL
-    st.markdown(f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>', unsafe_allow_html=True)
+    link1_url = "#"  # Replace with your desired URL
+    st.markdown(
+        f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>',
+        unsafe_allow_html=True)
 
     link2_text = "Link 2"  # You can customize the text here
-    link2_url = "#"       # Replace with your desired URL
-    st.markdown(f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>', unsafe_allow_html=True)
+    link2_url = "#"  # Replace with your desired URL
+    st.markdown(
+        f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
+        unsafe_allow_html=True)
 
+# Always display the title regardless of pipeline mode
+st.markdown("### 🏨 Talk with our AI Hotel Receptionist")
 
 # 🔄 Pipeline Panel
 if st.session_state.get("show_pipeline"):
@@ -163,10 +165,13 @@ if st.session_state.get("show_pipeline"):
         </div>
     """, height=700)
 else:
+    # Only render chat interface when not in pipeline mode
     if "history" not in st.session_state:
         st.session_state.history = []
     if "user_input" not in st.session_state:
         st.session_state.user_input = ""
+
+    # Removed unnecessary header rendering since we always render the title now
 
     if not st.session_state.history:
         st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))

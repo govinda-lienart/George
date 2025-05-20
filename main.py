@@ -152,12 +152,11 @@ with st.sidebar:
         f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
         unsafe_allow_html=True)
 
-# Always display the title regardless of pipeline mode
-st.markdown("### 🏨 Talk with our AI Hotel Receptionist")
-
-# 🔄 Pipeline Panel
+# Display the appropriate title based on the mode
 if st.session_state.get("show_pipeline"):
     st.markdown("### 🔄 George's Assistant Pipeline Overview")
+else:
+    st.markdown("### 🏨 Talk with our AI Hotel Receptionist")
     pipeline_svg_url = "https://www.mermaidchart.com/raw/89841b63-50c1-4817-b115-f31ae565470f?theme=light&version=v0.1&format=svg"
     st.components.v1.html(f"""
         <div style='display: flex; justify-content: center;'>
@@ -165,49 +164,49 @@ if st.session_state.get("show_pipeline"):
         </div>
     """, height=700)
 else:
-    # Only render chat interface when not in pipeline mode
-    if "history" not in st.session_state:
-        st.session_state.history = []
-    if "user_input" not in st.session_state:
-        st.session_state.user_input = ""
+# Only render chat interface when not in pipeline mode
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "user_input" not in st.session_state:
+    st.session_state.user_input = ""
 
-    # Removed unnecessary header rendering since we always render the title now
+# Removed unnecessary header rendering since we always render the title now
 
-    if not st.session_state.history:
-        st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
+if not st.session_state.history:
+    st.session_state.history.append(("bot", "👋 Hello, I'm George. How can I help you today?"))
 
-    render_chat_bubbles(st.session_state.history)
+render_chat_bubbles(st.session_state.history)
 
-    if st.session_state.get("booking_mode"):
-        render_booking_form()
-        if st.button("❌ Remove Booking Form"):
-            st.session_state.booking_mode = False
-            st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
-            st.rerun()
-
-    user_input = get_user_input()
-
-    if user_input:
-        logger.info(f"User asked: {user_input}")
-        st.session_state.history.append(("user", user_input))
-        st.session_state.user_input = user_input
+if st.session_state.get("booking_mode"):
+    render_booking_form()
+    if st.button("❌ Remove Booking Form"):
+        st.session_state.booking_mode = False
+        st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
         st.rerun()
 
-    if st.session_state.user_input:
-        with st.chat_message("assistant"):
-            with st.spinner("🧠 George is typing..."):
-                try:
-                    response = process_user_query(st.session_state.user_input)
-                    st.write(response)
-                    st.session_state.history.append(("bot", response))
-                except Exception as e:
-                    error_msg = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
-                    logger.error(error_msg, exc_info=True)
-                    st.error(error_msg)
-                    st.session_state.history.append(("bot", error_msg))
+user_input = get_user_input()
 
-        st.session_state.user_input = ""
-        st.rerun()
+if user_input:
+    logger.info(f"User asked: {user_input}")
+    st.session_state.history.append(("user", user_input))
+    st.session_state.user_input = user_input
+    st.rerun()
+
+if st.session_state.user_input:
+    with st.chat_message("assistant"):
+        with st.spinner("🧠 George is typing..."):
+            try:
+                response = process_user_query(st.session_state.user_input)
+                st.write(response)
+                st.session_state.history.append(("bot", response))
+            except Exception as e:
+                error_msg = f"I'm sorry, I encountered an error. Please try again. Error: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                st.error(error_msg)
+                st.session_state.history.append(("bot", error_msg))
+
+    st.session_state.user_input = ""
+    st.rerun()
 
 # 📋 Log Panel
 if st.session_state.get("show_log_panel"):

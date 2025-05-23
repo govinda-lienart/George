@@ -10,8 +10,12 @@ from booking.email import send_confirmation_email
 from dotenv import load_dotenv
 import os
 
+# ✅ ADD FOLLOW-UP IMPORT
+from tools.followup_tool import create_followup_message
+
 # Load environment variables
 load_dotenv()
+
 
 # ========================================
 # 🔐 Secure Secret Access
@@ -21,6 +25,7 @@ def get_secret(key, default=None):
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
+
 
 # ========================================
 # 🛠️ DB Connection for Booking Form
@@ -32,6 +37,7 @@ db_config = {
     "password": get_secret("DB_PASSWORD_FORM") or '',
     "database": get_secret("DB_DATABASE_FORM")
 }
+
 
 # ========================================
 # 🏨 Room Fetch Utility
@@ -53,12 +59,14 @@ def get_rooms():
         except:
             pass
 
+
 # ========================================
 # 🆔 Booking Number Generator
 # ========================================
 def generate_booking_number(booking_id):
     today_str = datetime.today().strftime("%Y%m%d")
     return f"BKG-{today_str}-{str(booking_id).zfill(4)}"
+
 
 # ========================================
 # 🧾 Booking Insert Logic
@@ -114,6 +122,7 @@ def insert_booking(data):
                 conn.close()
         except:
             pass
+
 
 # ========================================
 # 📋 Booking Form Renderer
@@ -209,11 +218,28 @@ def render_booking_form():
             )
             st.session_state.booking_mode = False
 
-            # ✅ TRIGGER FOLLOW-UP FLAG
-            st.session_state.booking_just_completed = True
+            # ✅ TRIGGER FOLLOW-UP DIRECTLY IN CHAT
+            try:
+                from logger import logger
+                followup = create_followup_message()
+                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+
+                # ✅ ADD FOLLOW-UP MESSAGE DIRECTLY TO CHAT HISTORY
+                if "history" not in st.session_state:
+                    st.session_state.history = []
+                st.session_state.history.append(("bot", followup["message"]))
+
+                logger.info("Follow-up message added to chat history")
+            except Exception as e:
+                try:
+                    from logger import logger
+                    logger.error(f"Follow-up failed: {e}")
+                except:
+                    print(f"Follow-up failed: {e}")
 
         else:
             st.error(f"❌ Booking failed: {result}")
+
 
 # ✅ Export explicitly for import in booking_tool
 __all__ = ["render_booking_form"]

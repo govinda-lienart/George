@@ -20,7 +20,8 @@ from langchain_core.runnables import RunnablePassthrough
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool
+from tools.booking_tool import booking_tool, post_booking_followup  # <- Added post_booking_followup here
+from tools.followup_tool import handle_followup_response        # <- New tool to handle followups
 from chat_ui import get_user_input, render_chat_bubbles # Removed render_header from import
 from booking.calendar import render_booking_form
 from utils.config import llm
@@ -35,6 +36,13 @@ if "george_memory" not in st.session_state:
         memory_key="summary",
         return_messages=False
     )
+
+# ✅ Setup follow-up state tracking
+if "awaiting_activity_consent" not in st.session_state:
+    st.session_state.awaiting_activity_consent = False
+
+if "latest_booking_number" not in st.session_state:
+    st.session_state.latest_booking_number = None
 
 # ========================================
 # ⚙️ Utility Functions
@@ -85,7 +93,7 @@ Tool:
 router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")
 
 # ========================================
-# 🛠️ Tool Execution Logic
+# 🛠️ Tool Execution Logic (updated with followup)
 # ========================================
 def execute_tool(tool_name: str, query: str):
     if tool_name == "sql_tool":
@@ -93,16 +101,28 @@ def execute_tool(tool_name: str, query: str):
     elif tool_name == "vector_tool":
         return vector_tool.func(query)
     elif tool_name == "booking_tool":
-        return booking_tool.func(query)
+        result = booking_tool.func(query)
+        # Trigger booking follow-up logic:
+        followup = post_booking_followup(st.session_state.latest_booking_number)
+        st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+        return result + "\n\n" + followup["message"]
     elif tool_name == "chat_tool":
         return chat_tool.func(query)
     else:
         return f"Error: Tool '{tool_name}' not found."
 
 # ========================================
-# 💬 User Query Processing
+# 💬 User Query Processing (updated for follow-up)
 # ========================================
 def process_user_query(input_text: str) -> str:
+    # If awaiting user consent for activity after booking, handle that first
+    if st.session_state.awaiting_activity_consent:
+        response = handle_followup_response(input_text, st.session_state)
+        # Reset the consent flag after handling
+        st.session_state.awaiting_activity_consent = False
+        return response
+
+    # Otherwise, route question to appropriate tool as usual
     route_result = router_chain.invoke(
         {"question": input_text},
         config={"callbacks": [LangChainTracer()]}
@@ -112,6 +132,7 @@ def process_user_query(input_text: str) -> str:
 
     tool_response = execute_tool(tool_choice, input_text)
 
+    # Save conversation to memory for context
     st.session_state.george_memory.save_context(
         {"input": input_text},
         {"output": tool_response}
@@ -122,7 +143,6 @@ def process_user_query(input_text: str) -> str:
 # ========================================
 # 🖥️ Streamlit Application Configuration
 # ========================================
-# 🌐 Streamlit Config
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
     page_icon="🏨",
@@ -134,7 +154,6 @@ st.set_page_config(
 # ========================================
 # 🧭 Sidebar Navigation and Developer Tools
 # ========================================
-# 🧠 Sidebar Panels
 with st.sidebar:
     logo = Image.open("assets/george_foto.png")
     st.image(logo, use_container_width=True)
@@ -169,7 +188,6 @@ with st.sidebar:
 # ========================================
 # 🖥️ Main Content Display
 # ========================================
-# Display the appropriate title and interface
 if st.session_state.get("show_pipeline"):
     st.markdown("### 🔄 George's Assistant Pipeline Overview")
     pipeline_svg_url = "https://www.mermaidchart.com/raw/89841b63-50c1-4817-b115-f31ae565470f?theme=light&version=v0.1&format=svg"
@@ -199,7 +217,7 @@ elif not st.session_state.show_sql_panel:
         if st.button("❌ Remove Booking Form"):
             st.session_state.booking_mode = False
             st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
-            st.rerun()
+            st.experimental_rerun()
 
     user_input = get_user_input()
 
@@ -207,7 +225,7 @@ elif not st.session_state.show_sql_panel:
         logger.info(f"User asked: {user_input}")
         st.session_state.history.append(("user", user_input))
         st.session_state.user_input = user_input
-        st.rerun()
+        st.experimental_rerun()
 
     if st.session_state.user_input:
         with st.chat_message("assistant"):
@@ -223,7 +241,8 @@ elif not st.session_state.show_sql_panel:
                     st.session_state.history.append(("bot", error_msg))
 
         st.session_state.user_input = ""
-        st.rerun()
+        st.experimental_rerun()
+
 # ========================================
 # 📊 Debugging and Logging Panels
 # ========================================
@@ -272,3 +291,4 @@ if st.session_state.get("show_log_panel"):
     else:
         st.info("No logs yet.")
     st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")
+

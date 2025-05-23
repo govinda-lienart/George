@@ -13,7 +13,6 @@ import os
 # Load environment variables
 load_dotenv()
 
-
 # ========================================
 # 🔐 Secure Secret Access
 # ========================================
@@ -22,7 +21,6 @@ def get_secret(key, default=None):
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
-
 
 # ========================================
 # 🛠️ DB Connection for Booking Form
@@ -34,7 +32,6 @@ db_config = {
     "password": get_secret("DB_PASSWORD_FORM") or '',
     "database": get_secret("DB_DATABASE_FORM")
 }
-
 
 # ========================================
 # 🏨 Room Fetch Utility
@@ -56,14 +53,12 @@ def get_rooms():
         except:
             pass
 
-
 # ========================================
 # 🆔 Booking Number Generator
 # ========================================
 def generate_booking_number(booking_id):
     today_str = datetime.today().strftime("%Y%m%d")
     return f"BKG-{today_str}-{str(booking_id).zfill(4)}"
-
 
 # ========================================
 # 🧾 Booking Insert Logic
@@ -119,7 +114,6 @@ def insert_booking(data):
                 conn.close()
         except:
             pass
-
 
 # ========================================
 # 📋 Booking Form Renderer
@@ -220,7 +214,6 @@ def render_booking_form():
 
         else:
             st.error(f"❌ Booking failed: {result}")
-
 
 # ✅ Export explicitly for import in booking_tool
 __all__ = ["render_booking_form"]

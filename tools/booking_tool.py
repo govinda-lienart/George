@@ -22,3 +22,4 @@ booking_tool = Tool(
     func=handle_booking_flow,
     description="Triggers the hotel booking form for the user to fill out."
 )
+

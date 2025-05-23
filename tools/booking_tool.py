@@ -160,8 +160,8 @@ def create_followup_message() -> dict:
 # ========================================
 # 🧰 LangChain Tool Wrapper
 # ========================================
-followup_tool = Tool(
-    name="followup_tool",
-    func=lambda q: handle_followup_response(q, st.session_state),
-    description="Handles guest replies to post-booking follow-up messages about local activity suggestions."
+booking_tool = Tool(
+    name="booking_tool",  # ✅ FIXED: Changed from "booking"
+    func=handle_booking_flow,
+    description="Triggers the hotel booking form for the user to fill out."
 )

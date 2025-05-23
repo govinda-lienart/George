@@ -297,7 +297,7 @@ elif not st.session_state.show_sql_panel:
         if st.button("❌ Remove Booking Form"):
             st.session_state.booking_mode = False
             st.session_state.history.append(("bot", "Booking form removed. How else can I help you today?"))
-            st.experimental_rerun()
+            st.rerun()  # ✅ FIXED: Changed from st.experimental_rerun()
 
     user_input = get_user_input()
 
@@ -305,7 +305,7 @@ elif not st.session_state.show_sql_panel:
         logger.info(f"User asked: {user_input}")
         st.session_state.history.append(("user", user_input))
         st.session_state.user_input = user_input
-        st.experimental_rerun()
+        st.rerun()  # ✅ FIXED: Changed from st.experimental_rerun()
 
     if st.session_state.user_input:
         with st.chat_message("assistant"):
@@ -321,7 +321,7 @@ elif not st.session_state.show_sql_panel:
                     st.session_state.history.append(("bot", error_msg))
 
         st.session_state.user_input = ""
-        st.experimental_rerun()
+        st.rerun()  # ✅ FIXED: Changed from st.experimental_rerun()
 
 # ========================================
 # 📊 Debugging and Logging Panels

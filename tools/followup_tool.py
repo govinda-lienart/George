@@ -1,4 +1,4 @@
-# Updated followup_tool.py - PERSONALIZED & CONCISE VERSION
+# Updated followup_tool.py - LLM GENERATED DETAILED FOLLOW-UP
 
 import os
 from langchain.agents import Tool
@@ -62,6 +62,35 @@ Keep the response focused and not too long.
 Guest's request: {user_input}
 """)
 
+# ========================================
+# 🧠 LLM Detailed Follow-up Message Generator
+# ========================================
+detailed_followup_prompt = PromptTemplate.from_template("""
+You are George, a friendly hotel receptionist at Chez Govinda. A guest has just completed their booking and you need to create a warm, detailed follow-up message.
+
+Guest booking details:
+- First Name: {first_name}
+- Last Name: {last_name}
+- Booking Number: {booking_number}
+- Email: {email}
+- Phone: {phone}
+- Room Type: {room_type}
+- Check-in: {check_in}
+- Check-out: {check_out}
+- Number of Guests: {num_guests}
+- Total Price: €{total_price}
+- Special Requests: {special_requests}
+
+Create a warm, professional follow-up message that:
+1. Thanks the guest by their first name
+2. Confirms their booking with all the important details in a clear, organized way
+3. Mentions that a confirmation email was sent to their email address
+4. Asks if they would like suggestions for things to visit and do in the area during their stay
+5. Uses a friendly, welcoming tone as a hotel receptionist
+
+Keep it well-organized with emojis and clear formatting.
+""")
+
 
 # ========================================
 # 💬 Follow-up Response Handler (Updated for conciseness)
@@ -103,41 +132,52 @@ def handle_followup_response(user_input: str, session_state) -> str:
 
 
 # ========================================
-# 📝 Personalized Follow-up Message (First Name Only)
+# 📝 LLM-Generated Detailed Follow-up Message
 # ========================================
 def create_followup_message() -> dict:
     """
-    Create a personalized follow-up message using first name only from booking data.
+    Create a detailed follow-up message using LLM with all booking information.
     """
     booking_info = st.session_state.get("latest_booking_info", {})
 
     if booking_info:
-        client_name = booking_info.get("client_name", "valued guest")
-        # Extract just the first name
-        first_name = client_name.split()[0] if client_name != "valued guest" else "valued guest"
-        booking_number = booking_info.get("booking_number", "your booking")
-        check_in = booking_info.get("check_in", "")
-        check_out = booking_info.get("check_out", "")
+        try:
+            # Use LLM to generate detailed follow-up message
+            message = (detailed_followup_prompt | llm).invoke({
+                "first_name": booking_info.get("first_name", "valued guest"),
+                "last_name": booking_info.get("last_name", ""),
+                "booking_number": booking_info.get("booking_number", ""),
+                "email": booking_info.get("email", ""),
+                "phone": booking_info.get("phone", ""),
+                "room_type": booking_info.get("room_type", ""),
+                "check_in": booking_info.get("check_in", ""),
+                "check_out": booking_info.get("check_out", ""),
+                "num_guests": booking_info.get("num_guests", ""),
+                "total_price": booking_info.get("total_price", ""),
+                "special_requests": booking_info.get("special_requests", "None")
+            }).content
 
-        if check_in and check_out:
-            date_info = f"from {check_in} to {check_out}"
-        else:
-            date_info = "for your upcoming stay"
+            logger.info("LLM-generated detailed follow-up message created")
+            return {"message": message, "awaiting_activity_consent": True}
 
-        message = (
-            f"🎉 Thank you {first_name} for your booking (Ref: {booking_number})! "
-            f"I see you'll be staying with us {date_info}. "
-            "Would you like suggestions for things to do in the area during your visit?"
-        )
+        except Exception as e:
+            logger.error(f"Failed to generate detailed follow-up: {e}")
+            # Fallback to simple message
+            first_name = booking_info.get("first_name", "valued guest")
+            booking_number = booking_info.get("booking_number", "your booking")
+
+            message = (
+                f"🎉 Thank you {first_name} for your booking (Ref: {booking_number})! "
+                "Would you like suggestions for things to do in the area during your visit?"
+            )
+            return {"message": message, "awaiting_activity_consent": True}
     else:
         # Fallback if no booking info available
         message = (
             "🎉 Thank you for your booking! "
             "Would you like suggestions for things to do in the area during your stay?"
         )
-
-    logger.info("Personalized follow-up message created")
-    return {"message": message, "awaiting_activity_consent": True}
+        return {"message": message, "awaiting_activity_consent": True}
 
 
 # ========================================

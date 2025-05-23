@@ -1,5 +1,5 @@
 # ========================================
-# 📆 Imports and Initialization ###
+# 📆 Imports and Initialization
 # ========================================
 
 import os
@@ -36,14 +36,18 @@ if "george_memory" not in st.session_state:
         return_messages=False
     )
 
-
+# ========================================
+# ⚙️ Utility Functions
+# ========================================
 def get_secret(key: str, default: str = "") -> str:
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
 
-
+# ========================================
+# 🧠 AI Tool Routing Configuration
+# ========================================
 # 🧠 Lightweight Tool Router LLM
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
@@ -80,7 +84,9 @@ Tool:
 
 router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")
 
-
+# ========================================
+# 🛠️ Tool Execution Logic
+# ========================================
 def execute_tool(tool_name: str, query: str):
     if tool_name == "sql_tool":
         return sql_tool.func(query)
@@ -93,7 +99,9 @@ def execute_tool(tool_name: str, query: str):
     else:
         return f"Error: Tool '{tool_name}' not found."
 
-
+# ========================================
+# 💬 User Query Processing
+# ========================================
 def process_user_query(input_text: str) -> str:
     route_result = router_chain.invoke(
         {"question": input_text},
@@ -111,7 +119,9 @@ def process_user_query(input_text: str) -> str:
 
     return str(tool_response)
 
-
+# ========================================
+# 🖥️ Streamlit Application Configuration
+# ========================================
 # 🌐 Streamlit Config
 st.set_page_config(
     page_title="Chez Govinda – AI Hotel Assistant",
@@ -121,6 +131,9 @@ st.set_page_config(
 )
 # render_header() # This line remains commented out
 
+# ========================================
+# 🧭 Sidebar Navigation and Developer Tools
+# ========================================
 # 🧠 Sidebar Panels
 with st.sidebar:
     logo = Image.open("assets/george_foto.png")
@@ -153,6 +166,9 @@ with st.sidebar:
         f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
         unsafe_allow_html=True)
 
+# ========================================
+# 🖥️ Main Content Display
+# ========================================
 # Display the appropriate title and interface
 if st.session_state.get("show_pipeline"):
     st.markdown("### 🔄 George's Assistant Pipeline Overview")
@@ -208,6 +224,9 @@ elif not st.session_state.show_sql_panel:
 
         st.session_state.user_input = ""
         st.rerun()
+# ========================================
+# 📊 Debugging and Logging Panels
+# ========================================
 # 🧪 SQL Debug Panel
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")

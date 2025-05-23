@@ -478,7 +478,50 @@ def render_booking_form():
     st.info(
         "💡 **Step 1:** Select dates in calendar above  •  **Step 2:** Fill details below  •  **Step 3:** Click book!")
 
+    # Date confirmation inputs (outside form)
+    st.markdown("#### 📅 Confirm Your Selected Dates")
+    col_confirm1, col_confirm2 = st.columns(2)
+    with col_confirm1:
+        confirm_checkin = st.date_input("Check-in Date", datetime.today(),
+                                        help="Confirm the dates you selected in the calendar above")
+    with col_confirm2:
+        confirm_checkout = st.date_input("Check-out Date", datetime.today() + timedelta(days=1),
+                                         help="Confirm the dates you selected in the calendar above")
+
+    # Validate dates immediately
+    date_error = None
+    if confirm_checkin >= confirm_checkout:
+        date_error = "Check-out must be after check-in"
+    elif confirm_checkin.strftime('%Y-%m-%d') in unavailable_dates:
+        date_error = "Check-in date is not available"
+    elif confirm_checkout.strftime('%Y-%m-%d') in unavailable_dates:
+        date_error = "Check-out date is not available"
+    else:
+        # Check range
+        current_date = confirm_checkin
+        while current_date < confirm_checkout:
+            if current_date.strftime('%Y-%m-%d') in unavailable_dates:
+                date_error = f"Date {current_date.strftime('%Y-%m-%d')} in your stay is not available"
+                break
+            current_date += timedelta(days=1)
+
+    if date_error:
+        st.error(f"❌ {date_error}")
+    else:
+        nights = (confirm_checkout - confirm_checkin).days
+        total_price = selected_room['price'] * nights
+        st.success(f"""
+        **✅ Valid Booking Period:**
+        - **Dates:** {confirm_checkin.strftime('%B %d, %Y')} to {confirm_checkout.strftime('%B %d, %Y')}
+        - **Duration:** {nights} nights
+        - **Room:** {selected_room['room_type']}
+        - **Total:** €{total_price}
+        """)
+
+    # Main booking form (with single submit button)
     with st.form("booking_form"):
+        st.markdown("#### 👤 Guest Information")
+
         col1, col2 = st.columns(2)
         with col1:
             first_name = st.text_input("First Name *")
@@ -503,101 +546,82 @@ def render_booking_form():
         capacity_error = None
         if num_guests > selected_room["guest_capacity"]:
             capacity_error = f"This room accommodates maximum {selected_room['guest_capacity']} guests."
+
+        # Display validation messages
+        if capacity_error:
             st.error(f"❌ {capacity_error}")
 
-        # Submit button
-        submitted = st.form_submit_button("🏨 Complete Booking")
+        # Single submit button
+        all_errors = [e for e in [date_error, capacity_error] if e]
+        submitted = st.form_submit_button(
+            "🏨 Complete Booking",
+            disabled=bool(all_errors)
+        )
 
-        if submitted:
+        if submitted and not all_errors:
             if not first_name or not last_name or not email:
                 st.warning("⚠️ Please fill in all required fields marked with *")
                 return
 
-            if capacity_error:
-                st.error("❌ Please fix the guest capacity issue above.")
-                return
+            # Process booking
+            nights = (confirm_checkout - confirm_checkin).days
+            total_price = selected_room['price'] * nights
 
-            # Check if dates were selected (we'll use a simple date range for now)
-            # In a real implementation, we'd need to get these from the JavaScript
-            st.warning("🗓️ **Calendar selection detected!** Please confirm your dates:")
+            booking_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "phone": phone,
+                "room_id": selected_room["room_id"],
+                "room_type": selected_room["room_type"],
+                "check_in": confirm_checkin.strftime('%Y-%m-%d'),
+                "check_out": confirm_checkout.strftime('%Y-%m-%d'),
+                "num_guests": num_guests,
+                "total_price": total_price,
+                "special_requests": special_requests
+            }
 
-            # For demo purposes, let's use default dates
-            # In production, you'd capture these from the calendar
-            col_confirm1, col_confirm2 = st.columns(2)
-            with col_confirm1:
-                confirm_checkin = st.date_input("Confirm Check-in", datetime.today())
-            with col_confirm2:
-                confirm_checkout = st.date_input("Confirm Check-out", datetime.today() + timedelta(days=1))
+            with st.spinner("Processing your booking..."):
+                success, result = insert_booking(booking_data)
 
-            if st.button("🎯 Confirm These Dates & Book Now"):
-                # Validate dates
-                if confirm_checkin >= confirm_checkout:
-                    st.error("Check-out must be after check-in")
-                    return
+            if success:
+                booking_number, final_price, room_type = result
 
-                if confirm_checkin.strftime('%Y-%m-%d') in unavailable_dates:
-                    st.error("Check-in date is not available")
-                    return
+                try:
+                    send_confirmation_email(
+                        email, first_name, last_name, booking_number,
+                        confirm_checkin, confirm_checkout, final_price, num_guests, phone, room_type
+                    )
+                    email_status = "✅ Confirmation email sent"
+                except Exception as e:
+                    email_status = f"⚠️ Booking confirmed but email failed: {e}"
 
-                # Process booking
-                nights = (confirm_checkout - confirm_checkin).days
-                total_price = selected_room['price'] * nights
+                st.success("🎉 Booking Successfully Confirmed!")
+                st.balloons()
 
-                booking_data = {
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "email": email,
-                    "phone": phone,
-                    "room_id": selected_room["room_id"],
-                    "room_type": selected_room["room_type"],
-                    "check_in": confirm_checkin.strftime('%Y-%m-%d'),
-                    "check_out": confirm_checkout.strftime('%Y-%m-%d'),
-                    "num_guests": num_guests,
-                    "total_price": total_price,
-                    "special_requests": special_requests
-                }
+                st.markdown(f"""
+                ### 📋 Booking Confirmation
 
-                with st.spinner("Processing your booking..."):
-                    success, result = insert_booking(booking_data)
+                **Booking Number:** `{booking_number}`  
+                **Guest:** {first_name} {last_name}  
+                **Email:** {email}  
+                **Room:** {room_type} (ID: {selected_room['room_id']})  
+                **Check-in:** {confirm_checkin.strftime('%A, %B %d, %Y')}  
+                **Check-out:** {confirm_checkout.strftime('%A, %B %d, %Y')}  
+                **Duration:** {nights} nights  
+                **Guests:** {num_guests}  
+                **Total Price:** €{final_price}  
 
-                if success:
-                    booking_number, final_price, room_type = result
+                {email_status}
 
-                    try:
-                        send_confirmation_email(
-                            email, first_name, last_name, booking_number,
-                            confirm_checkin, confirm_checkout, final_price, num_guests, phone, room_type
-                        )
-                        email_status = "✅ Confirmation email sent"
-                    except Exception as e:
-                        email_status = f"⚠️ Booking confirmed but email failed: {e}"
+                ---
+                *Thank you for choosing Chez Govinda!*
+                """)
 
-                    st.success("🎉 Booking Successfully Confirmed!")
-                    st.balloons()
-
-                    st.markdown(f"""
-                    ### 📋 Booking Confirmation
-
-                    **Booking Number:** `{booking_number}`  
-                    **Guest:** {first_name} {last_name}  
-                    **Email:** {email}  
-                    **Room:** {room_type} (ID: {selected_room['room_id']})  
-                    **Check-in:** {confirm_checkin.strftime('%A, %B %d, %Y')}  
-                    **Check-out:** {confirm_checkout.strftime('%A, %B %d, %Y')}  
-                    **Duration:** {nights} nights  
-                    **Guests:** {num_guests}  
-                    **Total Price:** €{final_price}  
-
-                    {email_status}
-
-                    ---
-                    *Thank you for choosing Chez Govinda!*
-                    """)
-
-                    if 'booking_mode' in st.session_state:
-                        st.session_state.booking_mode = False
-                else:
-                    st.error(f"❌ Booking Failed: {result}")
+                if 'booking_mode' in st.session_state:
+                    st.session_state.booking_mode = False
+            else:
+                st.error(f"❌ Booking Failed: {result}")
 
 
 # Export functions

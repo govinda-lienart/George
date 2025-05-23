@@ -1,4 +1,4 @@
-# calendar.py - Fully integrated calendar system
+# calendar.py - Fixed calendar-form integration
 
 import streamlit as st
 import mysql.connector
@@ -74,7 +74,7 @@ def get_room_availability(room_id):
                     else:
                         blocked_dates.add(str(date_obj))
         except:
-            pass  # room_availability table might not exist
+            pass
 
         return sorted(list(blocked_dates))
 
@@ -115,11 +115,9 @@ def check_date_conflicts(room_id, check_in_str, check_out_str):
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
-        # Convert string dates to date objects
         check_in = datetime.strptime(check_in_str, '%Y-%m-%d').date()
         check_out = datetime.strptime(check_out_str, '%Y-%m-%d').date()
 
-        # Check booking conflicts
         booking_conflict_query = """
             SELECT booking_number, check_in, check_out FROM bookings
             WHERE room_id = %s AND (
@@ -160,7 +158,6 @@ def generate_booking_number(booking_id):
 def insert_booking(data):
     """Insert booking with conflict checking"""
     try:
-        # Check for conflicts
         has_conflict, conflict_details = check_date_conflicts(
             data['room_id'], data['check_in'], data['check_out']
         )
@@ -171,11 +168,9 @@ def insert_booking(data):
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
-        # Convert string dates to date objects for insertion
         check_in_date = datetime.strptime(data['check_in'], '%Y-%m-%d').date()
         check_out_date = datetime.strptime(data['check_out'], '%Y-%m-%d').date()
 
-        # Insert booking
         insert_query = """
             INSERT INTO bookings 
             (first_name, last_name, email, phone, room_id, check_in, check_out, num_guests, total_price, special_requests)
@@ -190,7 +185,6 @@ def insert_booking(data):
         conn.commit()
         booking_id = cursor.lastrowid
 
-        # Generate booking number
         booking_number = generate_booking_number(booking_id)
         update_query = "UPDATE bookings SET booking_number = %s WHERE booking_id = %s"
         cursor.execute(update_query, (booking_number, booking_id))
@@ -210,20 +204,15 @@ def insert_booking(data):
 
 
 def render_interactive_calendar(selected_room_id, selected_room_price, unavailable_dates):
-    """
-    Interactive calendar that handles ALL date selection
-    """
+    """Interactive calendar with improved date communication"""
 
-    # Create calendar HTML with proper colors and date selection
     calendar_html = f"""
     <div style="border: 1px solid #ddd; border-radius: 15px; overflow: hidden; margin: 20px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <!-- Header -->
         <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 25px; text-align: center;">
             <h3 style="margin: 0; font-size: 1.6em;">🗓️ Interactive Calendar</h3>
             <p style="margin: 8px 0 0; opacity: 0.9; font-size: 1.1em;">Click available dates to select your stay</p>
         </div>
 
-        <!-- Room info -->
         <div style="padding: 18px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
             <strong style="font-size: 1.1em;">Room {selected_room_id} Availability</strong> - 
             <span style="color: {'#dc3545' if unavailable_dates else '#28a745'}; font-weight: 600;">
@@ -231,9 +220,7 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
             </span>
         </div>
 
-        <!-- Calendar Grid -->
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; background: #e9ecef;">
-            <!-- May 2025 -->
             <div style="background: white;">
                 <div style="background: #495057; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.1em;">
                     May 2025
@@ -247,11 +234,9 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                     <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Fri</div>
                     <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Sat</div>
                 </div>
-                <div id="may-days-{selected_room_id}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
-                </div>
+                <div id="may-days-{selected_room_id}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;"></div>
             </div>
 
-            <!-- June 2025 -->
             <div style="background: white;">
                 <div style="background: #495057; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.1em;">
                     June 2025
@@ -265,12 +250,10 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                     <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Fri</div>
                     <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Sat</div>
                 </div>
-                <div id="june-days-{selected_room_id}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
-                </div>
+                <div id="june-days-{selected_room_id}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;"></div>
             </div>
         </div>
 
-        <!-- Legend -->
         <div style="padding: 20px; background: #f8f9fa; display: flex; gap: 25px; justify-content: center; flex-wrap: wrap; border-top: 1px solid #e9ecef;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <div style="width: 18px; height: 18px; background: #dc3545; border-radius: 50%;"></div>
@@ -286,24 +269,17 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
             </div>
         </div>
 
-        <!-- Selection display -->
         <div id="selection-display-{selected_room_id}" style="padding: 20px; background: #e3f2fd; text-align: center; font-weight: 500; color: #1565c0; border-top: 1px solid #e9ecef;">
             Click on available (green) dates to select your check-in and check-out
         </div>
-
-        <!-- Hidden inputs to store selected dates -->
-        <input type="hidden" id="checkin-{selected_room_id}" value="">
-        <input type="hidden" id="checkout-{selected_room_id}" value="">
     </div>
 
     <script>
-        // Calendar data and state for room {selected_room_id}
         const unavailableDates_{selected_room_id} = {json.dumps(unavailable_dates)};
         const roomPrice_{selected_room_id} = {selected_room_price};
         let checkinDate_{selected_room_id} = null;
         let checkoutDate_{selected_room_id} = null;
 
-        // Create calendars for room {selected_room_id}
         function createCalendar_{selected_room_id}(year, month, containerId) {{
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -311,7 +287,6 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
             container.innerHTML = '';
 
             const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
             const startDate = new Date(firstDay);
             startDate.setDate(startDate.getDate() - firstDay.getDay());
 
@@ -321,18 +296,9 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
 
                 const dayElement = document.createElement('div');
                 dayElement.style.cssText = `
-                    padding: 12px;
-                    text-align: center;
-                    cursor: pointer;
-                    background: white;
-                    transition: all 0.3s ease;
-                    border: 1px solid #e9ecef;
-                    min-height: 40px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: 500;
-                    font-size: 14px;
+                    padding: 12px; text-align: center; cursor: pointer; background: white;
+                    transition: all 0.3s ease; border: 1px solid #e9ecef; min-height: 40px;
+                    display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px;
                 `;
 
                 dayElement.textContent = date.getDate();
@@ -351,11 +317,7 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                     dayElement.style.color = 'white';
                     dayElement.style.cursor = 'not-allowed';
                     dayElement.style.fontWeight = '600';
-                    if (isUnavailable) {{
-                        dayElement.title = 'This date is not available';
-                    }}
                 }} else {{
-                    // Available dates - GREEN
                     dayElement.style.background = '#28a745';
                     dayElement.style.color = 'white';
                     dayElement.style.fontWeight = '600';
@@ -374,7 +336,6 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                     }});
                 }}
 
-                // Highlight selected dates - ORANGE
                 if (checkinDate_{selected_room_id} && date.toDateString() === checkinDate_{selected_room_id}.toDateString()) {{
                     dayElement.style.background = '#ff8c00';
                     dayElement.style.color = 'white';
@@ -390,7 +351,6 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                     dayElement.classList.add('selected');
                 }}
 
-                // Highlight range
                 if (checkinDate_{selected_room_id} && checkoutDate_{selected_room_id} && 
                     date > checkinDate_{selected_room_id} && date < checkoutDate_{selected_room_id} &&
                     isCurrentMonth && !isPast && !isUnavailable) {{
@@ -414,21 +374,21 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                 checkoutDate_{selected_room_id} = null;
             }}
 
-            // Update hidden inputs
-            if (checkinDate_{selected_room_id}) {{
-                document.getElementById('checkin-{selected_room_id}').value = checkinDate_{selected_room_id}.toISOString().split('T')[0];
-            }}
-            if (checkoutDate_{selected_room_id}) {{
-                document.getElementById('checkout-{selected_room_id}').value = checkoutDate_{selected_room_id}.toISOString().split('T')[0];
-            }}
-
             updateCalendars_{selected_room_id}();
             updateSelectionDisplay_{selected_room_id}();
+
+            // Store in session storage for form access
+            if (checkinDate_{selected_room_id}) {{
+                sessionStorage.setItem('calendar_checkin_{selected_room_id}', checkinDate_{selected_room_id}.toISOString().split('T')[0]);
+            }}
+            if (checkoutDate_{selected_room_id}) {{
+                sessionStorage.setItem('calendar_checkout_{selected_room_id}', checkoutDate_{selected_room_id}.toISOString().split('T')[0]);
+            }}
         }}
 
         function updateCalendars_{selected_room_id}() {{
-            createCalendar_{selected_room_id}(2025, 4, 'may-days-{selected_room_id}');    // May 2025
-            createCalendar_{selected_room_id}(2025, 5, 'june-days-{selected_room_id}');   // June 2025
+            createCalendar_{selected_room_id}(2025, 4, 'may-days-{selected_room_id}');
+            createCalendar_{selected_room_id}(2025, 5, 'june-days-{selected_room_id}');
         }}
 
         function updateSelectionDisplay_{selected_room_id}() {{
@@ -440,7 +400,8 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
                 const totalPrice = nights * roomPrice_{selected_room_id};
                 display.innerHTML = `
                     <strong>✅ Selected:</strong> ${{checkinDate_{selected_room_id}.toLocaleDateString()}} to ${{checkoutDate_{selected_room_id}.toLocaleDateString()}} 
-                    (${{nights}} night${{nights !== 1 ? 's' : ''}}) - <strong>Total: €${{totalPrice}}</strong>
+                    (${{nights}} night${{nights !== 1 ? 's' : ''}}) - <strong>Total: €${{totalPrice}}</strong><br>
+                    <small style="margin-top: 8px; display: block;">Now complete the booking form below</small>
                 `;
                 display.style.background = '#d4edda';
                 display.style.color = '#155724';
@@ -455,28 +416,15 @@ def render_interactive_calendar(selected_room_id, selected_room_price, unavailab
             }}
         }}
 
-        // Function to get selected dates (for external access)
-        function getSelectedDates_{selected_room_id}() {{
-            return {{
-                checkin: checkinDate_{selected_room_id} ? checkinDate_{selected_room_id}.toISOString().split('T')[0] : null,
-                checkout: checkoutDate_{selected_room_id} ? checkoutDate_{selected_room_id}.toISOString().split('T')[0] : null
-            }};
-        }}
-
-        // Make function available globally
-        window.getSelectedDates_{selected_room_id} = getSelectedDates_{selected_room_id};
-
-        // Initialize calendars for room {selected_room_id}
         updateCalendars_{selected_room_id}();
     </script>
     """
 
-    # Render the calendar
     return st.components.v1.html(calendar_html, height=650)
 
 
 def render_booking_form():
-    """Main booking form with fully integrated calendar"""
+    """Main booking form with calendar integration"""
     rooms = get_rooms()
     if not rooms:
         st.warning("No rooms available or failed to load room list.")
@@ -484,16 +432,14 @@ def render_booking_form():
 
     st.markdown("## 🏨 Hotel Booking")
 
-    # Room selection with session state
+    # Room selection
     if 'selected_room_idx' not in st.session_state:
         st.session_state.selected_room_idx = 0
 
-    # Create room options
     room_options = []
     for room in rooms:
         room_options.append(f"{room['room_type']} - €{room['price']}/night (Max {room['guest_capacity']} guests)")
 
-    # Room selector
     selected_room_idx = st.selectbox(
         "🏠 **Select Your Room:**",
         range(len(room_options)),
@@ -501,15 +447,14 @@ def render_booking_form():
         index=st.session_state.selected_room_idx
     )
 
-    # Update session state
     st.session_state.selected_room_idx = selected_room_idx
     selected_room = rooms[selected_room_idx]
 
-    # Get availability for selected room
+    # Get availability
     with st.spinner("Loading availability..."):
         unavailable_dates = get_room_availability(selected_room['room_id'])
 
-    # Render the interactive calendar
+    # Render calendar
     st.markdown("### 🗓️ Select Your Dates")
     render_interactive_calendar(
         selected_room['room_id'],
@@ -517,28 +462,45 @@ def render_booking_form():
         unavailable_dates
     )
 
-    # Show text summary in expander
-    if unavailable_dates:
-        with st.expander("📋 View unavailable dates list"):
-            # Group consecutive dates
-            date_ranges = []
-            if unavailable_dates:
-                current_range = [unavailable_dates[0]]
-                for i in range(1, len(unavailable_dates)):
-                    prev_date = datetime.strptime(unavailable_dates[i - 1], '%Y-%m-%d')
-                    curr_date = datetime.strptime(unavailable_dates[i], '%Y-%m-%d')
-                    if (curr_date - prev_date).days == 1:
-                        current_range.append(unavailable_dates[i])
-                    else:
-                        date_ranges.append(current_range)
-                        current_range = [unavailable_dates[i]]
-                date_ranges.append(current_range)
+    # Manual date selection as backup
+    st.markdown("### 📅 Confirm Your Dates")
+    st.info("💡 **Tip:** Select dates in the calendar above, then confirm below.")
 
-            for date_range in date_ranges:
-                if len(date_range) == 1:
-                    st.write(f"• {date_range[0]}")
-                else:
-                    st.write(f"• {date_range[0]} to {date_range[-1]} ({len(date_range)} days)")
+    col_date1, col_date2 = st.columns(2)
+    with col_date1:
+        check_in = st.date_input("Check-in Date", min_value=datetime.today())
+    with col_date2:
+        check_out = st.date_input("Check-out Date", min_value=datetime.today() + timedelta(days=1))
+
+    # Validate dates
+    date_error = None
+    if check_in >= check_out:
+        date_error = "Check-out must be after check-in"
+    elif check_in.strftime('%Y-%m-%d') in unavailable_dates:
+        date_error = "Check-in date is not available"
+    elif check_out.strftime('%Y-%m-%d') in unavailable_dates:
+        date_error = "Check-out date is not available"
+    else:
+        # Check range
+        current_date = check_in
+        while current_date < check_out:
+            if current_date.strftime('%Y-%m-%d') in unavailable_dates:
+                date_error = f"Date {current_date.strftime('%Y-%m-%d')} in your stay is not available"
+                break
+            current_date += timedelta(days=1)
+
+    if date_error:
+        st.error(f"❌ {date_error}")
+    else:
+        nights = (check_out - check_in).days
+        total_price = selected_room['price'] * nights
+        st.success(f"""
+        **✅ Valid Booking Period:**
+        - **Dates:** {check_in.strftime('%B %d, %Y')} to {check_out.strftime('%B %d, %Y')}
+        - **Duration:** {nights} nights
+        - **Room:** {selected_room['room_type']}
+        - **Total:** €{total_price}
+        """)
 
     # Country codes
     country_codes = [
@@ -546,17 +508,10 @@ def render_booking_form():
         "+91 India", "+81 Japan", "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
     ]
 
-    # Initialize session state for calendar dates
-    if f'calendar_checkin_{selected_room["room_id"]}' not in st.session_state:
-        st.session_state[f'calendar_checkin_{selected_room["room_id"]}'] = None
-    if f'calendar_checkout_{selected_room["room_id"]}' not in st.session_state:
-        st.session_state[f'calendar_checkout_{selected_room["room_id"]}'] = None
-
-    # Main booking form - NO DATE INPUTS
+    # Booking form
     with st.form("booking_form"):
-        st.markdown("### 📝 Booking Details")
+        st.markdown("### 📝 Complete Your Booking")
 
-        # Personal Information
         col1, col2 = st.columns(2)
         with col1:
             first_name = st.text_input("First Name *")
@@ -568,31 +523,16 @@ def render_booking_form():
         phone_number = st.text_input("Phone Number (without country code)")
         phone = f"{country_code.split()[0]} {phone_number}" if phone_number else ""
 
-        # Booking Details
-        col3, col4 = st.columns(2)
-        with col3:
-            num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
-        with col4:
-            # Display selected room info
-            st.write("**Selected Room:**")
-            st.info(f"{selected_room['room_type']} - €{selected_room['price']}/night")
-
-        # Display selected dates from calendar (READ-ONLY)
-        st.markdown("#### 📅 Selected Dates")
-        st.info("Select your dates using the interactive calendar above")
-
-        # Validation
-        room_info = selected_room
-
-        # Guest capacity validation
-        capacity_error = None
-        if num_guests > room_info["guest_capacity"]:
-            capacity_error = f"This room accommodates maximum {room_info['guest_capacity']} guests. You selected {num_guests} guests."
-
+        num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
         special_requests = st.text_area("Special Requests", placeholder="Any special requirements...")
 
-        # Submit button - will check for calendar dates
-        all_errors = [e for e in [capacity_error] if e]
+        # Validation
+        capacity_error = None
+        if num_guests > selected_room["guest_capacity"]:
+            capacity_error = f"This room accommodates maximum {selected_room['guest_capacity']} guests."
+
+        # Submit button
+        all_errors = [e for e in [date_error, capacity_error] if e]
         submitted = st.form_submit_button(
             "🏨 Confirm Booking",
             disabled=bool(all_errors)
@@ -603,9 +543,65 @@ def render_booking_form():
                 st.warning("⚠️ Please fill in all required fields marked with *")
                 return
 
-            # Check if dates were selected in calendar
-            st.warning(
-                "⚠️ Please select your check-in and check-out dates using the interactive calendar above before confirming your booking.")
+            # Process booking
+            nights = (check_out - check_in).days
+            total_price = selected_room['price'] * nights
+
+            booking_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "phone": phone,
+                "room_id": selected_room["room_id"],
+                "room_type": selected_room["room_type"],
+                "check_in": check_in.strftime('%Y-%m-%d'),
+                "check_out": check_out.strftime('%Y-%m-%d'),
+                "num_guests": num_guests,
+                "total_price": total_price,
+                "special_requests": special_requests
+            }
+
+            with st.spinner("Processing your booking..."):
+                success, result = insert_booking(booking_data)
+
+            if success:
+                booking_number, final_price, room_type = result
+
+                try:
+                    send_confirmation_email(
+                        email, first_name, last_name, booking_number,
+                        check_in, check_out, final_price, num_guests, phone, room_type
+                    )
+                    email_status = "✅ Confirmation email sent"
+                except Exception as e:
+                    email_status = f"⚠️ Booking confirmed but email failed: {e}"
+
+                st.success("🎉 Booking Successfully Confirmed!")
+                st.balloons()
+
+                st.markdown(f"""
+                ### 📋 Booking Confirmation
+
+                **Booking Number:** `{booking_number}`  
+                **Guest:** {first_name} {last_name}  
+                **Email:** {email}  
+                **Room:** {room_type} (ID: {selected_room['room_id']})  
+                **Check-in:** {check_in.strftime('%A, %B %d, %Y')}  
+                **Check-out:** {check_out.strftime('%A, %B %d, %Y')}  
+                **Duration:** {nights} nights  
+                **Guests:** {num_guests}  
+                **Total Price:** €{final_price}  
+
+                {email_status}
+
+                ---
+                *Thank you for choosing Chez Govinda!*
+                """)
+
+                if 'booking_mode' in st.session_state:
+                    st.session_state.booking_mode = False
+            else:
+                st.error(f"❌ Booking Failed: {result}")
 
 
 # Export functions

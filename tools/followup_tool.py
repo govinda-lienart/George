@@ -179,4 +179,5 @@ def post_booking_followup(latest_booking_number: str) -> dict:
 followup_tool = Tool(
     name="followup_tool",
     func=lambda q: handle_followup_response(q, st.session_state),
-    description="Handles guest replies to post-booking follow-up messages about local activity suggestions.
+    description="Handles guest replies to post-booking follow-up messages about local activity suggestions."
+)

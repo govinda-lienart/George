@@ -16,13 +16,14 @@ from langchain.callbacks import LangChainTracer
 from langchain.memory import ConversationSummaryMemory
 from langchain_core.runnables import RunnablePassthrough
 
-# 🔧 Custom tool modules
+# 🔧 Import custom tool modules
 from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool, post_booking_followup  # <- Added post_booking_followup here
-from tools.followup_tool import handle_followup_response        # <- New tool to handle followups
-from chat_ui import get_user_input, render_chat_bubbles # Removed render_header from import
+from tools.booking_tool import booking_tool  # Main booking functionality
+from tools.followup_tool import post_booking_followup, handle_followup_response  # Follow-up related helpers
+
+from chat_ui import get_user_input, render_chat_bubbles  # UI helpers (note: render_header removed)
 from booking.calendar import render_booking_form
 from utils.config import llm
 

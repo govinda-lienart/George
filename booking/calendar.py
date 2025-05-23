@@ -1,4 +1,4 @@
-# calendar.py - Interactive calendar restored and properly fixed
+# calendar.py - Fully integrated calendar system
 
 import streamlit as st
 import mysql.connector
@@ -109,11 +109,15 @@ def get_rooms():
             pass
 
 
-def check_date_conflicts(room_id, check_in, check_out):
-    """Check for booking conflicts"""
+def check_date_conflicts(room_id, check_in_str, check_out_str):
+    """Check for booking conflicts using date strings"""
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
+
+        # Convert string dates to date objects
+        check_in = datetime.strptime(check_in_str, '%Y-%m-%d').date()
+        check_out = datetime.strptime(check_out_str, '%Y-%m-%d').date()
 
         # Check booking conflicts
         booking_conflict_query = """
@@ -167,6 +171,10 @@ def insert_booking(data):
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
+        # Convert string dates to date objects for insertion
+        check_in_date = datetime.strptime(data['check_in'], '%Y-%m-%d').date()
+        check_out_date = datetime.strptime(data['check_out'], '%Y-%m-%d').date()
+
         # Insert booking
         insert_query = """
             INSERT INTO bookings 
@@ -175,7 +183,7 @@ def insert_booking(data):
         """
         values = (
             data['first_name'], data['last_name'], data['email'], data['phone'],
-            data['room_id'], data['check_in'], data['check_out'],
+            data['room_id'], check_in_date, check_out_date,
             data['num_guests'], data['total_price'], data['special_requests']
         )
         cursor.execute(insert_query, values)
@@ -201,92 +209,97 @@ def insert_booking(data):
             pass
 
 
-def render_working_interactive_calendar(selected_room_id, unavailable_dates):
+def render_interactive_calendar(selected_room_id, selected_room_price, unavailable_dates):
     """
-    Interactive calendar that actually works - no problematic key parameter
+    Interactive calendar that handles ALL date selection
     """
 
-    # Create calendar HTML without the problematic key parameter
+    # Create calendar HTML with proper colors and date selection
     calendar_html = f"""
-    <div style="border: 1px solid #ddd; border-radius: 10px; overflow: hidden; margin: 20px 0; font-family: Arial, sans-serif;">
+    <div style="border: 1px solid #ddd; border-radius: 15px; overflow: hidden; margin: 20px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; text-align: center;">
-            <h3 style="margin: 0;">🗓️ Interactive Calendar</h3>
-            <p style="margin: 5px 0 0; opacity: 0.9;">Click available dates to select your stay</p>
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 25px; text-align: center;">
+            <h3 style="margin: 0; font-size: 1.6em;">🗓️ Interactive Calendar</h3>
+            <p style="margin: 8px 0 0; opacity: 0.9; font-size: 1.1em;">Click available dates to select your stay</p>
         </div>
 
         <!-- Room info -->
-        <div style="padding: 15px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
-            <strong>Room {selected_room_id} Availability</strong> - 
-            <span style="color: {'#dc3545' if unavailable_dates else '#28a745'};">
+        <div style="padding: 18px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+            <strong style="font-size: 1.1em;">Room {selected_room_id} Availability</strong> - 
+            <span style="color: {'#dc3545' if unavailable_dates else '#28a745'}; font-weight: 600;">
                 {len(unavailable_dates) if unavailable_dates else 0} unavailable dates
             </span>
         </div>
 
         <!-- Calendar Grid -->
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: #e9ecef;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; background: #e9ecef;">
             <!-- May 2025 -->
             <div style="background: white;">
-                <div style="background: #6c757d; color: white; padding: 10px; text-align: center; font-weight: bold;">
+                <div style="background: #495057; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.1em;">
                     May 2025
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa;">
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sun</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Mon</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Tue</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Wed</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Thu</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Fri</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sat</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Sun</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Mon</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Tue</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Wed</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Thu</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Fri</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Sat</div>
                 </div>
-                <div id="may-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
+                <div id="may-days-{selected_room_id}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
                 </div>
             </div>
 
             <!-- June 2025 -->
             <div style="background: white;">
-                <div style="background: #6c757d; color: white; padding: 10px; text-align: center; font-weight: bold;">
+                <div style="background: #495057; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.1em;">
                     June 2025
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa;">
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sun</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Mon</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Tue</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Wed</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Thu</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Fri</div>
-                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sat</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Sun</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Mon</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Tue</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Wed</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Thu</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Fri</div>
+                    <div style="padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #6c757d;">Sat</div>
                 </div>
-                <div id="june-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
+                <div id="june-days-{selected_room_id}" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
                 </div>
             </div>
         </div>
 
         <!-- Legend -->
-        <div style="padding: 15px; background: #f8f9fa; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 5px;">
-                <div style="width: 16px; height: 16px; background: #dc3545; border-radius: 50%;"></div>
-                <span style="font-size: 14px;">Unavailable</span>
+        <div style="padding: 20px; background: #f8f9fa; display: flex; gap: 25px; justify-content: center; flex-wrap: wrap; border-top: 1px solid #e9ecef;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 18px; height: 18px; background: #dc3545; border-radius: 50%;"></div>
+                <span style="font-size: 14px; font-weight: 500;">Unavailable</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 5px;">
-                <div style="width: 16px; height: 16px; background: #28a745; border-radius: 50%;"></div>
-                <span style="font-size: 14px;">Available</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 18px; height: 18px; background: #28a745; border-radius: 50%;"></div>
+                <span style="font-size: 14px; font-weight: 500;">Available</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 5px;">
-                <div style="width: 16px; height: 16px; background: #ffc107; border-radius: 50%;"></div>
-                <span style="font-size: 14px;">Selected</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 18px; height: 18px; background: #ff8c00; border-radius: 50%;"></div>
+                <span style="font-size: 14px; font-weight: 500;">Selected</span>
             </div>
         </div>
 
         <!-- Selection display -->
-        <div id="selection-display-{selected_room_id}" style="padding: 15px; background: #e3f2fd; text-align: center; font-weight: 500; color: #1565c0;">
-            Click on available dates to select your check-in and check-out
+        <div id="selection-display-{selected_room_id}" style="padding: 20px; background: #e3f2fd; text-align: center; font-weight: 500; color: #1565c0; border-top: 1px solid #e9ecef;">
+            Click on available (green) dates to select your check-in and check-out
         </div>
+
+        <!-- Hidden inputs to store selected dates -->
+        <input type="hidden" id="checkin-{selected_room_id}" value="">
+        <input type="hidden" id="checkout-{selected_room_id}" value="">
     </div>
 
     <script>
         // Calendar data and state for room {selected_room_id}
         const unavailableDates_{selected_room_id} = {json.dumps(unavailable_dates)};
+        const roomPrice_{selected_room_id} = {selected_room_price};
         let checkinDate_{selected_room_id} = null;
         let checkoutDate_{selected_room_id} = null;
 
@@ -308,17 +321,18 @@ def render_working_interactive_calendar(selected_room_id, unavailable_dates):
 
                 const dayElement = document.createElement('div');
                 dayElement.style.cssText = `
-                    padding: 10px;
+                    padding: 12px;
                     text-align: center;
                     cursor: pointer;
                     background: white;
-                    transition: all 0.2s;
+                    transition: all 0.3s ease;
                     border: 1px solid #e9ecef;
-                    min-height: 35px;
+                    min-height: 40px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-weight: 500;
+                    font-size: 14px;
                 `;
 
                 dayElement.textContent = date.getDate();
@@ -331,35 +345,58 @@ def render_working_interactive_calendar(selected_room_id, unavailable_dates):
                 if (!isCurrentMonth) {{
                     dayElement.style.color = '#ccc';
                     dayElement.style.background = '#f8f8f8';
+                    dayElement.style.cursor = 'default';
                 }} else if (isPast || isUnavailable) {{
                     dayElement.style.background = '#dc3545';
                     dayElement.style.color = 'white';
                     dayElement.style.cursor = 'not-allowed';
+                    dayElement.style.fontWeight = '600';
                     if (isUnavailable) {{
                         dayElement.title = 'This date is not available';
                     }}
                 }} else {{
+                    // Available dates - GREEN
+                    dayElement.style.background = '#28a745';
+                    dayElement.style.color = 'white';
+                    dayElement.style.fontWeight = '600';
                     dayElement.addEventListener('click', () => selectDate_{selected_room_id}(date));
                     dayElement.addEventListener('mouseenter', () => {{
-                        if (dayElement.style.background !== '#ffc107') {{
-                            dayElement.style.background = '#e3f2fd';
+                        if (!dayElement.classList.contains('selected')) {{
+                            dayElement.style.background = '#218838';
+                            dayElement.style.transform = 'scale(1.05)';
                         }}
                     }});
                     dayElement.addEventListener('mouseleave', () => {{
-                        if (dayElement.style.background === 'rgb(227, 242, 253)') {{
-                            dayElement.style.background = 'white';
+                        if (!dayElement.classList.contains('selected')) {{
+                            dayElement.style.background = '#28a745';
+                            dayElement.style.transform = 'scale(1)';
                         }}
                     }});
                 }}
 
-                // Highlight selected dates
+                // Highlight selected dates - ORANGE
                 if (checkinDate_{selected_room_id} && date.toDateString() === checkinDate_{selected_room_id}.toDateString()) {{
-                    dayElement.style.background = '#ffc107';
-                    dayElement.style.color = '#212529';
+                    dayElement.style.background = '#ff8c00';
+                    dayElement.style.color = 'white';
+                    dayElement.style.fontWeight = '700';
+                    dayElement.style.transform = 'scale(1.1)';
+                    dayElement.classList.add('selected');
                 }}
                 if (checkoutDate_{selected_room_id} && date.toDateString() === checkoutDate_{selected_room_id}.toDateString()) {{
-                    dayElement.style.background = '#ffc107';
-                    dayElement.style.color = '#212529';
+                    dayElement.style.background = '#ff8c00';
+                    dayElement.style.color = 'white';
+                    dayElement.style.fontWeight = '700';
+                    dayElement.style.transform = 'scale(1.1)';
+                    dayElement.classList.add('selected');
+                }}
+
+                // Highlight range
+                if (checkinDate_{selected_room_id} && checkoutDate_{selected_room_id} && 
+                    date > checkinDate_{selected_room_id} && date < checkoutDate_{selected_room_id} &&
+                    isCurrentMonth && !isPast && !isUnavailable) {{
+                    dayElement.style.background = '#ffd700';
+                    dayElement.style.color = '#333';
+                    dayElement.style.fontWeight = '600';
                 }}
 
                 container.appendChild(dayElement);
@@ -377,13 +414,21 @@ def render_working_interactive_calendar(selected_room_id, unavailable_dates):
                 checkoutDate_{selected_room_id} = null;
             }}
 
+            // Update hidden inputs
+            if (checkinDate_{selected_room_id}) {{
+                document.getElementById('checkin-{selected_room_id}').value = checkinDate_{selected_room_id}.toISOString().split('T')[0];
+            }}
+            if (checkoutDate_{selected_room_id}) {{
+                document.getElementById('checkout-{selected_room_id}').value = checkoutDate_{selected_room_id}.toISOString().split('T')[0];
+            }}
+
             updateCalendars_{selected_room_id}();
             updateSelectionDisplay_{selected_room_id}();
         }}
 
         function updateCalendars_{selected_room_id}() {{
-            createCalendar_{selected_room_id}(2025, 4, 'may-days');    // May 2025
-            createCalendar_{selected_room_id}(2025, 5, 'june-days');   // June 2025
+            createCalendar_{selected_room_id}(2025, 4, 'may-days-{selected_room_id}');    // May 2025
+            createCalendar_{selected_room_id}(2025, 5, 'june-days-{selected_room_id}');   // June 2025
         }}
 
         function updateSelectionDisplay_{selected_room_id}() {{
@@ -392,34 +437,46 @@ def render_working_interactive_calendar(selected_room_id, unavailable_dates):
 
             if (checkinDate_{selected_room_id} && checkoutDate_{selected_room_id}) {{
                 const nights = Math.ceil((checkoutDate_{selected_room_id} - checkinDate_{selected_room_id}) / (1000 * 60 * 60 * 24));
+                const totalPrice = nights * roomPrice_{selected_room_id};
                 display.innerHTML = `
                     <strong>✅ Selected:</strong> ${{checkinDate_{selected_room_id}.toLocaleDateString()}} to ${{checkoutDate_{selected_room_id}.toLocaleDateString()}} 
-                    (${{nights}} night${{nights !== 1 ? 's' : ''}})
+                    (${{nights}} night${{nights !== 1 ? 's' : ''}}) - <strong>Total: €${{totalPrice}}</strong>
                 `;
                 display.style.background = '#d4edda';
                 display.style.color = '#155724';
             }} else if (checkinDate_{selected_room_id}) {{
-                display.innerHTML = `<strong>Check-in:</strong> ${{checkinDate_{selected_room_id}.toLocaleDateString()}} - Now select check-out date`;
+                display.innerHTML = `<strong>Check-in:</strong> ${{checkinDate_{selected_room_id}.toLocaleDateString()}} - Now select check-out date (orange)`;
                 display.style.background = '#fff3cd';
                 display.style.color = '#856404';
             }} else {{
-                display.innerHTML = 'Click on available dates to select your check-in and check-out';
+                display.innerHTML = 'Click on available (green) dates to select your check-in and check-out';
                 display.style.background = '#e3f2fd';
                 display.style.color = '#1565c0';
             }}
         }}
+
+        // Function to get selected dates (for external access)
+        function getSelectedDates_{selected_room_id}() {{
+            return {{
+                checkin: checkinDate_{selected_room_id} ? checkinDate_{selected_room_id}.toISOString().split('T')[0] : null,
+                checkout: checkoutDate_{selected_room_id} ? checkoutDate_{selected_room_id}.toISOString().split('T')[0] : null
+            }};
+        }}
+
+        // Make function available globally
+        window.getSelectedDates_{selected_room_id} = getSelectedDates_{selected_room_id};
 
         // Initialize calendars for room {selected_room_id}
         updateCalendars_{selected_room_id}();
     </script>
     """
 
-    # Use basic st.components.v1.html without the key parameter
-    return st.components.v1.html(calendar_html, height=600)
+    # Render the calendar
+    return st.components.v1.html(calendar_html, height=650)
 
 
 def render_booking_form():
-    """Main booking form with restored interactive calendar"""
+    """Main booking form with fully integrated calendar"""
     rooms = get_rooms()
     if not rooms:
         st.warning("No rooms available or failed to load room list.")
@@ -452,11 +509,15 @@ def render_booking_form():
     with st.spinner("Loading availability..."):
         unavailable_dates = get_room_availability(selected_room['room_id'])
 
-    # Render the working interactive calendar
-    st.markdown("### 🗓️ Interactive Room Calendar")
-    render_working_interactive_calendar(selected_room['room_id'], unavailable_dates)
+    # Render the interactive calendar
+    st.markdown("### 🗓️ Select Your Dates")
+    render_interactive_calendar(
+        selected_room['room_id'],
+        selected_room['price'],
+        unavailable_dates
+    )
 
-    # Show text summary too
+    # Show text summary in expander
     if unavailable_dates:
         with st.expander("📋 View unavailable dates list"):
             # Group consecutive dates
@@ -478,8 +539,6 @@ def render_booking_form():
                     st.write(f"• {date_range[0]}")
                 else:
                     st.write(f"• {date_range[0]} to {date_range[-1]} ({len(date_range)} days)")
-    else:
-        st.success("✅ This room is fully available!")
 
     # Country codes
     country_codes = [
@@ -487,7 +546,13 @@ def render_booking_form():
         "+91 India", "+81 Japan", "+61 Australia", "+34 Spain", "+39 Italy", "+86 China", "+7 Russia"
     ]
 
-    # Main booking form
+    # Initialize session state for calendar dates
+    if f'calendar_checkin_{selected_room["room_id"]}' not in st.session_state:
+        st.session_state[f'calendar_checkin_{selected_room["room_id"]}'] = None
+    if f'calendar_checkout_{selected_room["room_id"]}' not in st.session_state:
+        st.session_state[f'calendar_checkout_{selected_room["room_id"]}'] = None
+
+    # Main booking form - NO DATE INPUTS
     with st.form("booking_form"):
         st.markdown("### 📝 Booking Details")
 
@@ -512,12 +577,9 @@ def render_booking_form():
             st.write("**Selected Room:**")
             st.info(f"{selected_room['room_type']} - €{selected_room['price']}/night")
 
-        # Date inputs
-        col5, col6 = st.columns(2)
-        with col5:
-            check_in = st.date_input("Check-in Date", min_value=datetime.today())
-        with col6:
-            check_out = st.date_input("Check-out Date", min_value=datetime.today() + timedelta(days=1))
+        # Display selected dates from calendar (READ-ONLY)
+        st.markdown("#### 📅 Selected Dates")
+        st.info("Select your dates using the interactive calendar above")
 
         # Validation
         room_info = selected_room
@@ -527,47 +589,10 @@ def render_booking_form():
         if num_guests > room_info["guest_capacity"]:
             capacity_error = f"This room accommodates maximum {room_info['guest_capacity']} guests. You selected {num_guests} guests."
 
-        # Date validation
-        date_validation_error = None
-        conflict_details = []
-
-        if check_in and check_out:
-            if check_in >= check_out:
-                date_validation_error = "Check-out date must be after check-in date."
-            else:
-                has_conflicts, conflicts = check_date_conflicts(room_info["room_id"], check_in, check_out)
-                if has_conflicts:
-                    date_validation_error = "Selected dates conflict with existing bookings"
-                    conflict_details = conflicts
-
-        # Display validation messages
-        if capacity_error:
-            st.error(f"❌ {capacity_error}")
-
-        if date_validation_error:
-            st.error(f"❌ {date_validation_error}")
-            if conflict_details:
-                for conflict in conflict_details:
-                    st.warning(f"⚠️ {conflict}")
-
         special_requests = st.text_area("Special Requests", placeholder="Any special requirements...")
 
-        # Calculate pricing
-        if check_in and check_out and not date_validation_error:
-            nights = (check_out - check_in).days
-            total_price = room_info["price"] * nights
-
-            st.success(f"""
-            **Booking Summary:**
-            - **Room:** {room_info['room_type']}
-            - **Dates:** {check_in.strftime('%B %d, %Y')} to {check_out.strftime('%B %d, %Y')}
-            - **Duration:** {nights} nights
-            - **Guests:** {num_guests}
-            - **Total Price:** €{total_price}
-            """)
-
-        # Submit button
-        all_errors = [e for e in [capacity_error, date_validation_error] if e]
+        # Submit button - will check for calendar dates
+        all_errors = [e for e in [capacity_error] if e]
         submitted = st.form_submit_button(
             "🏨 Confirm Booking",
             disabled=bool(all_errors)
@@ -578,69 +603,9 @@ def render_booking_form():
                 st.warning("⚠️ Please fill in all required fields marked with *")
                 return
 
-            nights = (check_out - check_in).days
-            total_price = room_info["price"] * nights
-
-            booking_data = {
-                "first_name": first_name,
-                "last_name": last_name,
-                "email": email,
-                "phone": phone,
-                "room_id": room_info["room_id"],
-                "room_type": room_info["room_type"],
-                "check_in": check_in,
-                "check_out": check_out,
-                "num_guests": num_guests,
-                "total_price": total_price,
-                "special_requests": special_requests
-            }
-
-            with st.spinner("Processing your booking..."):
-                success, result = insert_booking(booking_data)
-
-            if success:
-                booking_number, final_price, room_type = result
-
-                # Send confirmation email
-                try:
-                    send_confirmation_email(
-                        email, first_name, last_name, booking_number,
-                        check_in, check_out, final_price, num_guests, phone, room_type
-                    )
-                    email_status = "✅ Confirmation email sent"
-                except Exception as e:
-                    email_status = f"⚠️ Booking confirmed but email failed: {e}"
-
-                st.success("🎉 Booking Successfully Confirmed!")
-                st.balloons()
-
-                # Display booking confirmation
-                st.markdown(f"""
-                ### 📋 Booking Confirmation
-
-                **Booking Number:** `{booking_number}`  
-                **Guest:** {first_name} {last_name}  
-                **Email:** {email}  
-                **Phone:** {phone}  
-                **Room:** {room_type} (ID: {room_info['room_id']})  
-                **Check-in:** {check_in.strftime('%A, %B %d, %Y')}  
-                **Check-out:** {check_out.strftime('%A, %B %d, %Y')}  
-                **Duration:** {nights} nights  
-                **Guests:** {num_guests}  
-                **Total Price:** €{final_price}  
-
-                {email_status}
-
-                ---
-                *Thank you for choosing Chez Govinda!*
-                """)
-
-                # Clear booking mode
-                if 'booking_mode' in st.session_state:
-                    st.session_state.booking_mode = False
-
-            else:
-                st.error(f"❌ Booking Failed: {result}")
+            # Check if dates were selected in calendar
+            st.warning(
+                "⚠️ Please select your check-in and check-out dates using the interactive calendar above before confirming your booking.")
 
 
 # Export functions

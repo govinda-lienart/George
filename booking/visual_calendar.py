@@ -1,4 +1,4 @@
-# visual_calendar.py - Updated with better synchronization and error handling
+# visual_calendar.py - Updated to match the fully integrated system
 
 import streamlit as st
 import json
@@ -6,7 +6,7 @@ import json
 
 def render_visual_calendar(rooms, all_availability, selected_room_id=None):
     """
-    Renders the interactive visual calendar component.
+    Renders the interactive visual calendar component with proper color coding.
 
     Args:
         rooms: List of room dictionaries from database
@@ -19,7 +19,7 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
         return
 
     st.markdown("### 🗓️ Interactive Booking Calendar")
-    st.markdown("**Red dates** = Unavailable (bookings + manual blocks) | **Green dates** = Your selection")
+    st.markdown("**Red dates** = Unavailable | **Green dates** = Available | **Orange dates** = Your selection")
 
     # Create room data for JavaScript with error handling
     room_js_data = {}
@@ -43,18 +43,15 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
     if selected_room_id is None:
         selected_room_id = rooms[0]['room_id']
 
-    # Create unique key for this calendar instance
-    calendar_key = f"calendar_{selected_room_id}_{len(all_availability)}"
-
-    # Enhanced visual calendar HTML with better error handling
+    # Enhanced visual calendar HTML with proper color coding
     calendar_html = f"""
     <div id="booking-calendar" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <style>
             .calendar-widget {{ 
                 max-width: 100%; 
                 background: white; 
-                border-radius: 12px; 
-                box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+                border-radius: 15px; 
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
                 overflow: hidden; 
                 margin: 20px 0;
                 border: 1px solid #e1e5e9;
@@ -67,33 +64,33 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
             }}
             .calendar-header h3 {{ 
                 margin: 0; 
-                font-size: 1.5em; 
+                font-size: 1.6em; 
                 font-weight: 600; 
             }}
             .sync-notice {{
-                padding: 15px 20px;
+                padding: 18px 20px;
                 background: #e3f2fd;
                 border-left: 4px solid #2196f3;
                 margin: 0;
                 color: #1565c0;
                 font-weight: 500;
+                font-size: 1.05em;
             }}
             .calendar-grid {{ 
                 display: grid; 
                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
-                gap: 25px; 
-                padding: 25px; 
+                gap: 2px; 
+                padding: 0;
+                background: #e9ecef; 
             }}
             .month-calendar {{ 
-                border: 1px solid #e9ecef; 
-                border-radius: 10px; 
-                overflow: hidden; 
                 background: white;
+                overflow: hidden;
             }}
             .month-header {{ 
-                background: #667eea; 
+                background: #495057; 
                 color: white; 
-                padding: 16px; 
+                padding: 15px; 
                 text-align: center; 
                 font-weight: 600; 
                 font-size: 1.1em;
@@ -138,21 +135,24 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                 display: flex; 
                 align-items: center; 
                 justify-content: center; 
-                background: white; 
                 cursor: pointer; 
-                transition: all 0.2s ease; 
+                transition: all 0.3s ease; 
                 font-weight: 500;
                 position: relative;
                 font-size: 14px;
+                min-height: 40px;
             }}
             .day:hover {{ 
-                background: #e3f2fd; 
                 transform: scale(1.05);
                 z-index: 2;
             }}
             .day.other-month {{ 
                 color: #adb5bd; 
                 background: #f8f9fa; 
+                cursor: default;
+            }}
+            .day.other-month:hover {{
+                transform: none;
             }}
             .day.unavailable {{ 
                 background: #dc3545 !important; 
@@ -164,29 +164,24 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                 transform: none; 
                 background: #c82333 !important;
             }}
-            .day.unavailable::after {{ 
-                content: '✕'; 
-                position: absolute; 
-                top: 2px; 
-                right: 4px; 
-                font-size: 10px; 
-                opacity: 0.9;
+            .day.available {{
+                background: #28a745 !important;
+                color: white !important;
+                font-weight: 600;
             }}
-            .day.selected-checkin {{ 
-                background: #28a745 !important; 
-                color: white !important; 
-                font-weight: 700;
-                border-radius: 50% 0 0 50%;
+            .day.available:hover {{
+                background: #218838 !important;
             }}
-            .day.selected-checkout {{ 
-                background: #007bff !important; 
-                color: white !important; 
+            .day.selected {{
+                background: #ff8c00 !important;
+                color: white !important;
                 font-weight: 700;
-                border-radius: 0 50% 50% 0;
+                transform: scale(1.1) !important;
+                border: 2px solid #ff6b00;
             }}
             .day.in-range {{ 
-                background: #cce5ff !important; 
-                color: #0056b3;
+                background: #ffd700 !important; 
+                color: #333 !important;
                 font-weight: 600;
             }}
             .legend {{ 
@@ -212,61 +207,46 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                 border: 2px solid rgba(0,0,0,0.1);
             }}
             .status-message {{ 
-                padding: 16px 20px; 
-                margin: 0 20px 20px 20px; 
-                border-radius: 8px; 
+                padding: 18px 20px; 
+                margin: 0;
                 text-align: center; 
                 font-weight: 500;
                 transition: all 0.3s;
+                border-top: 1px solid #e9ecef;
             }}
             .status-default {{ 
-                background: #e7f3ff; 
-                color: #0056b3; 
-                border: 1px solid #bee5eb;
+                background: #e3f2fd; 
+                color: #1565c0; 
             }}
             .status-selecting {{ 
                 background: #fff3cd; 
                 color: #856404; 
-                border: 1px solid #ffeaa7;
             }}
             .status-selected {{ 
                 background: #d4edda; 
                 color: #155724; 
-                border: 1px solid #c3e6cb;
             }}
             .room-info {{ 
-                padding: 15px 20px; 
+                padding: 18px 20px; 
                 background: white; 
                 border-top: 1px solid #e9ecef;
                 font-size: 14px;
                 color: #6c757d;
             }}
-            .error-message {{
-                padding: 15px 20px;
-                background: #f8d7da;
-                border: 1px solid #f5c6cb;
-                color: #721c24;
-                border-radius: 5px;
-                margin: 20px;
-            }}
         </style>
 
         <div class="calendar-widget">
             <div class="calendar-header">
-                <h3>🏨 Visual Calendar</h3>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">Synchronized with room selection</p>
+                <h3>🏨 Interactive Calendar</h3>
+                <p style="margin: 8px 0 0; opacity: 0.9;">Click available dates to select your stay</p>
             </div>
 
             <div class="sync-notice">
                 🔄 This calendar shows availability for the currently selected room. 
-                Change the room selection in the booking form to update this calendar.
+                Green = Available, Red = Unavailable, Orange = Your selection
             </div>
 
             <div id="roomInfo" class="room-info">Loading room information...</div>
-
-            <div id="statusMessage" class="status-message status-default">
-                Click on available dates to help select your booking period
-            </div>
 
             <div class="calendar-grid">
                 <div class="month-calendar">
@@ -303,16 +283,20 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background: #28a745;"></div>
-                    <span>Check-in</span>
+                    <span>Available</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #007bff;"></div>
-                    <span>Check-out</span>
+                    <div class="legend-color" style="background: #ff8c00;"></div>
+                    <span>Selected</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background: #cce5ff; border-color: #007bff;"></div>
-                    <span>Selected Range</span>
+                    <div class="legend-color" style="background: #ffd700; border-color: #ff8c00;"></div>
+                    <span>Date Range</span>
                 </div>
+            </div>
+
+            <div id="statusMessage" class="status-message status-default">
+                Click on available (green) dates to select your booking period
             </div>
         </div>
     </div>
@@ -341,7 +325,7 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
 
         }} catch (error) {{
             console.error('Error loading room data:', error);
-            document.getElementById('roomInfo').innerHTML = '<div class="error-message">Error loading room data. Please refresh the page.</div>';
+            document.getElementById('roomInfo').innerHTML = '<div style="color: #dc3545;">Error loading room data. Please refresh the page.</div>';
         }}
 
         // Function to update calendar for specific room (called externally)
@@ -366,7 +350,7 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
             try {{
                 const room = roomData[selectedRoom];
                 if (!room) {{
-                    document.getElementById('roomInfo').innerHTML = '<div class="error-message">Room information not available</div>';
+                    document.getElementById('roomInfo').innerHTML = '<div style="color: #dc3545;">Room information not available</div>';
                     return;
                 }}
 
@@ -374,13 +358,13 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                 document.getElementById('roomInfo').innerHTML = `
                     <strong>${{room.name || 'Unknown Room'}}</strong> - €${{room.price || 0}}/night - Max ${{room.capacity || 1}} guests<br>
                     ${{room.description || 'No description available'}}<br>
-                    <span style="color: ${{unavailableCount > 0 ? '#dc3545' : '#28a745'}};">
+                    <span style="color: ${{unavailableCount > 0 ? '#dc3545' : '#28a745'}}; font-weight: 600;">
                         ${{unavailableCount}} unavailable dates shown in red
                     </span>
                 `;
             }} catch (error) {{
                 console.error('Error updating room info:', error);
-                document.getElementById('roomInfo').innerHTML = '<div class="error-message">Error displaying room information</div>';
+                document.getElementById('roomInfo').innerHTML = '<div style="color: #dc3545;">Error displaying room information</div>';
             }}
         }}
 
@@ -444,17 +428,19 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                     }} else if (isPast || isUnavailable) {{
                         dayEl.classList.add('unavailable');
                     }} else {{
+                        // Available dates - GREEN
+                        dayEl.classList.add('available');
                         dayEl.addEventListener('click', () => selectDate(date));
                     }}
 
-                    // Highlight selected dates
+                    // Highlight selected dates - ORANGE
                     if (checkinDate && date.toDateString() === checkinDate.toDateString()) {{
-                        dayEl.classList.add('selected-checkin');
+                        dayEl.className = 'day selected';
                     }}
                     if (checkoutDate && date.toDateString() === checkoutDate.toDateString()) {{
-                        dayEl.classList.add('selected-checkout');
+                        dayEl.className = 'day selected';
                     }}
-                    if (checkinDate && checkoutDate && date > checkinDate && date < checkoutDate) {{
+                    if (checkinDate && checkoutDate && date > checkinDate && date < checkoutDate && isCurrentMonth && !isPast && !isUnavailable) {{
                         dayEl.classList.add('in-range');
                     }}
 
@@ -500,16 +486,16 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
                     const totalPrice = nights * (room.price || 0);
                     msgEl.className = 'status-message status-selected';
                     msgEl.innerHTML = `
-                        <strong>✅ Suggested Dates:</strong> ${{checkinDate.toLocaleDateString()}} to ${{checkoutDate.toLocaleDateString()}} 
-                        (${{nights}} nights) - <strong>Estimated: €${{totalPrice}}</strong><br>
-                        <small>Use the booking form below to complete your reservation</small>
+                        <strong>✅ Selected:</strong> ${{checkinDate.toLocaleDateString()}} to ${{checkoutDate.toLocaleDateString()}} 
+                        (${{nights}} nights) - <strong>Total: €${{totalPrice}}</strong><br>
+                        <small>Complete the booking form below to finalize your reservation</small>
                     `;
                 }} else if (checkinDate) {{
                     msgEl.className = 'status-message status-selecting';
                     msgEl.innerHTML = `<strong>Check-in:</strong> ${{checkinDate.toLocaleDateString()}} - Click your check-out date`;
                 }} else {{
                     msgEl.className = 'status-message status-default';
-                    msgEl.innerHTML = 'Click on available dates to help select your booking period';
+                    msgEl.innerHTML = 'Click on available (green) dates to select your booking period';
                 }}
             }} catch (error) {{
                 console.error('Error updating status message:', error);
@@ -525,15 +511,23 @@ def render_visual_calendar(rooms, all_availability, selected_room_id=None):
         // Make function available globally for external calls
         window.updateCalendarForRoom = updateCalendarForRoom;
 
+        // Function to get selected dates (for form integration)
+        window.getSelectedDates = function() {{
+            return {{
+                checkin: checkinDate ? checkinDate.toISOString().split('T')[0] : null,
+                checkout: checkoutDate ? checkoutDate.toISOString().split('T')[0] : null
+            }};
+        }};
+
     </script>
     """
 
-    return st.components.v1.html(calendar_html, height=700, key=calendar_key)
+    return st.components.v1.html(calendar_html, height=700)
 
 
 def get_selected_dates_from_calendar():
     """
     Helper function to get selected dates from the visual calendar.
-    Note: This would need bidirectional communication in a production environment.
+    In a production environment, this would use bidirectional communication.
     """
     return None, None

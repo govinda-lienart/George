@@ -15,6 +15,7 @@ from langchain.chains import LLMChain
 from langchain.callbacks import LangChainTracer
 from langchain.memory import ConversationSummaryMemory
 from langchain_core.runnables import RunnablePassthrough
+import re
 
 # 🔧 Import custom tool modules
 from tools.sql_tool import sql_tool
@@ -45,6 +46,7 @@ if "awaiting_activity_consent" not in st.session_state:
 if "latest_booking_number" not in st.session_state:
     st.session_state.latest_booking_number = None
 
+
 # ========================================
 # ⚙️ Utility Functions
 # ========================================
@@ -53,6 +55,39 @@ def get_secret(key: str, default: str = "") -> str:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
+
+
+def extract_booking_number_from_result(booking_result: str) -> str:
+    """
+    Extract booking reference number from booking tool result.
+    Looks for patterns like "Booking confirmed: REF123" or "Reference: ABC456"
+    """
+    try:
+        # Common patterns for booking references
+        patterns = [
+            r"[Bb]ooking\s+(?:confirmed|reference|ref|number)[\s:]+([A-Z0-9]+)",
+            r"[Rr]eference[\s:]+([A-Z0-9]+)",
+            r"[Bb]ooking[\s#:]+([A-Z0-9]+)",
+            r"[Cc]onfirmation[\s#:]+([A-Z0-9]+)",
+            r"REF[\s:]*([A-Z0-9]+)",
+            r"#([A-Z0-9]+)"
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, booking_result)
+            if match:
+                booking_number = match.group(1)
+                logger.info(f"📋 Extracted booking number: {booking_number}")
+                return booking_number
+
+        # If no pattern matches, log and return None
+        logger.warning("No booking number found in booking result")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error extracting booking number: {e}")
+        return None
+
 
 # ========================================
 # 🧠 AI Tool Routing Configuration
@@ -93,8 +128,9 @@ Tool:
 
 router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")
 
+
 # ========================================
-# 🛠️ Tool Execution Logic (updated with followup)
+# 🛠️ Tool Execution Logic (updated with enhanced followup)
 # ========================================
 def execute_tool(tool_name: str, query: str):
     if tool_name == "sql_tool":
@@ -103,43 +139,80 @@ def execute_tool(tool_name: str, query: str):
         return vector_tool.func(query)
     elif tool_name == "booking_tool":
         result = booking_tool.func(query)
-        # Trigger booking follow-up logic:
-        followup = post_booking_followup(st.session_state.latest_booking_number)
-        st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
-        return result + "\n\n" + followup["message"]
+
+        # Try to extract booking number from the result
+        booking_number = extract_booking_number_from_result(result)
+
+        # If extraction failed, try to use session state as fallback
+        if not booking_number:
+            booking_number = st.session_state.latest_booking_number
+        else:
+            # Update session state with the extracted booking number
+            st.session_state.latest_booking_number = booking_number
+
+        # Only trigger follow-up if we have a booking number
+        if booking_number:
+            try:
+                followup = post_booking_followup(booking_number)
+                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+
+                if followup["message"]:  # Only add follow-up if message exists
+                    return result + "\n\n" + followup["message"]
+                else:
+                    return result
+            except Exception as e:
+                logger.error(f"Follow-up failed: {e}")
+                return result
+        else:
+            logger.warning("No booking number available for follow-up")
+            return result
+
     elif tool_name == "chat_tool":
         return chat_tool.func(query)
     else:
         return f"Error: Tool '{tool_name}' not found."
 
+
 # ========================================
-# 💬 User Query Processing (updated for follow-up)
+# 💬 User Query Processing (updated for enhanced follow-up)
 # ========================================
 def process_user_query(input_text: str) -> str:
     # If awaiting user consent for activity after booking, handle that first
     if st.session_state.awaiting_activity_consent:
-        response = handle_followup_response(input_text, st.session_state)
-        # Reset the consent flag after handling
-        st.session_state.awaiting_activity_consent = False
-        return response
+        try:
+            response = handle_followup_response(input_text, st.session_state)
+            # Reset the consent flag after handling
+            st.session_state.awaiting_activity_consent = False
+            logger.info("Follow-up conversation completed")
+            return response
+        except Exception as e:
+            logger.error(f"Follow-up response failed: {e}")
+            st.session_state.awaiting_activity_consent = False
+            return "I'm sorry, I had trouble processing your response. How else can I help you today?"
 
     # Otherwise, route question to appropriate tool as usual
-    route_result = router_chain.invoke(
-        {"question": input_text},
-        config={"callbacks": [LangChainTracer()]}
-    )
-    tool_choice = route_result["tool_choice"].strip()
-    logger.info(f"Tool selected: {tool_choice}")
+    try:
+        route_result = router_chain.invoke(
+            {"question": input_text},
+            config={"callbacks": [LangChainTracer()]}
+        )
+        tool_choice = route_result["tool_choice"].strip()
+        logger.info(f"Tool selected: {tool_choice}")
 
-    tool_response = execute_tool(tool_choice, input_text)
+        tool_response = execute_tool(tool_choice, input_text)
 
-    # Save conversation to memory for context
-    st.session_state.george_memory.save_context(
-        {"input": input_text},
-        {"output": tool_response}
-    )
+        # Save conversation to memory for context
+        st.session_state.george_memory.save_context(
+            {"input": input_text},
+            {"output": tool_response}
+        )
 
-    return str(tool_response)
+        return str(tool_response)
+
+    except Exception as e:
+        logger.error(f"Query processing failed: {e}", exc_info=True)
+        return "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question."
+
 
 # ========================================
 # 🖥️ Streamlit Application Configuration
@@ -173,15 +246,21 @@ with st.sidebar:
         value=st.session_state.get("show_pipeline", False)
     )
 
+    # Debug info for follow-up state
+    if st.checkbox("🔍 Show Follow-up Debug Info"):
+        st.markdown("#### Follow-up State")
+        st.write(f"**Awaiting consent:** {st.session_state.awaiting_activity_consent}")
+        st.write(f"**Latest booking:** {st.session_state.latest_booking_number}")
+
     st.markdown("### 🔗 Useful Links")
-    link1_text = "Technical Documentation"  # You can customize the text here
-    link1_url = "https://govindalienart.notion.site/George-Online-AI-Hotel-Receptionist-1f95d3b67d38809889e1fa689107b5ea?pvs=4"  # Replace with your desired URL
+    link1_text = "Technical Documentation"
+    link1_url = "https://govindalienart.notion.site/George-Online-AI-Hotel-Receptionist-1f95d3b67d38809889e1fa689107b5ea?pvs=4"
     st.markdown(
         f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>',
         unsafe_allow_html=True)
 
-    link2_text = "Chez Govinda Website"  # You can customize the text here
-    link2_url = "https://sites.google.com/view/chez-govinda/home"  # Replace with your desired URL
+    link2_text = "Chez Govinda Website"
+    link2_url = "https://sites.google.com/view/chez-govinda/home"
     st.markdown(
         f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
         unsafe_allow_html=True)
@@ -292,4 +371,3 @@ if st.session_state.get("show_log_panel"):
     else:
         st.info("No logs yet.")
     st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")
-

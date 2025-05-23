@@ -106,21 +106,41 @@ def handle_followup_response(user_input: str, session_state) -> str:
 # ========================================
 # 📝 Simple Follow-up Message (Hardcoded)
 # ========================================
+# Replace the create_followup_message function in your followup_tool.py with this:
+
 def create_followup_message() -> dict:
     """
-    Create a simple hardcoded follow-up message after booking.
-    No database calls, no LLM - just a standard thank you message.
+    Create a personalized follow-up message using booking data from session state.
     """
-    message = (
-        "🎉 Thank you for your booking! "
-        "Would you like suggestions for things to do in the area during your stay? "
-        "I'd be happy to share some local attractions and activities!"
-    )
+    booking_info = st.session_state.get("latest_booking_info", {})
 
-    logger.info("Simple follow-up message created")
+    if booking_info:
+        client_name = booking_info.get("client_name", "valued guest")
+        booking_number = booking_info.get("booking_number", "your booking")
+        check_in = booking_info.get("check_in", "")
+        check_out = booking_info.get("check_out", "")
+
+        if check_in and check_out:
+            date_info = f"from {check_in} to {check_out}"
+        else:
+            date_info = "for your upcoming stay"
+
+        message = (
+            f"🎉 Thank you {client_name} for your booking (Ref: {booking_number})! "
+            f"I see you'll be staying with us {date_info}. "
+            "Would you like suggestions for things to do in the area during your visit? "
+            "I'd be happy to share some local attractions and activities!"
+        )
+    else:
+        # Fallback if no booking info available
+        message = (
+            "🎉 Thank you for your booking! "
+            "Would you like suggestions for things to do in the area during your stay? "
+            "I'd be happy to share some local attractions and activities!"
+        )
+
+    logger.info("Personalized follow-up message created")
     return {"message": message, "awaiting_activity_consent": True}
-
-
 # ========================================
 # 🧰 LangChain Tool Wrapper
 # ========================================

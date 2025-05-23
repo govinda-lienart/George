@@ -22,7 +22,7 @@ from tools.sql_tool import sql_tool
 from tools.vector_tool import vector_tool
 from tools.chat_tool import chat_tool
 from tools.booking_tool import booking_tool  # Main booking functionality
-from tools.followup_tool import post_booking_followup, handle_followup_response  # Follow-up related helpers
+from tools.followup_tool import create_followup_message, handle_followup_response
 
 from chat_ui import get_user_input, render_chat_bubbles  # UI helpers (note: render_header removed)
 from booking.calendar import render_booking_form
@@ -140,31 +140,19 @@ def execute_tool(tool_name: str, query: str):
     elif tool_name == "booking_tool":
         result = booking_tool.func(query)
 
-        # Try to extract booking number from the result
-        booking_number = extract_booking_number_from_result(result)
-
-        # If extraction failed, try to use session state as fallback
-        if not booking_number:
-            booking_number = st.session_state.latest_booking_number
-        else:
-            # Update session state with the extracted booking number
-            st.session_state.latest_booking_number = booking_number
-
-        # Only trigger follow-up if we have a booking number
-        if booking_number:
+        # Check if booking was just completed (set by calendar.py)
+        if st.session_state.get("booking_just_completed", False):
             try:
-                followup = post_booking_followup(booking_number)
+                followup = create_followup_message()  # Uses booking data from session state
                 st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+                st.session_state.booking_just_completed = False  # Reset flag
 
-                if followup["message"]:  # Only add follow-up if message exists
-                    return result + "\n\n" + followup["message"]
-                else:
-                    return result
+                # Add follow-up message to chat
+                return result + "\n\n" + followup["message"]
             except Exception as e:
                 logger.error(f"Follow-up failed: {e}")
                 return result
         else:
-            logger.warning("No booking number available for follow-up")
             return result
 
     elif tool_name == "chat_tool":

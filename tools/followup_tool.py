@@ -1,7 +1,6 @@
-# followup_tool.py
+# Updated followup_tool.py - SIMPLIFIED VERSION
 
 import os
-import mysql.connector
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm
@@ -10,62 +9,6 @@ import streamlit as st
 
 # --- Path to your static hotel info file ---
 HOTEL_FACTS_FILE = "static/hotel_facts.txt"
-
-
-# ========================================
-# 🗃️ Database Helper Functions
-# ========================================
-def get_secret(key: str, default: str = "") -> str:
-    """Get secret from Streamlit secrets or environment variables"""
-    try:
-        return st.secrets[key]
-    except Exception:
-        return os.getenv(key, default)
-
-
-def get_booking_details(booking_number: str) -> tuple:
-    """
-    Fetch client name and booking dates from database.
-    Returns: (client_name, check_in_date, check_out_date)
-    """
-    try:
-        conn = mysql.connector.connect(
-            host=get_secret("DB_HOST_READ_ONLY"),
-            port=int(get_secret("DB_PORT_READ_ONLY", 3306)),
-            user=get_secret("DB_USERNAME_READ_ONLY"),
-            password=get_secret("DB_PASSWORD_READ_ONLY"),
-            database=get_secret("DB_DATABASE_READ_ONLY")
-        )
-        cursor = conn.cursor()
-
-        # Adjust column names to match your actual database schema
-        query = """
-        SELECT client_name, check_in_date, check_out_date 
-        FROM bookings 
-        WHERE booking_number = %s
-        """
-        cursor.execute(query, (booking_number,))
-        result = cursor.fetchone()
-
-        if result:
-            client_name, check_in, check_out = result
-            # Format dates nicely
-            check_in_str = check_in.strftime("%B %d, %Y") if check_in else "your check-in date"
-            check_out_str = check_out.strftime("%B %d, %Y") if check_out else "your check-out date"
-            return client_name, check_in_str, check_out_str
-        else:
-            logger.warning(f"No booking found for number: {booking_number}")
-            return "valued guest", "your upcoming stay", ""
-
-    except Exception as e:
-        logger.error(f"Failed to fetch booking details: {e}", exc_info=True)
-        return "valued guest", "your upcoming stay", ""
-    finally:
-        try:
-            cursor.close()
-            conn.close()
-        except:
-            pass
 
 
 # ========================================
@@ -82,26 +25,39 @@ def load_activities() -> str:
 
 
 # ========================================
-# 🧠 LLM Intent Detection
+# 🧠 LLM Intent Detection (Only for user response)
 # ========================================
 intent_prompt = PromptTemplate.from_template("""
-You are an intelligent hotel assistant analyzing guest responses.
-
-The guest was asked: "Would you like suggestions for things to do in the area during your stay?"
+You are analyzing a guest's response to this question:
+"Would you like suggestions for things to do in the area during your stay?"
 
 Their reply was: "{user_reply}"
 
-Analyze their intent and classify as:
-- POSITIVE: They want activity suggestions (yes, sure, sounds good, I'd love that, please, etc.)
-- NEGATIVE: They don't want suggestions (no, not interested, no thanks, I'm good, etc.)
-- UNCLEAR: Ambiguous or unrelated response
-
-Consider variations like:
-- "Yes please" / "That would be great" / "Sure!" → POSITIVE
-- "No thanks" / "Not interested" / "I'm good" / "Maybe later" → NEGATIVE  
-- "What do you mean?" / "Tell me about rooms instead" → UNCLEAR
+Classify their intent as:
+- POSITIVE: They want activity suggestions (yes, sure, sounds good, please, etc.)
+- NEGATIVE: They don't want suggestions (no, not interested, no thanks, etc.)
+- UNCLEAR: Ambiguous response
 
 Respond with only: POSITIVE, NEGATIVE, or UNCLEAR
+""")
+
+# ========================================
+# 🧠 LLM Activity Response Generator
+# ========================================
+activity_response_prompt = PromptTemplate.from_template("""
+You are George, a friendly hotel receptionist at Chez Govinda. A guest has asked for activity suggestions during their stay.
+
+Here is the information about local activities and attractions:
+{activities_info}
+
+Please create a warm, helpful response that:
+- Thanks them for their interest
+- Presents the activities in an engaging, personalized way
+- Uses a friendly, conversational tone
+- Highlights the best options
+- Offers to help with more specific questions
+
+Guest's request: {user_input}
 """)
 
 
@@ -118,12 +74,21 @@ def handle_followup_response(user_input: str, session_state) -> str:
         return "I'm sorry, I had trouble understanding that. Could you say that again?"
 
     if intent == "POSITIVE":
-        activities = load_activities()
-        return (
-            "🌟 Wonderful! Here are some great things to do in the area during your stay:\n\n"
-            f"{activities}\n\n"
-            "I hope you have an amazing time exploring! Let me know if you need anything else. 😊"
-        )
+        activities_info = load_activities()
+        try:
+            # Use LLM to generate a personalized response with the activity info
+            response = (activity_response_prompt | llm).invoke({
+                "activities_info": activities_info,
+                "user_input": user_input
+            }).content
+            return response
+        except Exception as e:
+            logger.error(f"Failed to generate activity response: {e}")
+            return (
+                "🌟 Wonderful! Here are some great things to do in the area during your stay:\n\n"
+                f"{activities_info}\n\n"
+                "I hope you have an amazing time exploring! Let me know if you need anything else. 😊"
+            )
     elif intent == "NEGATIVE":
         return (
             "No problem at all! I completely understand. "
@@ -139,37 +104,20 @@ def handle_followup_response(user_input: str, session_state) -> str:
 
 
 # ========================================
-# 📝 Post Booking Follow-up Message
+# 📝 Simple Follow-up Message (Hardcoded)
 # ========================================
-def post_booking_followup(latest_booking_number: str) -> dict:
+def create_followup_message() -> dict:
     """
-    Prepare personalized follow-up message after booking to ask user about interest in local activities.
-    Args:
-        latest_booking_number (str): The booking reference number.
-    Returns:
-        dict: Contains follow-up message and flag if awaiting user consent.
+    Create a simple hardcoded follow-up message after booking.
+    No database calls, no LLM - just a standard thank you message.
     """
-    if not latest_booking_number:
-        logger.warning("No latest booking number found for follow-up.")
-        return {"message": "", "awaiting_activity_consent": False}
-
-    # Fetch client details from database
-    client_name, check_in_date, check_out_date = get_booking_details(latest_booking_number)
-
-    # Create personalized message
-    if check_out_date:  # If we have both dates
-        date_info = f"from {check_in_date} to {check_out_date}"
-    else:  # If we only have check-in or fallback
-        date_info = check_in_date
-
     message = (
-        f"Thank you {client_name} for your booking (Ref: {latest_booking_number})! "
-        f"I see you have booked your stay {date_info}. "
-        "Would you like suggestions for things to do in the area during your visit? "
+        "🎉 Thank you for your booking! "
+        "Would you like suggestions for things to do in the area during your stay? "
         "I'd be happy to share some local attractions and activities!"
     )
 
-    logger.info(f"Post booking follow-up message prepared for {client_name}")
+    logger.info("Simple follow-up message created")
     return {"message": message, "awaiting_activity_consent": True}
 
 

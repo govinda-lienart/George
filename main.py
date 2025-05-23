@@ -65,7 +65,7 @@ ROUTING RULES:
 4. **ANY question containing keywords: smoke, smoking, where can I smoke → chat_tool**
 5. **ANY question containing keywords: website, link, url → chat_tool**
 6. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
-7. **ANY question containing keywords: parties, events, gatherings → chat_tool**
+7. **ANY question containing keywords: nearby attractions, parties, events, gatherings → chat_tool**
 8. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
 9. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
 10. Room availability and prices → sql_tool

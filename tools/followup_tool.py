@@ -1,4 +1,4 @@
-# Updated followup_tool.py - SIMPLIFIED VERSION
+# Updated followup_tool.py - PERSONALIZED & CONCISE VERSION
 
 import os
 from langchain.agents import Tool
@@ -42,7 +42,7 @@ Respond with only: POSITIVE, NEGATIVE, or UNCLEAR
 """)
 
 # ========================================
-# 🧠 LLM Activity Response Generator
+# 🧠 LLM Activity Response Generator (More Concise)
 # ========================================
 activity_response_prompt = PromptTemplate.from_template("""
 You are George, a friendly hotel receptionist at Chez Govinda. A guest has asked for activity suggestions during their stay.
@@ -51,18 +51,20 @@ Here is the information about local activities and attractions:
 {activities_info}
 
 Please create a warm, helpful response that:
-- Thanks them for their interest
-- Presents the activities in an engaging, personalized way
+- Thanks them briefly
+- Presents the activities in a concise, well-organized way
 - Uses a friendly, conversational tone
 - Highlights the best options
-- Offers to help with more specific questions
+- ONLY mentions what's in the provided information - do not offer additional services like restaurant bookings
+
+Keep the response focused and not too long.
 
 Guest's request: {user_input}
 """)
 
 
 # ========================================
-# 💬 Follow-up Response Handler
+# 💬 Follow-up Response Handler (Updated for conciseness)
 # ========================================
 def handle_followup_response(user_input: str, session_state) -> str:
     """Handle user's response to activity suggestions follow-up"""
@@ -76,7 +78,7 @@ def handle_followup_response(user_input: str, session_state) -> str:
     if intent == "POSITIVE":
         activities_info = load_activities()
         try:
-            # Use LLM to generate a personalized response with the activity info
+            # Use LLM to generate a concise response with the activity info
             response = (activity_response_prompt | llm).invoke({
                 "activities_info": activities_info,
                 "user_input": user_input
@@ -85,37 +87,34 @@ def handle_followup_response(user_input: str, session_state) -> str:
         except Exception as e:
             logger.error(f"Failed to generate activity response: {e}")
             return (
-                "🌟 Wonderful! Here are some great things to do in the area during your stay:\n\n"
+                "🌟 Great! Here are some wonderful things to do in the area:\n\n"
                 f"{activities_info}\n\n"
-                "I hope you have an amazing time exploring! Let me know if you need anything else. 😊"
+                "Have a fantastic time exploring!"
             )
     elif intent == "NEGATIVE":
         return (
-            "No problem at all! I completely understand. "
-            "If you change your mind later or need any other assistance during your stay, "
-            "just let me know. Have a wonderful and relaxing trip! 😊"
+            "No problem at all! Have a wonderful and relaxing stay with us! 😊"
         )
     else:  # UNCLEAR
         return (
-            "I want to make sure I understand correctly - would you like me to share "
-            "some suggestions for activities and attractions in the area during your stay? "
-            "Just say yes or no and I'll be happy to help!"
+            "Would you like some suggestions for local attractions and activities? "
+            "Just let me know!"
         )
 
 
 # ========================================
-# 📝 Simple Follow-up Message (Hardcoded)
+# 📝 Personalized Follow-up Message (First Name Only)
 # ========================================
-# Replace the create_followup_message function in your followup_tool.py with this:
-
 def create_followup_message() -> dict:
     """
-    Create a personalized follow-up message using booking data from session state.
+    Create a personalized follow-up message using first name only from booking data.
     """
     booking_info = st.session_state.get("latest_booking_info", {})
 
     if booking_info:
         client_name = booking_info.get("client_name", "valued guest")
+        # Extract just the first name
+        first_name = client_name.split()[0] if client_name != "valued guest" else "valued guest"
         booking_number = booking_info.get("booking_number", "your booking")
         check_in = booking_info.get("check_in", "")
         check_out = booking_info.get("check_out", "")
@@ -126,21 +125,21 @@ def create_followup_message() -> dict:
             date_info = "for your upcoming stay"
 
         message = (
-            f"🎉 Thank you {client_name} for your booking (Ref: {booking_number})! "
+            f"🎉 Thank you {first_name} for your booking (Ref: {booking_number})! "
             f"I see you'll be staying with us {date_info}. "
-            "Would you like suggestions for things to do in the area during your visit? "
-            "I'd be happy to share some local attractions and activities!"
+            "Would you like suggestions for things to do in the area during your visit?"
         )
     else:
         # Fallback if no booking info available
         message = (
             "🎉 Thank you for your booking! "
-            "Would you like suggestions for things to do in the area during your stay? "
-            "I'd be happy to share some local attractions and activities!"
+            "Would you like suggestions for things to do in the area during your stay?"
         )
 
     logger.info("Personalized follow-up message created")
     return {"message": message, "awaiting_activity_consent": True}
+
+
 # ========================================
 # 🧰 LangChain Tool Wrapper
 # ========================================

@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 import os
 import time
 
-# ✅ ADD FOLLOW-UP IMPORT
-from tools.followup_tool import create_followup_message
+# ✅ NO LONGER NEEDED - USING HARDCODED MESSAGES
+# from tools.followup_tool import create_followup_message
 
 # Load environment variables
 load_dotenv()

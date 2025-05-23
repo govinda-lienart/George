@@ -216,21 +216,27 @@ def render_booking_form():
                 f"**Total Price:** €{total_price}\n\n"
                 f"A confirmation email has been sent to {email}."
             )
-            st.session_state.booking_mode = False
 
-            # ✅ TRIGGER FOLLOW-UP DIRECTLY IN CHAT
+            # ✅ KEEP FORM OPEN (removed: st.session_state.booking_mode = False)
+
+            # ✅ PREPARE FOLLOW-UP FOR CHAT BELOW FORM
             try:
                 from logger import logger
                 followup = create_followup_message()
                 st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
 
-                # ✅ ADD FOLLOW-UP MESSAGE DIRECTLY TO CHAT HISTORY
+                # ✅ ADD FOLLOW-UP MESSAGE TO CHAT HISTORY
                 if "history" not in st.session_state:
                     st.session_state.history = []
                 st.session_state.history.append(("bot", followup["message"]))
 
                 logger.info("Follow-up message added to chat history")
+
+                # ✅ FORCE RERUN TO SHOW FOLLOW-UP IN CHAT BELOW FORM
+                st.rerun()
+
             except Exception as e:
+                st.error(f"Follow-up preparation failed: {e}")
                 try:
                     from logger import logger
                     logger.error(f"Follow-up failed: {e}")

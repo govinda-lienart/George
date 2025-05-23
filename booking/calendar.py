@@ -227,10 +227,23 @@ def render_booking_form():
                 # ✅ ADD FOLLOW-UP MESSAGE DIRECTLY TO CHAT HISTORY
                 if "history" not in st.session_state:
                     st.session_state.history = []
+
                 st.session_state.history.append(("bot", followup["message"]))
 
+                # 🔍 DEBUG INFO
+                st.write(f"🔍 DEBUG: Follow-up message added!")
+                st.write(f"🔍 DEBUG: Chat history length: {len(st.session_state.history)}")
+                st.write(
+                    f"🔍 DEBUG: Last message: {st.session_state.history[-1] if st.session_state.history else 'None'}")
+                st.write(f"🔍 DEBUG: Awaiting consent: {st.session_state.awaiting_activity_consent}")
+
                 logger.info("Follow-up message added to chat history")
+
+                # ✅ FORCE PAGE RERUN TO SHOW NEW MESSAGE
+                st.rerun()
+
             except Exception as e:
+                st.error(f"Follow-up failed: {e}")
                 try:
                     from logger import logger
                     logger.error(f"Follow-up failed: {e}")

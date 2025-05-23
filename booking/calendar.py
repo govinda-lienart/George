@@ -207,8 +207,6 @@ def render_booking_form():
                 email, first_name, last_name, booking_number,
                 check_in, check_out, total_price, num_guests, phone, room_type
             )
-
-            # ✅ SHOW BOOKING CONFIRMATION FIRST
             st.success("✅ Booking confirmed!")
             st.balloons()
             st.info(
@@ -220,24 +218,19 @@ def render_booking_form():
             )
             st.session_state.booking_mode = False
 
-            # ✅ PREPARE FOLLOW-UP (NO IMMEDIATE RERUN)
+            # ✅ TRIGGER FOLLOW-UP DIRECTLY IN CHAT
             try:
                 from logger import logger
                 followup = create_followup_message()
                 st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
 
-                # ✅ ADD FOLLOW-UP MESSAGE TO CHAT HISTORY
+                # ✅ ADD FOLLOW-UP MESSAGE DIRECTLY TO CHAT HISTORY
                 if "history" not in st.session_state:
                     st.session_state.history = []
-
                 st.session_state.history.append(("bot", followup["message"]))
 
-                logger.info("Follow-up message added to chat history - will appear after user interaction")
-
-                # ✅ NO st.rerun() HERE - Let user see confirmation first
-
+                logger.info("Follow-up message added to chat history")
             except Exception as e:
-                st.error(f"Follow-up preparation failed: {e}")
                 try:
                     from logger import logger
                     logger.error(f"Follow-up failed: {e}")

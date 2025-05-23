@@ -164,8 +164,6 @@ def execute_tool(tool_name: str, query: str):
 # ========================================
 # 💬 User Query Processing (updated for enhanced follow-up)
 # ========================================
-# Update this section in your main.py process_user_query function:
-
 def process_user_query(input_text: str) -> str:
     # If awaiting user consent for activity after booking, handle that first
     if st.session_state.awaiting_activity_consent:
@@ -174,10 +172,6 @@ def process_user_query(input_text: str) -> str:
             # Reset the consent flag after handling
             st.session_state.awaiting_activity_consent = False
             logger.info("Follow-up conversation completed")
-
-            # ✅ RERUN NOW - AFTER USER RESPONDS TO FOLLOW-UP
-            st.rerun()
-
             return response
         except Exception as e:
             logger.error(f"Follow-up response failed: {e}")
@@ -206,6 +200,7 @@ def process_user_query(input_text: str) -> str:
     except Exception as e:
         logger.error(f"Query processing failed: {e}", exc_info=True)
         return "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question."
+
 
 # ========================================
 # 🖥️ Streamlit Application Configuration

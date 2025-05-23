@@ -1,4 +1,4 @@
-# calendar.py - Simplified, reliable booking system
+# calendar.py - Interactive calendar that actually works!
 
 import streamlit as st
 import mysql.connector
@@ -109,7 +109,7 @@ def get_rooms():
 
 
 def check_date_conflicts(room_id, check_in, check_out):
-    """Check for booking conflicts - simplified version"""
+    """Check for booking conflicts"""
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
@@ -200,77 +200,286 @@ def insert_booking(data):
             pass
 
 
-def render_simple_availability_display(room_id, room_name):
-    """Simple, reliable availability display"""
+def render_working_interactive_calendar(selected_room_id, unavailable_dates):
+    """
+    Fixed interactive calendar that actually works with Streamlit
+    """
 
-    unavailable_dates = get_room_availability(room_id)
+    # Create a unique key for the calendar based on room_id to force refresh
+    calendar_key = f"calendar_{selected_room_id}_{len(unavailable_dates)}"
 
-    if not unavailable_dates:
-        st.success(f"✅ **{room_name}** is fully available!")
-        return
+    calendar_html = f"""
+    <div style="border: 1px solid #ddd; border-radius: 10px; overflow: hidden; margin: 20px 0; font-family: Arial, sans-serif;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 20px; text-align: center;">
+            <h3 style="margin: 0;">🗓️ Interactive Calendar</h3>
+            <p style="margin: 5px 0 0; opacity: 0.9;">Click available dates to select your stay</p>
+        </div>
 
-    # Group consecutive dates for better display
-    date_ranges = []
-    current_range = [unavailable_dates[0]]
+        <!-- Room info -->
+        <div style="padding: 15px; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+            <strong>Room {selected_room_id} Availability</strong> - 
+            <span style="color: {'#dc3545' if unavailable_dates else '#28a745'};">
+                {len(unavailable_dates) if unavailable_dates else 0} unavailable dates
+            </span>
+        </div>
 
-    for i in range(1, len(unavailable_dates)):
-        prev_date = datetime.strptime(unavailable_dates[i - 1], '%Y-%m-%d')
-        curr_date = datetime.strptime(unavailable_dates[i], '%Y-%m-%d')
+        <!-- Calendar Grid -->
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: #e9ecef;">
+            <!-- May 2025 -->
+            <div style="background: white;">
+                <div style="background: #6c757d; color: white; padding: 10px; text-align: center; font-weight: bold;">
+                    May 2025
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa;">
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sun</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Mon</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Tue</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Wed</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Thu</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Fri</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sat</div>
+                </div>
+                <div id="may-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
+                </div>
+            </div>
 
-        if (curr_date - prev_date).days == 1:
-            current_range.append(unavailable_dates[i])
-        else:
-            date_ranges.append(current_range)
-            current_range = [unavailable_dates[i]]
+            <!-- June 2025 -->
+            <div style="background: white;">
+                <div style="background: #6c757d; color: white; padding: 10px; text-align: center; font-weight: bold;">
+                    June 2025
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); background: #f8f9fa;">
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sun</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Mon</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Tue</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Wed</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Thu</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Fri</div>
+                    <div style="padding: 8px; text-align: center; font-size: 12px; font-weight: bold;">Sat</div>
+                </div>
+                <div id="june-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #e9ecef;">
+                </div>
+            </div>
+        </div>
 
-    date_ranges.append(current_range)
+        <!-- Legend -->
+        <div style="padding: 15px; background: #f8f9fa; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 16px; height: 16px; background: #dc3545; border-radius: 50%;"></div>
+                <span style="font-size: 14px;">Unavailable</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 16px; height: 16px; background: #28a745; border-radius: 50%;"></div>
+                <span style="font-size: 14px;">Available</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <div style="width: 16px; height: 16px; background: #ffc107; border-radius: 50%;"></div>
+                <span style="font-size: 14px;">Selected</span>
+            </div>
+        </div>
 
-    # Display unavailable periods
-    st.warning(f"🚫 **{room_name}** - Unavailable Periods:")
+        <!-- Selection display -->
+        <div id="selection-display" style="padding: 15px; background: #e3f2fd; text-align: center; font-weight: 500; color: #1565c0;">
+            Click on available dates to select your check-in and check-out
+        </div>
+    </div>
 
-    for date_range in date_ranges[:5]:  # Show max 5 ranges
-        if len(date_range) == 1:
-            st.write(f"• {date_range[0]}")
-        else:
-            st.write(f"• {date_range[0]} to {date_range[-1]} ({len(date_range)} days)")
+    <script>
+        // Calendar data and state
+        const unavailableDates = {unavailable_dates};
+        let checkinDate = null;
+        let checkoutDate = null;
 
-    if len(date_ranges) > 5:
-        st.write(f"... and {len(date_ranges) - 5} more periods")
+        // Create calendars
+        function createCalendar(year, month, containerId) {{
+            const container = document.getElementById(containerId);
+            if (!container) return;
 
-    total_blocked = len(unavailable_dates)
-    st.info(f"📊 Total unavailable days: **{total_blocked}**")
+            container.innerHTML = '';
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            for (let i = 0; i < 42; i++) {{
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+
+                const dayElement = document.createElement('div');
+                dayElement.style.cssText = `
+                    padding: 10px;
+                    text-align: center;
+                    cursor: pointer;
+                    background: white;
+                    transition: all 0.2s;
+                    border: 1px solid #e9ecef;
+                    min-height: 35px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 500;
+                `;
+
+                dayElement.textContent = date.getDate();
+
+                const dateString = date.toISOString().split('T')[0];
+                const isCurrentMonth = date.getMonth() === month;
+                const isPast = date < new Date().setHours(0, 0, 0, 0);
+                const isUnavailable = unavailableDates.includes(dateString);
+
+                if (!isCurrentMonth) {{
+                    dayElement.style.color = '#ccc';
+                    dayElement.style.background = '#f8f9fa';
+                }} else if (isPast || isUnavailable) {{
+                    dayElement.style.background = '#dc3545';
+                    dayElement.style.color = 'white';
+                    dayElement.style.cursor = 'not-allowed';
+                    if (isUnavailable) {{
+                        dayElement.title = 'This date is not available';
+                    }}
+                }} else {{
+                    dayElement.addEventListener('click', () => selectDate(date));
+                    dayElement.addEventListener('mouseenter', () => {{
+                        if (dayElement.style.background !== '#ffc107') {{
+                            dayElement.style.background = '#e3f2fd';
+                        }}
+                    }});
+                    dayElement.addEventListener('mouseleave', () => {{
+                        if (dayElement.style.background === 'rgb(227, 242, 253)') {{
+                            dayElement.style.background = 'white';
+                        }}
+                    }});
+                }}
+
+                // Highlight selected dates
+                if (checkinDate && date.toDateString() === checkinDate.toDateString()) {{
+                    dayElement.style.background = '#ffc107';
+                    dayElement.style.color = '#212529';
+                }}
+                if (checkoutDate && date.toDateString() === checkoutDate.toDateString()) {{
+                    dayElement.style.background = '#ffc107';
+                    dayElement.style.color = '#212529';
+                }}
+
+                container.appendChild(dayElement);
+            }}
+        }}
+
+        function selectDate(date) {{
+            if (!checkinDate || (checkinDate && checkoutDate)) {{
+                checkinDate = new Date(date);
+                checkoutDate = null;
+            }} else if (date > checkinDate) {{
+                checkoutDate = new Date(date);
+            }} else {{
+                checkinDate = new Date(date);
+                checkoutDate = null;
+            }}
+
+            updateCalendars();
+            updateSelectionDisplay();
+        }}
+
+        function updateCalendars() {{
+            createCalendar(2025, 4, 'may-days');    // May 2025
+            createCalendar(2025, 5, 'june-days');   // June 2025
+        }}
+
+        function updateSelectionDisplay() {{
+            const display = document.getElementById('selection-display');
+            if (!display) return;
+
+            if (checkinDate && checkoutDate) {{
+                const nights = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
+                display.innerHTML = `
+                    <strong>✅ Selected:</strong> ${{checkinDate.toLocaleDateString()}} to ${{checkoutDate.toLocaleDateString()}} 
+                    (${{nights}} night${{nights !== 1 ? 's' : ''}})
+                `;
+                display.style.background = '#d4edda';
+                display.style.color = '#155724';
+            }} else if (checkinDate) {{
+                display.innerHTML = `<strong>Check-in:</strong> ${{checkinDate.toLocaleDateString()}} - Now select check-out date`;
+                display.style.background = '#fff3cd';
+                display.style.color = '#856404';
+            }} else {{
+                display.innerHTML = 'Click on available dates to select your check-in and check-out';
+                display.style.background = '#e3f2fd';
+                display.style.color = '#1565c0';
+            }}
+        }}
+
+        // Initialize calendars
+        updateCalendars();
+    </script>
+    """
+
+    return st.components.v1.html(calendar_html, height=600, key=calendar_key)
 
 
 def render_booking_form():
-    """Simplified, reliable booking form"""
+    """Main booking form with working interactive calendar"""
     rooms = get_rooms()
     if not rooms:
         st.warning("No rooms available or failed to load room list.")
         return
 
-    # Room selection outside the form for real-time updates
     st.markdown("## 🏨 Hotel Booking")
 
-    # Create room mapping
-    room_options = {}
-    room_names = []
-    for room in rooms:
-        room_name = f"{room['room_type']} - €{room['price']}/night (Max {room['guest_capacity']} guests)"
-        room_names.append(room_name)
-        room_options[room_name] = room
+    # Room selection with session state
+    if 'selected_room_idx' not in st.session_state:
+        st.session_state.selected_room_idx = 0
 
-    # Room selector with callback
-    selected_room_name = st.selectbox(
+    # Create room options
+    room_options = []
+    for room in rooms:
+        room_options.append(f"{room['room_type']} - €{room['price']}/night (Max {room['guest_capacity']} guests)")
+
+    # Room selector
+    selected_room_idx = st.selectbox(
         "🏠 **Select Your Room:**",
-        room_names,
-        key="room_selector"
+        range(len(room_options)),
+        format_func=lambda x: room_options[x],
+        key="room_selector",
+        index=st.session_state.selected_room_idx
     )
 
-    selected_room = room_options[selected_room_name]
+    # Update session state
+    st.session_state.selected_room_idx = selected_room_idx
+    selected_room = rooms[selected_room_idx]
 
-    # Show availability for selected room
-    st.markdown("### 📅 Room Availability")
-    render_simple_availability_display(selected_room['room_id'], selected_room['room_type'])
+    # Get availability for selected room
+    with st.spinner("Loading availability..."):
+        unavailable_dates = get_room_availability(selected_room['room_id'])
+
+    # Render the working interactive calendar
+    render_working_interactive_calendar(selected_room['room_id'], unavailable_dates)
+
+    # Show text summary too
+    if unavailable_dates:
+        with st.expander("📋 View unavailable dates list"):
+            # Group consecutive dates
+            date_ranges = []
+            if unavailable_dates:
+                current_range = [unavailable_dates[0]]
+                for i in range(1, len(unavailable_dates)):
+                    prev_date = datetime.strptime(unavailable_dates[i - 1], '%Y-%m-%d')
+                    curr_date = datetime.strptime(unavailable_dates[i], '%Y-%m-%d')
+                    if (curr_date - prev_date).days == 1:
+                        current_range.append(unavailable_dates[i])
+                    else:
+                        date_ranges.append(current_range)
+                        current_range = [unavailable_dates[i]]
+                date_ranges.append(current_range)
+
+            for date_range in date_ranges:
+                if len(date_range) == 1:
+                    st.write(f"• {date_range[0]}")
+                else:
+                    st.write(f"• {date_range[0]} to {date_range[-1]} ({len(date_range)} days)")
+    else:
+        st.success("✅ This room is fully available!")
 
     # Country codes
     country_codes = [
@@ -299,7 +508,7 @@ def render_booking_form():
         with col3:
             num_guests = st.number_input("Number of Guests", min_value=1, max_value=10, value=1)
         with col4:
-            # Display selected room (read-only in form)
+            # Display selected room info
             st.write("**Selected Room:**")
             st.info(f"{selected_room['room_type']} - €{selected_room['price']}/night")
 

@@ -207,6 +207,8 @@ def render_booking_form():
                 email, first_name, last_name, booking_number,
                 check_in, check_out, total_price, num_guests, phone, room_type
             )
+
+            # ✅ SHOW BOOKING CONFIRMATION FIRST
             st.success("✅ Booking confirmed!")
             st.balloons()
             st.info(
@@ -218,32 +220,24 @@ def render_booking_form():
             )
             st.session_state.booking_mode = False
 
-            # ✅ TRIGGER FOLLOW-UP DIRECTLY IN CHAT
+            # ✅ PREPARE FOLLOW-UP (NO IMMEDIATE RERUN)
             try:
                 from logger import logger
                 followup = create_followup_message()
                 st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
 
-                # ✅ ADD FOLLOW-UP MESSAGE DIRECTLY TO CHAT HISTORY
+                # ✅ ADD FOLLOW-UP MESSAGE TO CHAT HISTORY
                 if "history" not in st.session_state:
                     st.session_state.history = []
 
                 st.session_state.history.append(("bot", followup["message"]))
 
-                # 🔍 DEBUG INFO
-                st.write(f"🔍 DEBUG: Follow-up message added!")
-                st.write(f"🔍 DEBUG: Chat history length: {len(st.session_state.history)}")
-                st.write(
-                    f"🔍 DEBUG: Last message: {st.session_state.history[-1] if st.session_state.history else 'None'}")
-                st.write(f"🔍 DEBUG: Awaiting consent: {st.session_state.awaiting_activity_consent}")
+                logger.info("Follow-up message added to chat history - will appear after user interaction")
 
-                logger.info("Follow-up message added to chat history")
-
-                # ✅ FORCE PAGE RERUN TO SHOW NEW MESSAGE
-                st.rerun()
+                # ✅ NO st.rerun() HERE - Let user see confirmation first
 
             except Exception as e:
-                st.error(f"Follow-up failed: {e}")
+                st.error(f"Follow-up preparation failed: {e}")
                 try:
                     from logger import logger
                     logger.error(f"Follow-up failed: {e}")

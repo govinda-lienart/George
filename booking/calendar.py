@@ -192,7 +192,7 @@ def render_booking_form():
         if success:
             booking_number, total_price, room_type = result
 
-            # ✅ STORE DETAILED BOOKING INFO FOR LLM FOLLOW-UP
+            # ✅ STORE DETAILED BOOKING INFO FOR FOLLOW-UP
             st.session_state.latest_booking_info = {
                 "booking_number": booking_number,
                 "client_name": f"{first_name} {last_name}",
@@ -227,29 +227,17 @@ def render_booking_form():
             # ✅ CLOSE FORM AFTER CONFIRMATION
             st.session_state.booking_mode = False
 
-            # ✅ LLM GENERATES DETAILED FOLLOW-UP MESSAGE
-            try:
-                from logger import logger
-                followup = create_followup_message()  # LLM will generate detailed message
-                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+            # ✅ SIMPLIFIED HARDCODED FOLLOW-UP MESSAGE (FAST)
+            followup = create_followup_message()  # Now hardcoded and instant
+            st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
 
-                # ✅ ADD LLM-GENERATED FOLLOW-UP MESSAGE TO CHAT HISTORY
-                if "history" not in st.session_state:
-                    st.session_state.history = []
-                st.session_state.history.append(("bot", followup["message"]))
+            # ✅ ADD FOLLOW-UP MESSAGE TO CHAT HISTORY
+            if "history" not in st.session_state:
+                st.session_state.history = []
+            st.session_state.history.append(("bot", followup["message"]))
 
-                logger.info("LLM-generated detailed follow-up message added to chat history")
-
-                # ✅ FORCE RERUN TO SHOW FOLLOW-UP IN CHAT
-                st.rerun()
-
-            except Exception as e:
-                st.error(f"Follow-up preparation failed: {e}")
-                try:
-                    from logger import logger
-                    logger.error(f"Follow-up failed: {e}")
-                except:
-                    print(f"Follow-up failed: {e}")
+            # ✅ FORCE RERUN TO SHOW FOLLOW-UP IN CHAT
+            st.rerun()
 
         else:
             st.error(f"❌ Booking failed: {result}")

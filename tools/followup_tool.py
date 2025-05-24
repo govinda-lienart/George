@@ -10,6 +10,11 @@ import streamlit as st
 # --- Path to your static hotel info file ---
 HOTEL_FACTS_FILE = "static/hotel_facts.txt"
 
+# --- STATIC BOOKING CONFIRMATION MESSAGE TEMPLATE ---
+BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #{booking_number}. 📧 A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
+
+Would you like recommendations for things to see and do during your stay? If yes, what kind of activities interest you - cultural attractions, entertainment, or dining spots?"""
+
 
 # ========================================
 # 📄 Content Loading
@@ -62,35 +67,6 @@ Keep the response focused and not too long.
 Guest's request: {user_input}
 """)
 
-# ========================================
-# 🧠 LLM Detailed Follow-up Message Generator
-# ========================================
-detailed_followup_prompt = PromptTemplate.from_template("""
-You are George, a friendly hotel receptionist at Chez Govinda. A guest has just completed their booking and you need to create a warm, detailed follow-up message.
-
-Guest booking details:
-- First Name: {first_name}
-- Last Name: {last_name}
-- Booking Number: {booking_number}
-- Email: {email}
-- Phone: {phone}
-- Room Type: {room_type}
-- Check-in: {check_in}
-- Check-out: {check_out}
-- Number of Guests: {num_guests}
-- Total Price: €{total_price}
-- Special Requests: {special_requests}
-
-Create a warm, professional follow-up message that:
-1. Thanks the guest by their first name
-2. Confirms their booking with all the important details in a clear, organized way
-3. Mentions that a confirmation email was sent to their email address
-4. Asks if they would like suggestions for things to visit and do in the area during their stay
-5. Uses a friendly, welcoming tone as a hotel receptionist
-
-Keep it well-organized with emojis and clear formatting.
-""")
-
 
 # ========================================
 # 💬 Follow-up Response Handler (Updated for conciseness)
@@ -132,52 +108,23 @@ def handle_followup_response(user_input: str, session_state) -> str:
 
 
 # ========================================
-# 📝 LLM-Generated Detailed Follow-up Message
+# 📝 HARDCODED FAST Template Follow-up Message
 # ========================================
 def create_followup_message() -> dict:
     """
-    Create a detailed follow-up message using LLM with all booking information.
+    Create a follow-up message using hardcoded template - FAST execution.
     """
     booking_info = st.session_state.get("latest_booking_info", {})
 
-    if booking_info:
-        try:
-            # Use LLM to generate detailed follow-up message
-            message = (detailed_followup_prompt | llm).invoke({
-                "first_name": booking_info.get("first_name", "valued guest"),
-                "last_name": booking_info.get("last_name", ""),
-                "booking_number": booking_info.get("booking_number", ""),
-                "email": booking_info.get("email", ""),
-                "phone": booking_info.get("phone", ""),
-                "room_type": booking_info.get("room_type", ""),
-                "check_in": booking_info.get("check_in", ""),
-                "check_out": booking_info.get("check_out", ""),
-                "num_guests": booking_info.get("num_guests", ""),
-                "total_price": booking_info.get("total_price", ""),
-                "special_requests": booking_info.get("special_requests", "None")
-            }).content
+    # Get booking details or use fallbacks
+    first_name = booking_info.get("first_name", "valued guest") if booking_info else "valued guest"
+    booking_number = booking_info.get("booking_number", "your booking") if booking_info else "your booking"
 
-            logger.info("LLM-generated detailed follow-up message created")
-            return {"message": message, "awaiting_activity_consent": True}
+    # HARDCODED message for speed - no LLM calls
+    message = f"Dear {first_name}, This is your booking confirmation #{booking_number}. 📧 A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.\n\nWould you like recommendations for things to see and do during your stay? If yes, what kind of activities interest you - cultural attractions, entertainment, or dining spots?"
 
-        except Exception as e:
-            logger.error(f"Failed to generate detailed follow-up: {e}")
-            # Fallback to simple message
-            first_name = booking_info.get("first_name", "valued guest")
-            booking_number = booking_info.get("booking_number", "your booking")
-
-            message = (
-                f"🎉 Thank you {first_name} for your booking (Ref: {booking_number})! "
-                "Would you like suggestions for things to do in the area during your visit?"
-            )
-            return {"message": message, "awaiting_activity_consent": True}
-    else:
-        # Fallback if no booking info available
-        message = (
-            "🎉 Thank you for your booking! "
-            "Would you like suggestions for things to do in the area during your stay?"
-        )
-        return {"message": message, "awaiting_activity_consent": True}
+    logger.info("Hardcoded booking confirmation message created (fast)")
+    return {"message": message, "awaiting_activity_consent": True}
 
 
 # ========================================

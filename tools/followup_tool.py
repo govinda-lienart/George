@@ -13,7 +13,7 @@ HOTEL_FACTS_FILE = "static/hotel_facts.txt"
 # --- STATIC BOOKING CONFIRMATION MESSAGE TEMPLATE ---
 BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #**{booking_number}**. A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
 
-Would you like recommendations for things to see and do during your stay? 
+Would you like recommendations for things to see and do during your stay? """
 
 
 # ========================================

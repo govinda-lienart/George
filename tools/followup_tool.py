@@ -1,4 +1,4 @@
-# Updated followup_tool.py - LLM USES STATIC FILE FOR ACTIVITIES
+# Updated followup_tool.py - LLM GENERATED DETAILED FOLLOW-UP
 
 import os
 from langchain.agents import Tool
@@ -12,21 +12,16 @@ HOTEL_FACTS_FILE = "static/hotel_facts.txt"
 
 
 # ========================================
-# 📄 Content Loading from Static File
+# 📄 Content Loading
 # ========================================
 def load_activities() -> str:
     """Load activities and local attractions from static file"""
     try:
         with open(HOTEL_FACTS_FILE, "r", encoding="utf-8") as f:
-            content = f.read()
-            logger.info(f"✅ Successfully loaded {len(content)} characters from {HOTEL_FACTS_FILE}")
-            return content
-    except FileNotFoundError:
-        logger.error(f"❌ Static file not found: {HOTEL_FACTS_FILE}")
-        return "I'm sorry, I couldn't find the activity information file. Please contact reception for local recommendations."
+            return f.read()
     except Exception as e:
-        logger.error(f"❌ Failed to load hotel facts: {e}", exc_info=True)
-        return "I'm sorry, I couldn't load the activity suggestions at this time. Please contact reception for assistance."
+        logger.error(f"Failed to load hotel facts: {e}", exc_info=True)
+        return "I'm sorry, I couldn't load the activity suggestions at this time."
 
 
 # ========================================
@@ -39,33 +34,30 @@ You are analyzing a guest's response to this question:
 Their reply was: "{user_reply}"
 
 Classify their intent as:
-- POSITIVE: They want activity suggestions (yes, sure, sounds good, please, I'd like that, tell me more, etc.)
-- NEGATIVE: They don't want suggestions (no, not interested, no thanks, I'm fine, etc.)
-- UNCLEAR: Ambiguous response (maybe, not sure, what kind of things, etc.)
+- POSITIVE: They want activity suggestions (yes, sure, sounds good, please, etc.)
+- NEGATIVE: They don't want suggestions (no, not interested, no thanks, etc.)
+- UNCLEAR: Ambiguous response
 
 Respond with only: POSITIVE, NEGATIVE, or UNCLEAR
 """)
 
 # ========================================
-# 🧠 LLM Activity Response Generator (Uses Static File Content)
+# 🧠 LLM Activity Response Generator (More Concise)
 # ========================================
 activity_response_prompt = PromptTemplate.from_template("""
 You are George, a friendly hotel receptionist at Chez Govinda. A guest has asked for activity suggestions during their stay.
 
-Here is the complete information about local activities and attractions from our hotel guide:
-
+Here is the information about local activities and attractions:
 {activities_info}
 
 Please create a warm, helpful response that:
-- Thanks them for their interest
-- Presents the activities in a well-organized, easy-to-read format
-- Uses a friendly, conversational tone as a hotel receptionist
-- Highlights the most popular or recommended options
-- Includes practical details like distances, opening hours, or booking info if mentioned in the guide
-- ONLY mentions what's provided in the static file - do not add information not contained in the guide
-- Keeps the response comprehensive but not overwhelming
+- Thanks them briefly
+- Presents the activities in a concise, well-organized way
+- Uses a friendly, conversational tone
+- Highlights the best options
+- ONLY mentions what's in the provided information - do not offer additional services like restaurant bookings
 
-Format the response with clear sections or bullet points to make it easy to scan.
+Keep the response focused and not too long.
 
 Guest's request: {user_input}
 """)
@@ -101,55 +93,41 @@ Keep it well-organized with emojis and clear formatting.
 
 
 # ========================================
-# 💬 Follow-up Response Handler (Enhanced with Static File)
+# 💬 Follow-up Response Handler (Updated for conciseness)
 # ========================================
 def handle_followup_response(user_input: str, session_state) -> str:
     """Handle user's response to activity suggestions follow-up"""
     try:
-        # Use LLM to detect user intent
         intent = (intent_prompt | llm).invoke({"user_reply": user_input}).content.strip().upper()
         logger.info(f"🎯 Follow-up intent detected: {intent}")
     except Exception as e:
         logger.error(f"❌ Intent classification failed: {e}", exc_info=True)
-        return "I'm sorry, I had trouble understanding that. Could you please clarify if you'd like activity recommendations?"
+        return "I'm sorry, I had trouble understanding that. Could you say that again?"
 
     if intent == "POSITIVE":
-        # Load activities from static file
         activities_info = load_activities()
-
-        # Check if static file loaded successfully
-        if "couldn't" in activities_info.lower() or "sorry" in activities_info.lower():
-            return activities_info  # Return error message from load_activities()
-
         try:
-            # Use LLM to generate a comprehensive response with the static file content
+            # Use LLM to generate a concise response with the activity info
             response = (activity_response_prompt | llm).invoke({
                 "activities_info": activities_info,
                 "user_input": user_input
             }).content
-
-            logger.info("✅ Successfully generated activity recommendations from static file")
             return response
-
         except Exception as e:
-            logger.error(f"❌ Failed to generate LLM activity response: {e}")
-            # Fallback: return raw static file content with simple formatting
+            logger.error(f"Failed to generate activity response: {e}")
             return (
-                f"🌟 Great! Here are some wonderful things to do in our area:\n\n"
+                "🌟 Great! Here are some wonderful things to do in the area:\n\n"
                 f"{activities_info}\n\n"
-                "Have a fantastic time exploring! If you need any additional information, feel free to ask."
+                "Have a fantastic time exploring!"
             )
-
     elif intent == "NEGATIVE":
         return (
-            "No problem at all! If you change your mind during your stay, just let me know. "
-            "Have a wonderful and relaxing time with us! 😊"
+            "No problem at all! Have a wonderful and relaxing stay with us! 😊"
         )
     else:  # UNCLEAR
         return (
-            "I'd be happy to help! Would you like some suggestions for local attractions and activities? "
-            "We have information about restaurants, sightseeing, outdoor activities, and cultural attractions in the area. "
-            "Just say 'yes' if you'd like me to share some recommendations!"
+            "Would you like some suggestions for local attractions and activities? "
+            "Just let me know!"
         )
 
 
@@ -179,11 +157,11 @@ def create_followup_message() -> dict:
                 "special_requests": booking_info.get("special_requests", "None")
             }).content
 
-            logger.info("✅ LLM-generated detailed follow-up message created")
+            logger.info("LLM-generated detailed follow-up message created")
             return {"message": message, "awaiting_activity_consent": True}
 
         except Exception as e:
-            logger.error(f"❌ Failed to generate detailed follow-up: {e}")
+            logger.error(f"Failed to generate detailed follow-up: {e}")
             # Fallback to simple message
             first_name = booking_info.get("first_name", "valued guest")
             booking_number = booking_info.get("booking_number", "your booking")
@@ -208,5 +186,5 @@ def create_followup_message() -> dict:
 followup_tool = Tool(
     name="followup_tool",
     func=lambda q: handle_followup_response(q, st.session_state),
-    description="Handles guest replies to post-booking follow-up messages about local activity suggestions using static file content."
+    description="Handles guest replies to post-booking follow-up messages about local activity suggestions."
 )

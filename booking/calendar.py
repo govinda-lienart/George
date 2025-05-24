@@ -9,10 +9,9 @@ from datetime import datetime, timedelta
 from booking.email import send_confirmation_email
 from dotenv import load_dotenv
 import os
-import time
 
-# ✅ NO LONGER NEEDED - USING HARDCODED MESSAGES
-# from tools.followup_tool import create_followup_message
+# ✅ ADD FOLLOW-UP IMPORT
+from tools.followup_tool import create_followup_message
 
 # Load environment variables
 load_dotenv()
@@ -217,33 +216,40 @@ def render_booking_form():
             # ✅ SHOW BOOKING CONFIRMATION BRIEFLY
             st.success("✅ Booking confirmed!")
             st.balloons()
+            st.info(
+                f"**Booking Number:** {booking_number}\n"
+                f"**Room Type:** {room_type}\n"
+                f"**Guests:** {num_guests}\n"
+                f"**Total Price:** €{total_price}\n\n"
+                f"A confirmation email has been sent to {email}."
+            )
 
             # ✅ CLOSE FORM AFTER CONFIRMATION
             st.session_state.booking_mode = False
 
-            # ✅ INITIALIZE CHAT HISTORY IF NOT EXISTS
-            if "history" not in st.session_state:
-                st.session_state.history = []
-
-            # 🚀 FIRST HARDCODED MESSAGE - IMMEDIATE CONFIRMATION
-            confirmation_message = f"Hi {first_name}, this is your booking number {booking_number}. We have sent you an email confirmation with details about your booking."
-            st.session_state.history.append(("bot", confirmation_message))
-
-            # 🚀 SECOND HARDCODED MESSAGE - ACTIVITY INQUIRY
-            activity_message = "Would you like suggestions for things to do around the area during your stay? Just let me know if you'd like more information!"
-            st.session_state.history.append(("bot", activity_message))
-
-            # ✅ SET FLAG TO USE LLM FOR NEXT USER RESPONSE
-            st.session_state.awaiting_activity_consent = True
-
+            # ✅ LLM GENERATES DETAILED FOLLOW-UP MESSAGE
             try:
                 from logger import logger
-                logger.info(f"Hardcoded booking confirmation and activity messages added for booking {booking_number}")
-            except:
-                print(f"Hardcoded messages added for booking {booking_number}")
+                followup = create_followup_message()  # LLM will generate detailed message
+                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
 
-            # ✅ FORCE RERUN TO SHOW MESSAGES IN CHAT
-            st.rerun()
+                # ✅ ADD LLM-GENERATED FOLLOW-UP MESSAGE TO CHAT HISTORY
+                if "history" not in st.session_state:
+                    st.session_state.history = []
+                st.session_state.history.append(("bot", followup["message"]))
+
+                logger.info("LLM-generated detailed follow-up message added to chat history")
+
+                # ✅ FORCE RERUN TO SHOW FOLLOW-UP IN CHAT
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Follow-up preparation failed: {e}")
+                try:
+                    from logger import logger
+                    logger.error(f"Follow-up failed: {e}")
+                except:
+                    print(f"Follow-up failed: {e}")
 
         else:
             st.error(f"❌ Booking failed: {result}")

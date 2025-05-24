@@ -11,7 +11,7 @@ import streamlit as st
 HOTEL_FACTS_FILE = "static/hotel_facts.txt"
 
 # --- STATIC BOOKING CONFIRMATION MESSAGE TEMPLATE ---
-BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #{booking_number}. 📧 A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
+BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #{booking_number}. A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
 
 Would you like recommendations for things to see and do during your stay? If yes, what kind of activities interest you - cultural attractions, entertainment, or dining spots?"""
 
@@ -50,16 +50,22 @@ Respond with only: POSITIVE, NEGATIVE, or UNCLEAR
 # 🧠 LLM Activity Response Generator (Clean Client Response)
 # ========================================
 activity_response_prompt = PromptTemplate.from_template("""
-You are George, a friendly hotel receptionist at Chez Govinda. A guest wants activity suggestions.
+You are providing activity suggestions to a hotel guest. Be warm and helpful.
 
 Activities information:
 {activities_info}
 
-Create a natural, conversational response for the guest. Be warm and helpful. Present the activities clearly. Do not include any technical notes, highlighted text, or internal comments. This response will be shown directly to the guest.
+STRICT FORMATTING RULES:
+- Start directly with your response, NO names or labels
+- End after providing the information, NO offers for more help
+- NO stage directions, actions, or notes in asterisks
+- NO follow-up questions
+- NO phrases like "Let me know if you need anything else"
+- Just give the information in a friendly, natural way and stop
 
 Guest said: {user_input}
 
-Response:""")
+Your response (following all rules above):""")
 
 
 # ========================================
@@ -77,25 +83,19 @@ def handle_followup_response(user_input: str, session_state) -> str:
     if intent == "POSITIVE":
         activities_info = load_activities()
         try:
-            # Use LLM to generate a clean response
+            # Use LLM to generate a clean response (rules are in the prompt)
             response = (activity_response_prompt | llm).invoke({
                 "activities_info": activities_info,
                 "user_input": user_input
-            }).content
-
-            # Clean up any unwanted formatting or technical notes
-            response = response.replace("(Keeps it warm, concise, and focused on the provided info.)", "")
-            response = response.replace("(", "").replace(")", "")  # Remove parenthetical notes
-            response = response.strip()
+            }).content.strip()
 
             return response
         except Exception as e:
             logger.error(f"Failed to generate activity response: {e}")
-            # Simple fallback without technical language
+            # Simple fallback without additional offers
             return (
                 "Great! Here are some wonderful things to do in the area:\n\n"
-                f"{activities_info}\n\n"
-                "Enjoy exploring! Let me know if you need any other assistance."
+                f"{activities_info}"
             )
     elif intent == "NEGATIVE":
         return (

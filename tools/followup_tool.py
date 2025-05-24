@@ -1,4 +1,4 @@
-# Updated followup_tool.py - LLM GENERATED DETAILED FOLLOW-UP
+# Updated followup_tool.py - PERSONALIZED & CONCISE VERSION
 
 import os
 from langchain.agents import Tool
@@ -9,11 +9,6 @@ import streamlit as st
 
 # --- Path to your static hotel info file ---
 HOTEL_FACTS_FILE = "static/hotel_facts.txt"
-
-# --- STATIC BOOKING CONFIRMATION MESSAGE TEMPLATE ---
-BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #{booking_number}. 📧 A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
-
-Would you like recommendations for things to see and do during your stay? If yes, what kind of activities interest you - cultural attractions, entertainment, or dining spots?"""
 
 
 # ========================================
@@ -108,22 +103,40 @@ def handle_followup_response(user_input: str, session_state) -> str:
 
 
 # ========================================
-# 📝 HARDCODED FAST Template Follow-up Message
+# 📝 Personalized Follow-up Message (First Name Only)
 # ========================================
 def create_followup_message() -> dict:
     """
-    Create a follow-up message using hardcoded template - FAST execution.
+    Create a personalized follow-up message using first name only from booking data.
     """
     booking_info = st.session_state.get("latest_booking_info", {})
 
-    # Get booking details or use fallbacks
-    first_name = booking_info.get("first_name", "valued guest") if booking_info else "valued guest"
-    booking_number = booking_info.get("booking_number", "your booking") if booking_info else "your booking"
+    if booking_info:
+        client_name = booking_info.get("client_name", "valued guest")
+        # Extract just the first name
+        first_name = client_name.split()[0] if client_name != "valued guest" else "valued guest"
+        booking_number = booking_info.get("booking_number", "your booking")
+        check_in = booking_info.get("check_in", "")
+        check_out = booking_info.get("check_out", "")
 
-    # HARDCODED message for speed - no LLM calls
-    message = f"Dear {first_name}, This is your booking confirmation #{booking_number}. 📧 A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.\n\nWould you like recommendations for things to see and do during your stay? If yes, what kind of activities interest you - cultural attractions, entertainment, or dining spots?"
+        if check_in and check_out:
+            date_info = f"from {check_in} to {check_out}"
+        else:
+            date_info = "for your upcoming stay"
 
-    logger.info("Hardcoded booking confirmation message created (fast)")
+        message = (
+            f"🎉 Thank you {first_name} for your booking (Ref: {booking_number})! "
+            f"I see you'll be staying with us {date_info}. "
+            "Would you like suggestions for things to do in the area during your visit?"
+        )
+    else:
+        # Fallback if no booking info available
+        message = (
+            "🎉 Thank you for your booking! "
+            "Would you like suggestions for things to do in the area during your stay?"
+        )
+
+    logger.info("Personalized follow-up message created")
     return {"message": message, "awaiting_activity_consent": True}
 
 

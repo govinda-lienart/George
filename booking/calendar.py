@@ -192,21 +192,28 @@ def render_booking_form():
         if success:
             booking_number, total_price, room_type = result
 
-            # ✅ STORE BOOKING INFO FOR FOLLOW-UP
+            # ✅ STORE DETAILED BOOKING INFO FOR FOLLOW-UP
             st.session_state.latest_booking_info = {
                 "booking_number": booking_number,
                 "client_name": f"{first_name} {last_name}",
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "phone": phone,
                 "check_in": check_in.strftime("%B %d, %Y"),
                 "check_out": check_out.strftime("%B %d, %Y"),
                 "room_type": room_type,
                 "total_price": total_price,
-                "num_guests": num_guests
+                "num_guests": num_guests,
+                "special_requests": special_requests or "None"
             }
 
             send_confirmation_email(
                 email, first_name, last_name, booking_number,
                 check_in, check_out, total_price, num_guests, phone, room_type
             )
+
+            # ✅ SHOW BOOKING CONFIRMATION BRIEFLY
             st.success("✅ Booking confirmed!")
             st.balloons()
             st.info(
@@ -216,26 +223,21 @@ def render_booking_form():
                 f"**Total Price:** €{total_price}\n\n"
                 f"A confirmation email has been sent to {email}."
             )
+
+            # ✅ CLOSE FORM AFTER CONFIRMATION
             st.session_state.booking_mode = False
 
-            # ✅ TRIGGER FOLLOW-UP DIRECTLY IN CHAT
-            try:
-                from logger import logger
-                followup = create_followup_message()
-                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+            # ✅ SIMPLIFIED HARDCODED FOLLOW-UP MESSAGE (FAST)
+            followup = create_followup_message()  # Now hardcoded and instant
+            st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
 
-                # ✅ ADD FOLLOW-UP MESSAGE DIRECTLY TO CHAT HISTORY
-                if "history" not in st.session_state:
-                    st.session_state.history = []
-                st.session_state.history.append(("bot", followup["message"]))
+            # ✅ ADD FOLLOW-UP MESSAGE TO CHAT HISTORY
+            if "history" not in st.session_state:
+                st.session_state.history = []
+            st.session_state.history.append(("bot", followup["message"]))
 
-                logger.info("Follow-up message added to chat history")
-            except Exception as e:
-                try:
-                    from logger import logger
-                    logger.error(f"Follow-up failed: {e}")
-                except:
-                    print(f"Follow-up failed: {e}")
+            # ✅ FORCE RERUN TO SHOW FOLLOW-UP IN CHAT
+            st.rerun()
 
         else:
             st.error(f"❌ Booking failed: {result}")

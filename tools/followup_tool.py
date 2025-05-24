@@ -11,9 +11,9 @@ import streamlit as st
 HOTEL_FACTS_FILE = "static/hotel_facts.txt"
 
 # --- STATIC BOOKING CONFIRMATION MESSAGE TEMPLATE ---
-BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #{booking_number}. A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
+BOOKING_CONFIRMATION_TEMPLATE = """Dear {first_name}, This is your booking confirmation #**{booking_number}**. A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay! We're thrilled to welcome you and want to ensure everything is perfect for your visit.
 
-Would you like recommendations for things to see and do during your stay? If yes, what kind of activities interest you - cultural attractions, entertainment, or dining spots?"""
+Would you like recommendations for things to see and do during your stay? 
 
 
 # ========================================
@@ -55,17 +55,18 @@ You are providing activity suggestions to a hotel guest. Be warm and helpful.
 Activities information:
 {activities_info}
 
-STRICT FORMATTING RULES:
-- Start directly with your response, NO names or labels
-- End after providing the information, NO offers for more help
-- NO stage directions, actions, or notes in asterisks
-- NO follow-up questions
-- NO phrases like "Let me know if you need anything else"
-- Just give the information in a friendly, natural way and stop
+CRITICAL REQUIREMENTS - FOLLOW EXACTLY:
+1. Start directly with your response (NO "George:" or any names)
+2. Provide the activity information in a friendly way
+3. END immediately after giving the information
+4. DO NOT mention reception, assistance, help, or further services
+5. DO NOT ask questions or invite more interaction
+6. DO NOT use phrases like "Need anything", "happy to assist", "enjoy your stay"
+7. Just give the info and STOP
 
 Guest said: {user_input}
 
-Your response (following all rules above):""")
+Your response (end after providing activities - NO additional offers):""")
 
 
 # ========================================

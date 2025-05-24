@@ -123,7 +123,7 @@ def create_followup_message() -> dict:
     booking_number = booking_info.get("booking_number", "your booking") if booking_info else "your booking"
 
     # HARDCODED message for speed - no LLM calls
-    message = f"Dear {first_name}, This is your booking confirmation #{booking_number}. A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay!.\n\nWould you like recommendations for things to see and do during your stay?"
+    message = f"Dear {first_name}, This is your booking number #{booking_number}. A confirmation email has been sent to your provided email address. Thank you for choosing Chez Govinda for your upcoming stay!\n\nWould you like recommendations for things to see and do during your stay?"
 
     logger.info("Hardcoded booking confirmation message created (fast)")
     return {"message": message, "awaiting_activity_consent": True}

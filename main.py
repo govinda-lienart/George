@@ -1,32 +1,58 @@
+
 # ========================================
-# 📆 Imports and Initialization
+# Role of this script
 # ========================================
 
-import os
-import streamlit as st
-import pandas as pd
-import mysql.connector
-from PIL import Image
-from langchain.prompts import PromptTemplate
-from langchain.chat_models import ChatOpenAI
-from dotenv import load_dotenv
-from logger import logger, log_stream
-from langchain.chains import LLMChain
-from langchain.callbacks import LangChainTracer
-from langchain.memory import ConversationSummaryMemory
-from langchain_core.runnables import RunnablePassthrough
-import re
+"""
+Main script for the George AI Hotel Receptionist app.
+- Routes user questions to booking, info, chat tools.
+- Manages conversation memory for context.
+- Handles bookings and follow-up messages.
+- Provides developer tools like SQL panel and logs.
+- Displays the main user interface with chat and booking forms.
+"""
 
-# 🔧 Import custom tool modules
-from tools.sql_tool import sql_tool
-from tools.vector_tool import vector_tool
-from tools.chat_tool import chat_tool
-from tools.booking_tool import booking_tool  # Main booking functionality
-from tools.followup_tool import create_followup_message, handle_followup_response
+# ========================================
+# Imports
+# ========================================
 
-from chat_ui import get_user_input, render_chat_bubbles  # UI helpers (note: render_header removed)
-from booking.calendar import render_booking_form
-from utils.config import llm
+# --- Standard Library Imports ---
+import os                     # Operating system interfaces, environment variables
+import re                     # Regular expressions for pattern matching
+
+# --- Third-Party Library Imports ---
+import streamlit as st        # Web app framework for interactive UI
+import pandas as pd           # To display SQL results in a table
+import mysql.connector        # MySQL database connectivity
+from PIL import Image         # George photo import
+from dotenv import load_dotenv  # Load environment variables from .env file
+
+# --- LangChain Library Imports ---
+from langchain.prompts import PromptTemplate            # Prompt template management for LLMs
+from langchain.chat_models import ChatOpenAI            # OpenAI Chat model wrapper
+from langchain.chains import LLMChain                    # Chain together prompts and LLM calls
+from langchain.callbacks import LangChainTracer          # Trace LangChain for LangSmith
+from langchain.memory import ConversationSummaryMemory   # Memory with conversation summaries
+
+# --- Custom Logging Utilities ---
+from logger import logger, log_stream                     # Custom logging setup and stream
+
+# --- Custom Tool Modules ---
+from tools.sql_tool import sql_tool                        # SQL query processing tool
+from tools.vector_tool import vector_tool                  # Vector search tool
+from tools.chat_tool import chat_tool                      # Chat processing tool
+from tools.booking_tool import booking_tool                # Booking related tool
+from tools.followup_tool import create_followup_message, handle_followup_response  # Follow-up message helpers
+
+# --- UI Helpers ---
+from chat_ui import get_user_input, render_chat_bubbles    # Functions to handle user input and chat UI rendering
+
+# --- Booking Calendar UI ---
+from booking.calendar import render_booking_form           # Render the booking form in the UI
+
+# ========================================
+# ⚙️ Initialization
+# ========================================
 
 logger.info("App launched")
 load_dotenv()
@@ -45,6 +71,7 @@ if "awaiting_activity_consent" not in st.session_state:
 
 if "latest_booking_number" not in st.session_state:
     st.session_state.latest_booking_number = None
+
 
 
 # ========================================

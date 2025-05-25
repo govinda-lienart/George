@@ -72,22 +72,31 @@ if "awaiting_activity_consent" not in st.session_state:
 if "latest_booking_number" not in st.session_state:
     st.session_state.latest_booking_number = None
 
+# ----------------------------------------
+# Utilities
+# ----------------------------------------
 
+# Function: Retrieve secret value
 
-# ========================================
-# ⚙️ Utility Functions
-# ========================================
 def get_secret(key: str, default: str = "") -> str:
+    """
+    Retrieve a secret value by key.
+    First tries to get the secret from Streamlit's secrets management.
+    If not found, falls back to environment variables.
+    Returns a default value if the key is not found in either.
+    """
     try:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
 
 
+# Function: extract_booking_number_from_result
+#
 def extract_booking_number_from_result(booking_result: str) -> str:
     """
-    Extract booking reference number from booking tool result.
-    Looks for patterns like "Booking confirmed: REF123" or "Reference: ABC456"
+    Extract booking reference number from a booking confirmation string.
+    The extracted booking number is stored in st.session_state.latest_booking_number to remember it throughout the user's session.
     """
     try:
         # Common patterns for booking references
@@ -107,7 +116,6 @@ def extract_booking_number_from_result(booking_result: str) -> str:
                 logger.info(f"📋 Extracted booking number: {booking_number}")
                 return booking_number
 
-        # If no pattern matches, log and return None
         logger.warning("No booking number found in booking result")
         return None
 
@@ -119,6 +127,9 @@ def extract_booking_number_from_result(booking_result: str) -> str:
 # ========================================
 # 🧠 AI Tool Routing Configuration
 # ========================================
+
+# Prompt template used to guide the AI model in deciding which tool to choose based on the user's question.
+
 # 🧠 Lightweight Tool Router LLM
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
@@ -186,7 +197,6 @@ def execute_tool(tool_name: str, query: str):
         return chat_tool.func(query)
     else:
         return f"Error: Tool '{tool_name}' not found."
-
 
 # ========================================
 # 💬 User Query Processing (updated for enhanced follow-up)

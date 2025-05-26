@@ -1,7 +1,16 @@
-# Last updated: 2025-05-19 — follow-up aware SQL prompt, memory support, cleaner structure
+# ========================================
+# 📦 SQL TOOL DEFINITION
+# ========================================
 
+# ────────────────────────────────────────────────
+# 🧠 LANGCHAIN & CONFIG IMPORTS
+# ────────────────────────────────────────────────
 from langchain.agents import Tool
 from utils.config import llm
+
+# ────────────────────────────────────────────────
+# 🔧 STANDARD & THIRD-PARTY IMPORTS
+# ────────────────────────────────────────────────
 import mysql.connector
 import os
 import re
@@ -9,7 +18,9 @@ import streamlit as st
 from langchain.prompts import PromptTemplate
 from logger import logger
 
-# --- Prompt Template for SQL generation ---
+# ========================================
+# 🧾 PROMPT TEMPLATE FOR SQL GENERATION
+# ========================================
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -71,13 +82,23 @@ Respond ONLY with the SQL query, and NOTHING else.
 """
 )
 
-# --- SQL string cleaner ---
+# ========================================
+# 🧼 SQL STRING CLEANING FUNCTION
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  CLEAN SQL FROM RAW LLM OUTPUT          │
+# └─────────────────────────────────────────┘
 def clean_sql(raw_sql: str) -> str:
     cleaned = raw_sql.strip().replace("```sql", "").replace("```", "").replace("Query:", "")
     match = re.search(r"(SELECT\s+.*?;)", cleaned, re.IGNORECASE | re.DOTALL)
     return match.group(1).strip() if match else cleaned.strip()
 
-# --- SQL query executor ---
+# ========================================
+# 🗄️ SQL EXECUTION FUNCTION
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  EXECUTE SQL ON MYSQL DATABASE          │
+# └─────────────────────────────────────────┘
 def run_sql(query: str):
     cleaned = clean_sql(query)
     logger.info(f"🧠 Generated SQL query: {cleaned}")
@@ -110,7 +131,12 @@ def run_sql(query: str):
         except:
             pass
 
-# --- LLM Explanation of SQL result ---
+# ========================================
+# 🧠 LLM RESPONSE GENERATION FROM SQL RESULT
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  SUMMARIZE SQL RESULTS FOR THE GUEST    │
+# └─────────────────────────────────────────┘
 def explain_sql(user_question: str, result) -> str:
     logger.info(f"💬 User question: {user_question}")
     prompt = PromptTemplate(
@@ -131,7 +157,12 @@ Response:
     logger.info(f"🤖 Assistant response: {response}")
     return response
 
-# --- LangChain Tool definition ---
+# ========================================
+# 🧩 LANGCHAIN TOOL OBJECT (Exported)
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  WRAP LLM + SQL INTO LangChain Tool     │
+# └─────────────────────────────────────────┘
 sql_tool = Tool(
     name="sql",
     func=lambda q: explain_sql(

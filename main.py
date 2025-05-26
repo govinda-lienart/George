@@ -1,7 +1,7 @@
 
-# ========================================
+# =====================
 # Role of this script
-# ========================================
+# =====================
 
 """
 Main script for the George AI Hotel Receptionist app.
@@ -12,9 +12,9 @@ Main script for the George AI Hotel Receptionist app.
 - Displays the main user interface with chat and booking forms.
 """
 
-# ========================================
+# ==========
 # Imports
-# ========================================
+# ==========
 
 # --- Standard Library Imports ---
 import os                     # Operating system interfaces, environment variables
@@ -50,9 +50,9 @@ from chat_ui import get_user_input, render_chat_bubbles    # Functions to handle
 # --- Booking Calendar UI ---
 from booking.calendar import render_booking_form           # Render the booking form in the UI
 
-# ========================================
+# ==================
 # ⚙️ Initialization
-# ========================================
+# ==================
 
 logger.info("App launched")
 load_dotenv()
@@ -72,9 +72,9 @@ if "awaiting_activity_consent" not in st.session_state:
 if "latest_booking_number" not in st.session_state:
     st.session_state.latest_booking_number = None
 
-# ----------------------------------------
+# ===========
 # Utilities
-# ----------------------------------------
+# ===========
 
 # Function: Retrieve secret value
 
@@ -124,9 +124,9 @@ def extract_booking_number_from_result(booking_result: str) -> str:
         return None
 
 
-# ========================================
+# ===================================
 # 🧠 AI Tool Routing Configuration
-# ========================================
+# ===================================
 
 # Prompt template used to guide the AI model in deciding which tool to choose based on the user's question.
 
@@ -166,42 +166,12 @@ Tool:
 
 router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")
 
+# ==================================================
+# ⚡ CRITICAL: INTELLIGENT ROUTING & EXECUTION ENGINE
+# ==================================================
 
-# ========================================
-# 🛠️ Tool Execution Logic (updated with enhanced followup)
-# ========================================
-def execute_tool(tool_name: str, query: str):
-    if tool_name == "sql_tool":
-        return sql_tool.func(query)
-    elif tool_name == "vector_tool":
-        return vector_tool.func(query)
-    elif tool_name == "booking_tool":
-        result = booking_tool.func(query)
-
-        # Check if booking was just completed (set by calendar.py)
-        if st.session_state.get("booking_just_completed", False):
-            try:
-                followup = create_followup_message()  # Uses booking data from session state
-                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
-                st.session_state.booking_just_completed = False  # Reset flag
-
-                # Add follow-up message to chat
-                return result + "\n\n" + followup["message"]
-            except Exception as e:
-                logger.error(f"Follow-up failed: {e}")
-                return result
-        else:
-            return result
-
-    elif tool_name == "chat_tool":
-        return chat_tool.func(query)
-    else:
-        return f"Error: Tool '{tool_name}' not found."
-
-# ========================================
-# 💬 User Query Processing (updated for enhanced follow-up)
-# ========================================
 def process_user_query(input_text: str) -> str:
+    """George AI's core intelligence engine that routes user messages to appropriate tools and manages conversation flow."""
     # If awaiting user consent for activity after booking, handle that first
     if st.session_state.awaiting_activity_consent:
         try:
@@ -238,6 +208,35 @@ def process_user_query(input_text: str) -> str:
         logger.error(f"Query processing failed: {e}", exc_info=True)
         return "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question."
 
+
+# ========================================
+# 🛠️ Tool Execution Logic (updated with enhanced followup)
+# ========================================
+def execute_tool(tool_name: str, query: str):
+    """
+    Executes the appropriate tool based on the tool name and handles post-booking follow-up if needed.
+    """
+    if tool_name == "sql_tool":
+        return sql_tool.func(query)
+    elif tool_name == "vector_tool":
+        return vector_tool.func(query)
+    elif tool_name == "booking_tool":
+        result = booking_tool.func(query)
+
+        # Check if booking was just completed (set by calendar.py)
+        if st.session_state.get("booking_just_completed", False):
+            try:
+                followup = create_followup_message()  # Uses booking data from session state
+                st.session_state.awaiting_activity_consent = followup["awaiting_activity_consent"]
+                st.session_state.booking_just_completed = False  # Reset flag
+
+                # Add follow-up message to chat
+                return result + "\n\n" + followup["message"]
+            except Exception as e:
+                logger.error(f"Follow-up failed: {e}")
+                return result
+        else:
+            return result
 
 # ========================================
 # 🖥️ Streamlit Application Configuration

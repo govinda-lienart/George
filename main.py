@@ -437,7 +437,6 @@ elif not st.session_state.show_sql_panel:
         with st.chat_message("assistant"):
             with st.spinner("🧠 George is typing..."):
                 try:
-                    # ⚡ THIS IS WHERE THE MAGIC HAPPENS ⚡
                     # Call the main brain function to generate response
                     response = process_user_query(st.session_state.user_input)
 
@@ -472,7 +471,7 @@ elif not st.session_state.show_sql_panel:
 # ────────────────────────────────────────────────
 if st.session_state.show_sql_panel:
     st.markdown("### 🔍 SQL Query Panel")
-    sql_input = st.text_area("🔍 Enter SQL query to run:", "SELECT * FROM bookings LIMIT 10;")
+    sql_input = st.text_area("🔍 Enter SQL query to run:", "SELECT * FROM bookings LIMIT 50;")
     if st.button("Run Query"):
         try:
             # ┌─────────────────────────────────────────┐

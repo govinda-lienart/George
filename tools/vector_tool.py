@@ -1,20 +1,25 @@
-# Last updated: 2025-05-20 — memory support + improved vector logging + Hallucination Fix
+# ========================================
+# 📦 VECTOR TOOL DEFINITION
+# ========================================
 
+# ────────────────────────────────────────────────
+# 🧠 LANGCHAIN & CONFIG IMPORTS
+# ────────────────────────────────────────────────
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
-# Ensure these imports from utils.config are correctly defined in your utils/config.py
-# For example:
-# from langchain_google_genai import ChatGoogleGenerativeAI # if using Google's models
-# from langchain_community.vectorstores import FAISS # or whatever vectorstore you use
-# from langchain_community.embeddings import GoogleGenerativeAIEmbeddings # or your embedding model
-from utils.config import llm, vectorstore  # Assuming llm and vectorstore are properly initialized here
+from utils.config import llm, vectorstore  # Pre-initialized LLM and vector store
 
+# ────────────────────────────────────────────────
+# 🔧 STANDARD & THIRD-PARTY IMPORTS
+# ────────────────────────────────────────────────
 from logger import logger
 import streamlit as st
-from langchain.callbacks import LangChainTracer  # Import the tracer
-from langchain.chains import RetrievalQA  # Although not directly used for the tool logic, useful for context
+from langchain.callbacks import LangChainTracer  # For LangSmith logging
+from langchain.chains import RetrievalQA  # Optional helper from LangChain
 
-# --- Prompt template for response generation ---
+# ========================================
+# 🧾 PROMPT TEMPLATE FOR VECTOR TOOL
+# ========================================
 vector_prompt = PromptTemplate(
     input_variables=["summary", "context", "question"],
     template="""
@@ -57,40 +62,51 @@ Respond as George. Use a warm tone, but never follow up or prolong the chat.
 """
 )
 
-
-# --- Tool logic ---
+# ========================================
+# ⚙️ VECTOR TOOL FUNCTION
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  PROCESS USER INPUT THROUGH VECTORS     │
+# └─────────────────────────────────────────┘
 def vector_tool_func(user_input: str) -> str:
+    """Main logic to handle questions routed to the vector tool."""
     logger.info(f"🔍 Vector tool processing: {user_input}")
 
     try:
+        # ────────────────────────────────────────────────
+        # 💬 Retrieve memory summary of conversation so far
+        # ────────────────────────────────────────────────
+
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
-        # --- Retrieval ---
+        # ────────────────────────────────────────────────
+        # 🔎 Perform vector similarity search
+        # ────────────────────────────────────────────────
         logger.info("📚 Performing similarity search...")
-        # Increase k temporarily if you suspect relevant docs are too far down the ranking
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
-
         logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
 
+        # Filter short documents
         filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
         logger.info(f"🔍 {len(filtered)} documents passed minimum length filter (≥ 50 chars)")
 
+        # ────────────────────────────────────────────────
+        # 🧹 Remove duplicates
+        # ────────────────────────────────────────────────
         seen, unique_docs = set(), []
         for doc, score in filtered:
-            # Using full page_content for de-duplication can be safer for exact facts
-            # or a larger snippet than just 100 chars if content is often very similar
-            snippet = doc.page_content  # Changed from [:100] to full content for more robust deduplication
+            snippet = doc.page_content
             if snippet not in seen:
                 unique_docs.append((doc, score))
                 seen.add(snippet)
-
         logger.info(f"🧹 {len(unique_docs)} unique documents retained after de-duplication")
 
         if not unique_docs:
             return "Hmm, I found some documents but they seem too short or irrelevant to be helpful. Could you rephrase your question?"
 
-        # You can add more specific boost terms here if needed,
-        # e.g., for location-specific queries
+        # ────────────────────────────────────────────────
+        # 🚀 Boost relevant terms based on query intent
+        # ────────────────────────────────────────────────
         boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
         if any(term in user_input.lower() for term in boost_terms):
             logger.info("⚡ Boost terms detected — reordering results for eco-relevance")
@@ -100,36 +116,36 @@ def vector_tool_func(user_input: str) -> str:
                 reverse=True
             )
 
-        # Add a specific boost for location if the query explicitly asks for it
         location_query_terms = ["where", "address", "location", "find", "street", "map", "directions"]
         if any(term in user_input.lower() for term in location_query_terms):
             logger.info("⚡ Location query detected — reordering results for location relevance")
             unique_docs = sorted(
                 unique_docs,
-                key=lambda pair: any(term in pair[0].page_content.lower() for term in location_query_terms) or \
-                                 ("address" in pair[0].page_content.lower() or "location" in pair[
-                                     0].page_content.lower()),
+                key=lambda pair: any(term in pair[0].page_content.lower() for term in location_query_terms)
+                     or ("address" in pair[0].page_content.lower() or "location" in pair[0].page_content.lower()),
                 reverse=True
             )
 
-        # Pass the top 10 documents to the LLM
+        # ────────────────────────────────────────────────
+        # 🧠 Generate response from top documents
+        # ────────────────────────────────────────────────
         top_docs = [doc for doc, _ in unique_docs[:10]]
         context = "\n\n".join(doc.page_content for doc in top_docs)
-
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
         logger.debug("📥 Prompt inputs for LLM:")
-        logger.debug(f"→ Summary: {summary[:100]}...")  # Log truncated summary
-        logger.debug(f"→ Context (first 500 chars): {context[:500]}...")  # Log truncated context for brevity
-        logger.debug(
-            f"→ FULL CONTEXT PASSED TO LLM for question '{user_input}':\n{context}")  # Keep this for detailed debugging
+        logger.debug(f"→ Summary: {summary[:100]}...")
+        logger.debug(f"→ Context (first 500 chars): {context[:500]}...")
+        logger.debug(f"→ FULL CONTEXT PASSED TO LLM for question '{user_input}':\n{context}")
         logger.debug(f"→ Question: {user_input}")
 
+        # Generate answer using prompt + context
         response = (vector_prompt | llm).invoke(
             {"summary": summary, "context": context, "question": user_input},
-            config={"callbacks": [LangChainTracer()]}  # Trace the LLM call
+            config={"callbacks": [LangChainTracer()]}
         ).content.strip()
 
+        # Save the exchange in memory
         st.session_state.george_memory.save_context(
             {"input": user_input},
             {"output": response}
@@ -142,8 +158,12 @@ def vector_tool_func(user_input: str) -> str:
         logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
         return "Sorry, I encountered an issue trying to retrieve information for you right now. Please try again or rephrase your question."
 
-
-# --- LangChain tool definition ---
+# ========================================
+# 🧩 LANGCHAIN TOOL OBJECT (Exported)
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  WRAP VECTOR TOOL INTO LangChain Tool   │
+# └─────────────────────────────────────────┘
 vector_tool = Tool(
     name="vector_tool",
     func=vector_tool_func,

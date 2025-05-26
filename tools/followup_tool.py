@@ -129,11 +129,3 @@ def create_followup_message() -> dict:
     return {"message": message, "awaiting_activity_consent": True}
 
 
-# ========================================
-# 🧰 LangChain Tool Wrapper
-# ========================================
-followup_tool = Tool(
-    name="followup_tool",
-    func=lambda q: handle_followup_response(q, st.session_state),
-    description="Handles guest replies to post-booking follow-up messages about local activity suggestions."
-)

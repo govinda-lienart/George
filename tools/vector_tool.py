@@ -142,10 +142,3 @@ def vector_tool_func(user_input: str) -> str:
         logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
         return "Sorry, I encountered an issue trying to retrieve information for you right now. Please try again or rephrase your question."
 
-
-# --- LangChain tool definition ---
-vector_tool = Tool(
-    name="vector_tool",
-    func=vector_tool_func,
-    description="Answers questions about rooms, policies, amenities, and hotel info from embedded documents."
-)

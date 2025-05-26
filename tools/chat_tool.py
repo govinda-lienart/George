@@ -66,9 +66,3 @@ def chat_tool_func(user_input: str) -> str:
         logger.error(f"❌ chat_tool_func error: {e}", exc_info=True)
         return "I'm sorry, something went wrong while processing your question."
 
-# --- LangChain Tool Definition ---
-chat_tool = Tool(
-    name="chat_tool",
-    func=chat_tool_func,
-    description="General assistant for hospitality questions not related to bookings, prices, or specific hotel rooms."
-)

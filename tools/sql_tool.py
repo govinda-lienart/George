@@ -131,17 +131,3 @@ Response:
     logger.info(f"🤖 Assistant response: {response}")
     return response
 
-# --- LangChain Tool definition ---
-sql_tool = Tool(
-    name="sql",
-    func=lambda q: explain_sql(
-        q,
-        run_sql(
-            (sql_prompt | llm).invoke({
-                "summary": st.session_state.george_memory.load_memory_variables({}).get("summary", ""),
-                "input": q
-            }).content
-        )
-    ),
-    description="Access bookings, availability, prices, and reservations from the SQL database."
-)

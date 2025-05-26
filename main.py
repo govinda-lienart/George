@@ -270,12 +270,6 @@ with st.sidebar:
         value=st.session_state.get("show_pipeline", False)
     )
 
-    # Debug info for follow-up state
-    if st.checkbox("🔍 Show Follow-up Debug Info"):
-        st.markdown("#### Follow-up State")
-        st.write(f"**Awaiting consent:** {st.session_state.awaiting_activity_consent}")
-        st.write(f"**Latest booking:** {st.session_state.latest_booking_number}")
-
     st.markdown("### 🔗 Useful Links")
     link1_text = "Technical Documentation"
     link1_url = "https://govindalienart.notion.site/George-Online-AI-Hotel-Receptionist-1f95d3b67d38809889e1fa689107b5ea?pvs=4"

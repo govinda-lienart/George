@@ -1,16 +1,5 @@
-# Last updated: 2025-05-19 18:26:37
+# chat_ui.py
 import streamlit as st
-
-# ========================================
-# 🏷️ Render Page Config and Title
-# ========================================
-def render_page_config():
-    st.set_page_config(
-        page_title="Chez Govinda – AI Hotel Assistant",
-        page_icon="🏨",
-        layout="centered",
-        initial_sidebar_state="auto"
-    )
 
 # ========================================
 # 💬 Display Chat Messages

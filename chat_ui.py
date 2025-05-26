@@ -16,4 +16,4 @@ def render_chat_bubbles(history):
 # 🎙️ Get User Input
 # ========================================
 def get_user_input():
-    return st.chat_input("Ask about availability, bookings, or anything else...")
+    return st.chat_input("Ask about our hotel, booking, ...")

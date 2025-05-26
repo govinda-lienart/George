@@ -1,3 +1,18 @@
+# ========================================
+# 📋 ROLE OF THIS SCRIPT - config.py
+# ========================================
+
+"""
+Configuration module for the George AI Hotel Receptionist app.
+- Manages environment variables and API key configuration
+- Initializes LLM models with fallback priority (DeepSeek → OpenAI)
+- Sets up Pinecone vector store connection for semantic search
+- Handles both .env file and Streamlit secrets management
+- Provides centralized configuration for all AI services
+- Ensures secure credential handling and validation
+- Essential foundation component for all AI-powered features
+"""
+
 #config.py
 
 #Last updated: 2025-05-19 18:26:37

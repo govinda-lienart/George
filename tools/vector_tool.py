@@ -1,4 +1,19 @@
 # ========================================
+# 📋 ROLE OF THIS SCRIPT - vector_tool.py
+# ========================================
+
+"""
+Vector tool module for the George AI Hotel Receptionist app.
+- Performs semantic search on hotel knowledge base using vector embeddings
+- Retrieves relevant information about rooms, policies, amenities, and services
+- Processes user queries through similarity search and document filtering
+- Provides intelligent content boosting for specific query types (eco, location)
+- Manages conversation memory integration for contextual responses
+- Generates accurate, fact-based responses from embedded hotel documentation
+- Essential component for George's knowledge-driven guest information system
+"""
+
+# ========================================
 # 📦 VECTOR TOOL DEFINITION
 # ========================================
 

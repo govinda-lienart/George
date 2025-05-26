@@ -1,12 +1,34 @@
-# Last updated: 2025-05-19 — Logging fixed, duplication removed, hotel_facts origin logged
+# ========================================
+# 📋 ROLE OF THIS SCRIPT - chat_tool.py
+# ========================================
 
+"""
+Chat tool module for the George AI Hotel Receptionist app.
+- Handles general hospitality conversations and guest support queries
+- Provides empathetic responses for emotional support situations
+- Processes questions about hotel policies, amenities, and general information
+- Loads static hotel facts from text files for consistent responses
+- Manages fallback responses when information is not available
+- Integrates with LangChain for conversational AI capabilities
+- Essential component for George's friendly and professional communication
+"""
+
+# ========================================
+# 💬 CHAT TOOL MODULE (GENERAL ASSISTANT)
+# ========================================
+
+# ────────────────────────────────────────────────
+# 🧠 LANGCHAIN, CONFIG & LOGGER IMPORTS
+# ────────────────────────────────────────────────
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
 from utils.config import llm
 from logger import logger
 import os
 
-# --- Load hotel facts from static file ---
+# ────────────────────────────────────────────────
+# 📁 STATIC FACT SOURCE
+# ────────────────────────────────────────────────
 HOTEL_FACTS_PATH = "static/hotel_facts.txt"
 
 try:
@@ -20,7 +42,9 @@ except Exception as e:
     hotel_facts_text = ""
     logger.error(f"❌ Failed to load hotel facts: {e}")
 
-# --- Prompt Template ---
+# ========================================
+# 🧾 PROMPT TEMPLATE FOR GENERAL CHAT
+# ========================================
 chat_prompt = PromptTemplate.from_template("""
 You are George, the friendly and professional AI hotel assistant at Chez Govinda in Belgium.
 
@@ -41,11 +65,14 @@ User: {input}
 Response:
 """)
 
-
-
-
-# --- Tool Function ---
+# ========================================
+# ⚙️ CHAT TOOL FUNCTION
+# ========================================
+# ┌──────────────────────────────────────────┐
+# │  PROCESS GENERAL HOSPITALITY QUERIES        │
+# └──────────────────────────────────────────┘
 def chat_tool_func(user_input: str) -> str:
+    """Answer general user questions based on hotel facts."""
     logger.info(f"💬 User asked: {user_input}")
 
     try:
@@ -66,7 +93,12 @@ def chat_tool_func(user_input: str) -> str:
         logger.error(f"❌ chat_tool_func error: {e}", exc_info=True)
         return "I'm sorry, something went wrong while processing your question."
 
-# --- LangChain Tool Definition ---
+# ========================================
+# 🧩 LANGCHAIN TOOL OBJECT (EXPORTED)
+# ========================================
+# ┌──────────────────────────────────────────┐
+# │  WRAP CHAT TOOL INTO LangChain TOOL OBJECT  │
+# └──────────────────────────────────────────┘
 chat_tool = Tool(
     name="chat_tool",
     func=chat_tool_func,

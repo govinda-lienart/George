@@ -356,6 +356,7 @@ with st.sidebar:
         f'<a href="{link2_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link2_text}</button></a>',
         unsafe_allow_html=True)
 
+
 # ========================================
 # 🖥️ MAIN CONTENT DISPLAY SYSTEM
 # ========================================
@@ -530,6 +531,7 @@ if st.session_state.get("show_log_panel"):
             formatted_logs += f"\n\n**{ts.strip()}** — {msg.strip()}"
         else:
             formatted_logs += f"\n{line}"
+
 
     # ┌─────────────────────────────────────────┐
     # │  LOG DISPLAY & DOWNLOAD                 │

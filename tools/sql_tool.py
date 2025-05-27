@@ -3,18 +3,18 @@
 # ========================================
 
 """
-Vector tool module for the George AI Hotel Receptionist app.
-- Performs semantic search on hotel knowledge base using vector embeddings
-- Retrieves relevant information about rooms, policies, amenities, and services
-- Processes user queries through similarity search and document filtering
-- Provides intelligent content boosting for specific query types (eco, location)
-- Manages conversation memory integration for contextual responses
-- Generates accurate, fact-based responses from embedded hotel documentation
-- Essential component for George's knowledge-driven guest information system
+SQL tool module for the George AI Hotel Receptionist app.
+- Handles database queries for booking information, room availability, and reservations
+- Translates natural language questions into MySQL queries using LLM
+- Executes SQL queries against the hotel's booking database
+- Converts raw SQL results into natural language responses for guests
+- Accesses booking details, room information, and availability data
+- Manages conversation memory integration for contextual database queries
+- Essential component for George's data-driven guest service capabilities
 """
 
 # ========================================
-# 📦 VECTOR TOOL DEFINITION
+# 📦 SQL TOOL DEFINITION
 # ========================================
 
 # ────────────────────────────────────────────────
@@ -22,165 +22,221 @@ Vector tool module for the George AI Hotel Receptionist app.
 # ────────────────────────────────────────────────
 from langchain.agents import Tool
 from langchain.prompts import PromptTemplate
-from utils.config import llm, vectorstore  # Pre-initialized LLM and vector store
+from utils.config import llm
 
 # ────────────────────────────────────────────────
 # 🔧 STANDARD & THIRD-PARTY IMPORTS
 # ────────────────────────────────────────────────
+import streamlit as st  # Session state for conversation memory
+import mysql.connector  # MySQL database connection library
+import os  # Environment variables access
+import re  # Regular expressions for SQL cleaning
 from logger import logger
-import streamlit as st
-from langchain.callbacks import LangChainTracer  # For LangSmith logging
-from langchain.chains import RetrievalQA  # Optional helper from LangChain
 
 # ========================================
-# 🧾 PROMPT TEMPLATE FOR VECTOR TOOL
+# 🧾 PROMPT TEMPLATE FOR SQL GENERATION
 # ========================================
-vector_prompt = PromptTemplate(
-    input_variables=["summary", "context", "question"],
+sql_prompt = PromptTemplate(
+    input_variables=["summary", "input"],  # Conversation history + user question
     template="""
-You are George, the friendly AI receptionist at *Chez Govinda*.
+You are an SQL assistant for a hotel booking system.
 
-**Important: Answer ONLY based on the factual information explicitly provided in the "Hotel Knowledge Base" below.**
-- Do NOT make up or guess any details.
-- Do NOT ask follow-up questions or offer further assistance.
-- Do NOT try to continue the conversation.
-- Simply answer the user's question clearly and accurately based on the context.
-- If the answer is not found in the provided context, say so honestly.
-
-Conversation so far:
+Conversation summary so far:
 {summary}
 
-Hotel Knowledge Base:
-{context}
+Translate the user's question into a MySQL query using this schema:
 
-User: {question}
+bookings(
+  booking_id,
+  first_name,
+  last_name,
+  email,
+  phone,
+  room_id,
+  check_in,
+  check_out,
+  num_guests,
+  total_price,
+  special_requests,
+  booking_number
+)
 
----
+rooms(
+  room_id,
+  room_type,
+  price,
+  guest_capacity,
+  description
+)
 
-Please answer the user's question using the facts above. Do not include any additional remarks or ask if the user needs anything else.
+room_availability(
+  id,
+  room_id,
+  date,
+  is_available
+)
 
-Use markdown when helpful. When relevant, include one of these reference links:
+Use prior information (like booking numbers) mentioned in the summary if the current question doesn't repeat them.
 
-1. Rooms and accommodations: [Rooms](https://sites.google.com/view/chez-govinda/rooms)
-2. Environmental commitments: [Environmental Commitment](https://sites.google.com/view/chez-govinda/environmental-commitment)
-3. Breakfast and dining: [Breakfast and Guest Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)
-4. Amenities: [Amenities](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)
-5. Wellness options: [Wellness page](https://sites.google.com/view/chez-govinda/breakfast-guest-amenities)
-6. Policies: [Hotel Policy](https://sites.google.com/view/chez-govinda/policy)
-7. Contact and location: [Contact & Location](https://sites.google.com/view/chez-govinda/contactlocation)
+Rules:
+- Use exact column names.
+- Use `check_in`, not `check_in_date`.
+- Use `check_out`, not `check_out_date`.
+- Use `booking_number` (not reservation ID).
+- DO NOT include backticks or markdown formatting like ```sql.
+- DO NOT include explanations or commentary.
+- ONLY return the raw SQL query.
 
-**Key factual rules:**
-- If asked about room types, list these 7: Single, Double, Suite, Economy, Romantic, Family, Kids Friendly — but ONLY if they appear in the context.
-- If asked about the address/location, extract it **exactly** from the context or say it's not available, and include the location link.
+Example:
+User: "Can you get me the details for BKG-20250401-0003?"
+SELECT * FROM bookings WHERE booking_number = 'BKG-20250401-0003';
 
-Respond as George. Use a warm tone, but never follow up or prolong the chat.
+User: "{input}"
+
+Respond ONLY with the SQL query, and NOTHING else.
 """
 )
 
+
 # ========================================
-# ⚙️ VECTOR TOOL FUNCTION
+# 🧼 SQL STRING CLEANING FUNCTION
 # ========================================
 # ┌─────────────────────────────────────────┐
-# │  PROCESS USER INPUT THROUGH VECTORS     │
+# │  CLEAN SQL FROM RAW LLM OUTPUT          │
 # └─────────────────────────────────────────┘
-def vector_tool_func(user_input: str) -> str:
-    """Main logic to handle questions routed to the vector tool."""
-    logger.info(f"🔍 Vector tool processing: {user_input}")
+def clean_sql(raw_sql: str) -> str:
+    """
+    Cleans LLM-generated SQL by removing markdown formatting and extracting pure SQL.
+
+    Args:
+        raw_sql: Raw SQL string from LLM (may contain ```sql blocks, explanations)
+
+    Returns:
+        str: Clean SQL query ready for execution
+    """
+    # Remove common LLM formatting artifacts
+    cleaned = raw_sql.strip().replace("```sql", "").replace("```", "").replace("Query:", "")
+
+    # Extract SELECT statement using regex (most common query type)
+    match = re.search(r"(SELECT\s+.*?;)", cleaned, re.IGNORECASE | re.DOTALL)
+
+    # Return matched SQL or fallback to cleaned string
+    return match.group(1).strip() if match else cleaned.strip()
+
+
+# ========================================
+# 🗄️ SQL EXECUTION FUNCTION
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  EXECUTE SQL ON MYSQL DATABASE          │
+# └─────────────────────────────────────────┘
+def run_sql(query: str):
+    """
+    Executes SQL query against the hotel database.
+
+    Args:
+        query: SQL query string to execute
+
+    Returns:
+        list: Query results as list of tuples, or error message string
+    """
+    # Clean the SQL query first
+    cleaned = clean_sql(query)
+    logger.info(f"🧠 Generated SQL query: {cleaned}")
 
     try:
-        # ────────────────────────────────────────────────
-        # 💬 Retrieve memory summary of conversation so far
-        # ────────────────────────────────────────────────
+        # Get database credentials from environment variables
+        db_user = os.getenv("DB_USERNAME")
+        logger.info(f"👤 Using DB user: {db_user}")
 
-        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
-
-        # ────────────────────────────────────────────────
-        # 🔎 Perform vector similarity search
-        # ────────────────────────────────────────────────
-        logger.info("📚 Performing similarity search...")
-        docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
-        logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
-
-        # Filter short documents
-        filtered = [(doc, score) for doc, score in docs_and_scores if len(doc.page_content.strip()) >= 50]
-        logger.info(f"🔍 {len(filtered)} documents passed minimum length filter (≥ 50 chars)")
-
-        # ────────────────────────────────────────────────
-        # 🧹 Remove duplicates
-        # ────────────────────────────────────────────────
-        seen, unique_docs = set(), []
-        for doc, score in filtered:
-            snippet = doc.page_content
-            if snippet not in seen:
-                unique_docs.append((doc, score))
-                seen.add(snippet)
-        logger.info(f"🧹 {len(unique_docs)} unique documents retained after de-duplication")
-
-        if not unique_docs:
-            return "Hmm, I found some documents but they seem too short or irrelevant to be helpful. Could you rephrase your question?"
-
-        # ────────────────────────────────────────────────
-        # 🚀 Boost relevant terms based on query intent
-        # ────────────────────────────────────────────────
-        boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
-        if any(term in user_input.lower() for term in boost_terms):
-            logger.info("⚡ Boost terms detected — reordering results for eco-relevance")
-            unique_docs = sorted(
-                unique_docs,
-                key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
-                reverse=True
-            )
-
-        location_query_terms = ["where", "address", "location", "find", "street", "map", "directions"]
-        if any(term in user_input.lower() for term in location_query_terms):
-            logger.info("⚡ Location query detected — reordering results for location relevance")
-            unique_docs = sorted(
-                unique_docs,
-                key=lambda pair: any(term in pair[0].page_content.lower() for term in location_query_terms)
-                     or ("address" in pair[0].page_content.lower() or "location" in pair[0].page_content.lower()),
-                reverse=True
-            )
-
-        # ────────────────────────────────────────────────
-        # 🧠 Generate response from top documents
-        # ────────────────────────────────────────────────
-        top_docs = [doc for doc, _ in unique_docs[:10]]
-        context = "\n\n".join(doc.page_content for doc in top_docs)
-        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
-
-        logger.debug("📥 Prompt inputs for LLM:")
-        logger.debug(f"→ Summary: {summary[:100]}...")
-        logger.debug(f"→ Context (first 500 chars): {context[:500]}...")
-        logger.debug(f"→ FULL CONTEXT PASSED TO LLM for question '{user_input}':\n{context}")
-        logger.debug(f"→ Question: {user_input}")
-
-        # Generate answer using prompt + context
-        response = (vector_prompt | llm).invoke(
-            {"summary": summary, "context": context, "question": user_input},
-            config={"callbacks": [LangChainTracer()]}
-        ).content.strip()
-
-        # Save the exchange in memory
-        st.session_state.george_memory.save_context(
-            {"input": user_input},
-            {"output": response}
+        # Establish database connection
+        conn = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            user=db_user,
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_DATABASE")
         )
 
-        logger.info(f"🤖 Vector tool response: {response}")
-        return response
+        # Execute query and fetch results
+        with conn.cursor() as cursor:
+            cursor.execute(cleaned)  # Execute the cleaned SQL
+            result = cursor.fetchall()  # Get all rows as list of tuples
+            logger.info(f"✅ Query executed. Rows returned: {len(result)}")
+            return result
 
     except Exception as e:
-        logger.error(f"❌ vector_tool_func error: {e}", exc_info=True)
-        return "Sorry, I encountered an issue trying to retrieve information for you right now. Please try again or rephrase your question."
+        # Log any database errors and return error message
+        logger.error(f"❌ SQL ERROR: {str(e)}", exc_info=True)
+        return f"SQL ERROR: {e}"
+
+    finally:
+        # Always close database connection
+        try:
+            conn.close()
+        except:
+            pass
+
+
+# ========================================
+# 🧠 LLM RESPONSE GENERATION FROM SQL RESULT
+# ========================================
+# ┌─────────────────────────────────────────┐
+# │  SUMMARIZE SQL RESULTS FOR THE GUEST    │
+# └─────────────────────────────────────────┘
+def explain_sql(user_question: str, result) -> str:
+    """
+    Converts raw SQL results into a natural language response for the guest.
+
+    Args:
+        user_question: Original question from the guest
+        result: Raw SQL query results (list of tuples or error message)
+
+    Returns:
+        str: Natural language explanation of the results
+    """
+    logger.info(f"💬 User question: {user_question}")
+
+    # Create prompt to translate SQL results to natural language
+    prompt = PromptTemplate(
+        input_variables=["question", "result"],
+        template="""
+You are a hotel assistant.
+
+Summarize the result of this SQL query for the guest:
+User Question: {question}
+SQL Result: {result}
+Response:
+"""
+    )
+
+    # Generate natural language response using LLM
+    response = (prompt | llm).invoke({
+        "question": user_question,
+        "result": str(result)  # Convert result to string for LLM processing
+    }).content.strip()
+
+    logger.info(f"🤖 Assistant response: {response}")
+    return response
+
 
 # ========================================
 # 🧩 LANGCHAIN TOOL OBJECT (Exported)
 # ========================================
 # ┌─────────────────────────────────────────┐
-# │  WRAP VECTOR TOOL INTO LangChain Tool   │
+# │  WRAP LLM + SQL INTO LangChain Tool     │
 # └─────────────────────────────────────────┘
-vector_tool = Tool(
-    name="vector_tool",
-    func=vector_tool_func,
-    description="Answers questions about rooms, policies, amenities, and hotel info from embedded documents."
+sql_tool = Tool(
+    name="sql",
+    func=lambda q: explain_sql(  # Lambda function chains the SQL pipeline:
+        q,  # 1. Pass user question to explain_sql
+        run_sql(  # 2. Execute SQL query generated by LLM
+            (sql_prompt | llm).invoke({  # 3. Generate SQL from user question
+                "summary": st.session_state.george_memory.load_memory_variables({}).get("summary", ""),
+                # Conversation history
+                "input": q  # Current user question
+            }).content  # Extract LLM response content
+        )
+    ),
+    description="Access bookings, availability, prices, and reservations from the SQL database."
 )

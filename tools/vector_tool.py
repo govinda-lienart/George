@@ -4,7 +4,7 @@
 
 """
 Vector tool module for the George AI Hotel Receptionist app.
-- Performs semantic search on hotel knowledge base using vector embeddings
+- Performs semantic search on hotael knowledge base using vector embeddings
 - Retrieves relevant information about rooms, policies, amenities, and services
 - Processes user queries through similarity search and document filtering
 - Provides intelligent content boosting for specific query types (eco, location)
@@ -88,17 +88,12 @@ def vector_tool_func(user_input: str) -> str:
     logger.info(f"🔍 Vector tool processing: {user_input}")
 
     try:
-        # ────────────────────────────────────────────────
-        # 💬 Retrieve memory summary of conversation so far
-        # ────────────────────────────────────────────────
-
-        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
         # ────────────────────────────────────────────────
-        # 🔎 Perform vector similarity search
+        # 🔎 Perform vector similarity search across docs/chunks
         # ────────────────────────────────────────────────
         logger.info("📚 Performing similarity search...")
-        docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=30)
+        docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=14)
         logger.info(f"🔎 Retrieved {len(docs_and_scores)} raw documents from vectorstore")
 
         # Filter short documents

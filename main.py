@@ -542,3 +542,14 @@ if st.session_state.get("show_log_panel"):
         st.info("No logs yet.")
 
     st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")
+
+    # ========================================
+    # 🧭 Auto-Scroll to Latest Message
+    # ========================================
+    import streamlit as st
+
+    st.markdown("""
+        <script>
+        window.scrollTo(0, document.body.scrollHeight);
+        </script>
+    """, unsafe_allow_html=True)

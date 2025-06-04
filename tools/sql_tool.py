@@ -30,9 +30,6 @@ import os
 import re
 from logger import logger
 
-# ========================================
-# 🧾 UPDATED SQL PROMPT TEMPLATE
-# ========================================
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
     template="""
@@ -73,23 +70,26 @@ room_availability(
   is_available
 )
 
-Use prior information (like booking numbers) mentioned in the summary if the current question doesn't repeat them.
+Important facts:
+- This hotel has exactly 7 rooms.
+- Each `room_type` corresponds to a unique `room_id`. For example, there is only one Single room (room_id = 1), one Double room (room_id = 2), etc.
+- So when the user asks about a room by type (e.g., "Single"), you must translate it to the correct `room_id`.
 
 Rules:
-- To determine if a room is available on a given date, check whether that date is **not between `check_in` (inclusive) and `check_out` (exclusive)** in the `bookings` table.
-- Avoid using the `room_availability` table for checking availability unless the user explicitly mentions it.
-- Use exact column names.
+- To check availability of a room for a date range, search the `bookings` table for any overlapping booking where the same `room_id` exists and:
+    check_in < desired_check_out AND check_out > desired_check_in
+- Only use the `room_availability` table if the user **explicitly** mentions it.
+- Use exact column names from the schema.
 - Use `check_in`, not `check_in_date`.
 - Use `check_out`, not `check_out_date`.
 - Use `booking_number` (not reservation ID).
-- DO NOT include backticks or markdown formatting like ```sql.
-- DO NOT include explanations or commentary.
-- ONLY return the raw SQL query.
+- NEVER include backticks, markdown formatting, or explanations.
+- ONLY return the raw SQL query, and NOTHING else.
 
 User: "{input}"
-Respond ONLY with the SQL query, and NOTHING else.
 """
 )
+
 
 # ========================================
 # 🧼 CLEANING FUNCTION
@@ -138,13 +138,17 @@ def explain_sql(user_question: str, result) -> str:
     prompt = PromptTemplate(
         input_variables=["question", "result"],
         template="""
-You are a hotel assistant.
+    You are a helpful and concise hotel assistant.
 
-Summarize the result of this SQL query for the guest:
-User Question: {question}
-SQL Result: {result}
-Response:
-"""
+    Summarize the result of this SQL query for the guest based only on the information provided.
+    User Question: {question}
+    SQL Result: {result}
+
+    Do **not** ask the guest any follow-up questions or offer additional help.
+    Only respond with a clear, complete answer based on the data above.
+
+    Response:
+    """
     )
 
     response = (prompt | llm).invoke({

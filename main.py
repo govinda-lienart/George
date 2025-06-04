@@ -346,7 +346,7 @@ with st.sidebar:
     st.markdown(
         f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>',
         unsafe_allow_html=True)
-    link3_text = "📊 System Architecture Diagram"
+    link3_text = "System Architecture Diagram"
     link3_url = "https://bejewelled-nougat-9ce61a.netlify.app"
     st.markdown(
         f'<a href="{link3_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link3_text}</button></a>',

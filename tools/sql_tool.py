@@ -70,31 +70,34 @@ room_availability(
   is_available
 )
 
-Important facts:
-- This hotel has exactly 7 rooms.
-- Each `room_type` corresponds to a unique `room_id`. For example, there is only one Single room (room_id = 1), one Double room (room_id = 2), etc.
-- So when the user asks about a room by type (e.g., "Single"), you must translate it to the correct `room_id`.
+Facts:
+- The hotel has exactly 7 rooms.
+- Each `room_type` corresponds to a unique `room_id`. For example:
+    "Single" → room_id = 1
+    "Double" → room_id = 2
+    "Twin" → room_id = 3
+    "Family" → room_id = 4
+    "Romantic" → room_id = 5
+    "Business" → room_id = 6
+    "Studio" → room_id = 7
 
 Rules:
-- To check **availability** of a room for a date range, search the `bookings` table for any overlapping booking where the same `room_id` exists and:
+- To check **room availability**, query the `bookings` table.
+- A room is considered **booked** if there exists a booking for the same `room_id` where:
     check_in < desired_check_out AND check_out > desired_check_in
-    → If such a row exists, the room is **already booked** for that period.
-    → If no such rows exist, the room is **available**.
-- Assume dates are in the current year (2025) if no year is specified by the user.
-- The hotel has exactly 7 rooms, and each `room_type` corresponds to a unique `room_id`.
-  For example: "Single" → room_id = 1, "Double" → room_id = 2, etc.
-- Only use the `room_availability` table if the user **explicitly** mentions it.
-- Use exact column names from the schema.
-- Use `check_in`, not `check_in_date`.
-- Use `check_out`, not `check_out_date`.
-- Use `booking_number` (not reservation ID).
-- NEVER include backticks, markdown formatting, or explanations.
-- ONLY return the raw SQL query, and NOTHING else.
-
+- If no such row exists, the room is **available**.
+- Always use this pattern:
+    SELECT COUNT(*) = 0 AS is_available FROM bookings WHERE room_id = X AND check_in < 'YYYY-MM-DD' AND check_out > 'YYYY-MM-DD';
+- Only use the `room_availability` table if the user explicitly mentions it.
+- Assume all dates are in the year 2025 unless the user specifies another year.
+- Use only exact column names from the schema.
+- Do not include SQL comments, markdown, or explanation.
+- Return only the SQL query, nothing else.
 
 User: "{input}"
 """
 )
+
 
 
 # ========================================

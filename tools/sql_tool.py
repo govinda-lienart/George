@@ -31,7 +31,7 @@ import re
 from logger import logger
 
 # ========================================
-# 🧾 PROMPT TEMPLATE FOR SQL GENERATION
+# 🧾 UPDATED SQL PROMPT TEMPLATE
 # ========================================
 sql_prompt = PromptTemplate(
     input_variables=["summary", "input"],
@@ -76,6 +76,8 @@ room_availability(
 Use prior information (like booking numbers) mentioned in the summary if the current question doesn't repeat them.
 
 Rules:
+- To determine if a room is available on a given date, check whether that date is **not between `check_in` (inclusive) and `check_out` (exclusive)** in the `bookings` table.
+- Avoid using the `room_availability` table for checking availability unless the user explicitly mentions it.
 - Use exact column names.
 - Use `check_in`, not `check_in_date`.
 - Use `check_out`, not `check_out_date`.

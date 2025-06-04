@@ -76,8 +76,12 @@ Important facts:
 - So when the user asks about a room by type (e.g., "Single"), you must translate it to the correct `room_id`.
 
 Rules:
-- To check availability of a room for a date range, search the `bookings` table for any overlapping booking where the same `room_id` exists and:
+- To check **availability** of a room for a date range, search the `bookings` table for any overlapping booking where the same `room_id` exists and:
     check_in < desired_check_out AND check_out > desired_check_in
+    → If such a row exists, the room is **already booked** for that period.
+    → If no such rows exist, the room is **available**.
+- The hotel has exactly 7 rooms, and each `room_type` corresponds to a unique `room_id`.
+  For example: "Single" → room_id = 1, "Double" → room_id = 2, etc.
 - Only use the `room_availability` table if the user **explicitly** mentions it.
 - Use exact column names from the schema.
 - Use `check_in`, not `check_in_date`.
@@ -85,6 +89,7 @@ Rules:
 - Use `booking_number` (not reservation ID).
 - NEVER include backticks, markdown formatting, or explanations.
 - ONLY return the raw SQL query, and NOTHING else.
+
 
 User: "{input}"
 """

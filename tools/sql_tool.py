@@ -80,6 +80,7 @@ Rules:
     check_in < desired_check_out AND check_out > desired_check_in
     → If such a row exists, the room is **already booked** for that period.
     → If no such rows exist, the room is **available**.
+- Assume dates are in the current year (2025) if no year is specified by the user.
 - The hotel has exactly 7 rooms, and each `room_type` corresponds to a unique `room_id`.
   For example: "Single" → room_id = 1, "Double" → room_id = 2, etc.
 - Only use the `room_availability` table if the user **explicitly** mentions it.

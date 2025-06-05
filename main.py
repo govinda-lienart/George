@@ -190,6 +190,7 @@ ROUTING RULES:
 11. Room availability and prices → sql_tool
 12. Booking confirmation → booking_tool
 13. ANY questions about breakfast, dining, food options → vector_tool
+14. Pets → vector_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 

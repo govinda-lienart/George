@@ -38,6 +38,8 @@ You are an SQL assistant for a hotel booking system.
 Conversation summary so far:
 {summary}
 
+IMPORTANT: Look at the conversation context above. If the user's current question refers to something from previous messages (like "it", "for 2 nights", "how much", etc.), use the context to understand what they mean.
+
 Translate the user's question into a MySQL query using this schema:
 
 bookings(
@@ -97,7 +99,6 @@ Rules:
 User: "{input}"
 """
 )
-
 
 
 # ========================================

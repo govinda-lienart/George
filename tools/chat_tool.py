@@ -10,6 +10,7 @@ Chat tool module for the George AI Hotel Receptionist app.
 - Loads static hotel facts from text files for consistent responses
 - Manages fallback responses when information is not available
 - Integrates with LangChain for conversational AI capabilities
+- Now includes conversation memory for context-aware responses
 - Essential component for George's friendly and professional communication
 """
 
@@ -25,6 +26,7 @@ from langchain.prompts import PromptTemplate
 from utils.config import llm
 from logger import logger
 import os
+import streamlit as st
 
 # ────────────────────────────────────────────────
 # 📁 STATIC FACT SOURCE
@@ -43,10 +45,13 @@ except Exception as e:
     logger.error(f"❌ Failed to load hotel facts: {e}")
 
 # ========================================
-# 🧾 PROMPT TEMPLATE FOR GENERAL CHAT
+# 🧾 PROMPT TEMPLATE FOR GENERAL CHAT WITH MEMORY
 # ========================================
 chat_prompt = PromptTemplate.from_template("""
 You are George, the friendly AI hotel assistant at Chez Govinda in Belgium.
+
+Conversation summary so far:
+{summary}
 
 RESPONSE STYLE:
 - Keep responses SHORT and conversational (2-3 sentences max)
@@ -56,6 +61,8 @@ RESPONSE STYLE:
 - End responses naturally without inviting more conversation
 
 {facts}
+
+If asked about conversation history, refer to the summary above.
 
 If a guest expresses emotions like loneliness, sadness, or stress:
 - Gently acknowledge the feeling with empathy
@@ -70,17 +77,22 @@ User: {input}
 Response (keep it brief and conversational):
 """)
 
+
 # ========================================
-# ⚙️ CHAT TOOL FUNCTION
+# ⚙️ CHAT TOOL FUNCTION WITH MEMORY
 # ========================================
 # ┌──────────────────────────────────────────┐
 # │  PROCESS GENERAL HOSPITALITY QUERIES        │
 # └──────────────────────────────────────────┘
 def chat_tool_func(user_input: str) -> str:
-    """Answer general user questions based on hotel facts."""
+    """Answer general user questions based on hotel facts and conversation memory."""
     logger.info(f"💬 User asked: {user_input}")
 
     try:
+        # Get conversation summary for context-aware responses
+        summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
+        logger.info(f"💭 Chat tool using conversation summary: {summary[:100]}...")
+
         if hotel_facts_text:
             logger.info("📄 Responding using hotel_facts.txt")
         else:
@@ -88,7 +100,8 @@ def chat_tool_func(user_input: str) -> str:
 
         response = (chat_prompt | llm).invoke({
             "input": user_input,
-            "facts": hotel_facts_text or "[NO FACTS AVAILABLE]"
+            "facts": hotel_facts_text or "[NO FACTS AVAILABLE]",
+            "summary": summary
         }).content.strip()
 
         logger.info(f"🤖 Assistant response: {response}")
@@ -97,6 +110,7 @@ def chat_tool_func(user_input: str) -> str:
     except Exception as e:
         logger.error(f"❌ chat_tool_func error: {e}", exc_info=True)
         return "I'm sorry, something went wrong while processing your question."
+
 
 # ========================================
 # 🧩 LANGCHAIN TOOL OBJECT (EXPORTED)

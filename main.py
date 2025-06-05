@@ -163,6 +163,8 @@ router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 # 📝 ROUTER PROMPT TEMPLATE
 # ────────────────────────────────────────────────
 # Prompt template used to guide the AI model in deciding which tool to choose based on the user's question
+# Update the router_prompt in main.py:
+
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
 
@@ -170,7 +172,7 @@ Choose the correct tool for the user's question, following these guidelines:
 
 Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
-- vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information, location, address, street
+- vector_tool: For room descriptions, hotel policies, breakfast, amenities, dining information, location, address, street, AND ROOM RECOMMENDATIONS
 - booking_tool: When the user confirms they want to book a room or asks for help booking
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel, OR SPECIFICALLY ABOUT: website, smoking, quiet hours, parties, events, languages spoken.
 
@@ -183,10 +185,11 @@ ROUTING RULES:
 6. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
 7. **ANY question containing keywords: nearby attractions, parties, events, gatherings → chat_tool**
 8. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
-9. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
-10. Room availability and prices → sql_tool
-11. Booking confirmation → booking_tool
-12. ANY questions about breakfast, dining, food options → vector_tool
+9. **ROOM RECOMMENDATIONS: which room, recommend room, best room, romantic room, budget room, cheap room, poor, affordable → vector_tool**
+10. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
+11. Room availability and prices → sql_tool
+12. Booking confirmation → booking_tool
+13. ANY questions about breakfast, dining, food options → vector_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 

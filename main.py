@@ -366,7 +366,7 @@ with st.sidebar:
     # └─────────────────────────────────────────┘
     st.markdown("### 🔗 Useful Links")
     link1_text = "Technical Documentation"
-    link1_url = "https://govindalienart.notion.site/George-Online-AI-Hotel-Receptionist-1f95d3b67d38809889e1fa689107b5ea?pvs=4"
+    link1_url = "https://www.notion.so/govindalienart/GEORGE-AI-HOTEL-RECEPTIONIST-2095d3b67d38809ea199df08a96f3358?source=copy_link"
     st.markdown(
         f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>',
         unsafe_allow_html=True)

@@ -168,7 +168,7 @@ You are a routing assistant for an AI hotel receptionist named George at Chez Go
 Recent conversation context:
 {conversation_summary}
 
-Choose the correct tool for the user's question, following these guidelines:
+CRITICAL: Look at the conversation context! If previous questions were about PRICES, and the user asks "what about [room type]?" - they want the PRICE too!
 
 Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
@@ -176,22 +176,18 @@ Available tools:
 - booking_tool: When the user confirms they want to book a room or asks for help booking
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel, OR SPECIFICALLY ABOUT: website, smoking, quiet hours, parties, events, languages spoken.
 
-ROUTING RULES:
-1. **Use conversation context to understand follow-up questions**
-2. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
-3. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
-4. Questions about external topics → chat_tool (politics, sports, tech, weather)
-5. **ANY question containing keywords: smoke, smoking, where can I smoke → chat_tool**
-6. **ANY question containing keywords: website, link, url → chat_tool**
-7. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
-8. **ANY question containing keywords: nearby attractions, parties, events, gatherings → chat_tool**
-9. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
-10. **ROOM RECOMMENDATIONS: which room, recommend room, best room, romantic room, budget room, cheap room, poor, affordable → vector_tool**
-11. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
-12. Room availability and prices → sql_tool
-13. Booking confirmation → booking_tool
-14. ANY questions about breakfast, dining, food options → vector_tool
-15. Pets → vector_tool
+CONTEXT-AWARE ROUTING RULES:
+1. **IF conversation mentions room prices and user asks "what about [room]?" → sql_tool**
+2. **IF conversation mentions room features and user asks "what about [room]?" → vector_tool**
+3. **Direct price questions: "price", "cost", "how much" → sql_tool**
+4. Room recommendations: "which room", "recommend", "best room" → vector_tool
+5. Room descriptions and amenities → vector_tool
+6. Basic pleasantries → chat_tool
+7. Questions about conversation history → chat_tool
+
+EXAMPLES:
+- Previous: "price for economy room" Current: "what about family room?" → sql_tool (price follow-up)
+- Previous: "features of economy room" Current: "what about family room?" → vector_tool (features follow-up)
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -239,6 +235,9 @@ def process_user_query(input_text: str) -> str:
         # ⚡ STEP 1: AI ROUTING DECISION WITH CONTEXT
         conversation_summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
+        # Add debugging to see what context the router gets
+        logger.info(f"🧠 Conversation summary being sent to router: {conversation_summary[:200]}...")
+
         route_result = router_chain.invoke(
             {
                 "question": input_text,
@@ -247,7 +246,7 @@ def process_user_query(input_text: str) -> str:
             config={"callbacks": [LangChainTracer()]}
         )
         tool_choice = route_result["tool_choice"].strip()
-        logger.info(f"Tool selected: {tool_choice}")
+        logger.info(f"Tool selected: {tool_choice} (with context: {len(conversation_summary)} chars)")
 
         # ⚡ STEP 2: TOOL EXECUTION
         tool_response = execute_tool(tool_choice, input_text)

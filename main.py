@@ -162,13 +162,11 @@ router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 # ────────────────────────────────────────────────
 # 📝 ROUTER PROMPT TEMPLATE WITH CONVERSATION CONTEXT
 # ────────────────────────────────────────────────
+
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
 
-Recent conversation context:
-{conversation_summary}
-
-CRITICAL: Look at the conversation context! If previous questions were about PRICES, and the user asks "what about [room type]?" - they want the PRICE too!
+Choose the correct tool for the user's question, following these guidelines:
 
 Available tools:
 - sql_tool: For checking room availability, prices, booking status, or existing reservation details
@@ -176,14 +174,25 @@ Available tools:
 - booking_tool: When the user confirms they want to book a room or asks for help booking
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel, OR SPECIFICALLY ABOUT: website, smoking, quiet hours, parties, events, languages spoken.
 
-CONTEXT-AWARE ROUTING RULES:
-1. **IF conversation mentions room prices and user asks "what about [room]?" → sql_tool**
-2. **IF conversation mentions room features and user asks "what about [room]?" → vector_tool**
-3. **Direct price questions: "price", "cost", "how much" → sql_tool**
-4. Room recommendations: "which room", "recommend", "best room" → vector_tool
-5. Room descriptions and amenities → vector_tool
-6. Basic pleasantries → chat_tool
-7. Questions about conversation history → chat_tool
+ROUTING RULES:
+1. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
+2. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
+3. Questions about external topics → chat_tool (politics, sports, tech, weather)
+4. **ANY question containing keywords: smoke, smoking, where can I smoke → chat_tool**
+5. **ANY question containing keywords: website, link, url → chat_tool**
+6. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
+7. **ANY question containing keywords: nearby attractions, parties, events, gatherings → chat_tool**
+8. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
+9. **ROOM RECOMMENDATIONS: which room, recommend room, best room, romantic room, budget room, cheap room, poor, affordable → vector_tool**
+10. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
+11. Room availability and prices → sql_tool
+12. Booking confirmation → booking_tool
+13. ANY questions about breakfast, dining, food options → vector_tool
+14. Pets → vector_tool
+15. **IF conversation mentions room prices and user asks "what about [room]?" → sql_tool**
+16. **IF conversation mentions room features and user asks "what about [room]?" → vector_tool**17. **Direct price questions: "price", "cost", "how much" → sql_tool**
+17. Room recommendations: "which room", "recommend", "best room" → vector_tool
+18. Room descriptions and amenities → vector_tool
 
 EXAMPLES:
 - Previous: "price for economy room" Current: "what about family room?" → sql_tool (price follow-up)

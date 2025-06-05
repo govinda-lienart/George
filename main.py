@@ -160,13 +160,13 @@ def extract_booking_number_from_result(booking_result: str) -> str:
 router_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
 # ────────────────────────────────────────────────
-# 📝 ROUTER PROMPT TEMPLATE
+# 📝 ROUTER PROMPT TEMPLATE WITH CONVERSATION CONTEXT
 # ────────────────────────────────────────────────
-# Prompt template used to guide the AI model in deciding which tool to choose based on the user's question
-# Update the router_prompt in main.py:
-
 router_prompt = PromptTemplate.from_template("""
 You are a routing assistant for an AI hotel receptionist named George at Chez Govinda.
+
+Recent conversation context:
+{conversation_summary}
 
 Choose the correct tool for the user's question, following these guidelines:
 
@@ -177,20 +177,21 @@ Available tools:
 - chat_tool: For basic pleasantries AND any questions unrelated to the hotel, OR SPECIFICALLY ABOUT: website, smoking, quiet hours, parties, events, languages spoken.
 
 ROUTING RULES:
-1. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
-2. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
-3. Questions about external topics → chat_tool (politics, sports, tech, weather)
-4. **ANY question containing keywords: smoke, smoking, where can I smoke → chat_tool**
-5. **ANY question containing keywords: website, link, url → chat_tool**
-6. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
-7. **ANY question containing keywords: nearby attractions, parties, events, gatherings → chat_tool**
-8. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
-9. **ROOM RECOMMENDATIONS: which room, recommend room, best room, romantic room, budget room, cheap room, poor, affordable → vector_tool**
-10. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
-11. Room availability and prices → sql_tool
-12. Booking confirmation → booking_tool
-13. ANY questions about breakfast, dining, food options → vector_tool
-14. Pets → vector_tool
+1. **Use conversation context to understand follow-up questions**
+2. Basic pleasantries (e.g., "How are you?", "Good morning") → chat_tool
+3. Personal questions/advice → chat_tool (e.g., relationship advice, personal problems)
+4. Questions about external topics → chat_tool (politics, sports, tech, weather)
+5. **ANY question containing keywords: smoke, smoking, where can I smoke → chat_tool**
+6. **ANY question containing keywords: website, link, url → chat_tool**
+7. **ANY question containing keywords: quiet hours, noise after, sleep time → chat_tool**
+8. **ANY question containing keywords: nearby attractions, parties, events, gatherings → chat_tool**
+9. **ANY question containing keywords: languages, speak, parler, spreken → chat_tool**
+10. **ROOM RECOMMENDATIONS: which room, recommend room, best room, romantic room, budget room, cheap room, poor, affordable → vector_tool**
+11. Hotel services, amenities, policies (EXCEPT smoking, quiet hours, parties) → vector_tool
+12. Room availability and prices → sql_tool
+13. Booking confirmation → booking_tool
+14. ANY questions about breakfast, dining, food options → vector_tool
+15. Pets → vector_tool
 
 Return only one word: sql_tool, vector_tool, booking_tool, or chat_tool
 
@@ -235,9 +236,14 @@ def process_user_query(input_text: str) -> str:
     # └─────────────────────────────────────────┘
     # Otherwise, route question to appropriate tool as usual
     try:
-        # ⚡ STEP 1: AI ROUTING DECISION
+        # ⚡ STEP 1: AI ROUTING DECISION WITH CONTEXT
+        conversation_summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
+
         route_result = router_chain.invoke(
-            {"question": input_text},
+            {
+                "question": input_text,
+                "conversation_summary": conversation_summary
+            },
             config={"callbacks": [LangChainTracer()]}
         )
         tool_choice = route_result["tool_choice"].strip()
@@ -339,7 +345,6 @@ with st.sidebar:
         "📋 Show General Log Panel",
         value=st.session_state.get("show_log_panel", False)
     )
-
 
     # ┌─────────────────────────────────────────┐
     # │  EXTERNAL LINKS SECTION                 │
@@ -515,7 +520,6 @@ if st.session_state.show_sql_panel:
                 conn.close()
             except:
                 pass
-
 
 # ────────────────────────────────────────────────
 # 📋 APPLICATION LOG PANEL (Developer Tool)

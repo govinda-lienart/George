@@ -512,6 +512,7 @@ if st.session_state.show_sql_panel:
             except:
                 pass
 
+
 # ────────────────────────────────────────────────
 # 📋 APPLICATION LOG PANEL (Developer Tool)
 # ────────────────────────────────────────────────
@@ -528,10 +529,17 @@ if st.session_state.get("show_log_panel"):
     for line in filtered_lines:
         if "—" in line:
             ts, msg = line.split("—", 1)
+
+            # Make user queries bold
+            if "User asked:" in msg:
+                # Extract the user query part and make it bold
+                parts = msg.split("User asked:", 1)
+                if len(parts) == 2:
+                    msg = f"{parts[0]}User asked: **{parts[1].strip()}**"
+
             formatted_logs += f"\n\n**{ts.strip()}** — {msg.strip()}"
         else:
             formatted_logs += f"\n{line}"
-
 
     # ┌─────────────────────────────────────────┐
     # │  LOG DISPLAY & DOWNLOAD                 │
@@ -542,7 +550,6 @@ if st.session_state.get("show_log_panel"):
         st.info("No logs yet.")
 
     st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")
-
     # ========================================
     # 🧭 Auto-Scroll to Latest Message
     # ========================================

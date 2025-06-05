@@ -77,11 +77,11 @@ Facts:
 - Each `room_type` corresponds to a unique `room_id`. For example:
     "Single" → room_id = 1
     "Double" → room_id = 2
-    "Twin" → room_id = 3
-    "Family" → room_id = 4
+    "Suite" → room_id = 3
+    "Economy" → room_id = 4
     "Romantic" → room_id = 5
-    "Business" → room_id = 6
-    "Studio" → room_id = 7
+    "Family" → room_id = 6
+    "Kids Friendly" → room_id = 7
 
 Rules:
 - To check **room availability**, query the `bookings` table.
@@ -95,6 +95,19 @@ Rules:
 - Use only exact column names from the schema.
 - Do not include SQL comments, markdown, or explanation.
 - Return only the SQL query, nothing else.
+- Use exact column names.
+- Use `check_in`, not `check_in_date`.
+- Use `check_out`, not `check_out_date`.
+- Use `booking_number` (not reservation ID).
+- DO NOT include backticks or markdown formatting like ```sql.
+- DO NOT include explanations or commentary.
+- ONLY return the raw SQL query.
+
+Example:
+User: "Can you get me the details for BKG-20250401-0003?"
+SELECT * FROM bookings WHERE booking_number = 'BKG-20250401-0003';
+
+Respond ONLY with the SQL query, and NOTHING else.
 
 User: "{input}"
 """

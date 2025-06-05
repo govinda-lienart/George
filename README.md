@@ -54,44 +54,43 @@ User Query → AI Router (LLM) → Tool Selection → Specialized Processing →
 
 ```
 George/
-├── 📁 .devcontainer/         # Development container configuration
-├── 📁 .venv/                 # Virtual environment
-├── 📁 assets/                # Static assets (images, etc.)
-├── 📁 booking/               # Booking system
+├── 📁 .venv/
+│   ├── bin/
+│   ├── include/
+│   ├── lib/
+│   └── pyvenv.cfg
+├── 📁 assets/
+│   ├── logo.png
+│   ├── george_foto.png
+├── 📁 booking/
 │   ├── __init__.py
-│   ├── calendar.py           # Booking form interface
-│   └── email.py              # Email confirmation system
-├── 📁 Debuggers/             # Debugging utilities
-├── 📁 docs/                  # Documentation
-│   └── index.html
-├── 📁 Ingestion/             # Data ingestion scripts
-│   ├── ingestion.py          # Main ingestion logic
-│   ├── ingestion_firecrawl.py # Web scraping with Firecrawl
-│   └── reset_firecrawl_ingestion.py
-├── 📁 static/                # Static content
-│   └── hotel_facts.txt       # Hotel information database
-├── 📁 tools/                 # AI tool modules
+│   ├── calendar.py              # Booking form rendering & processing
+│   └── email.py                 # Email confirmation system
+├── 📁 Ingestion/
+│   ├── ingestion_firecrawl.py   # Firecrawl web scraping pipeline
+│   └── reset_firecrawl_ingestion.py  # Database reset utility
+├── 📁 static/
+│   ├── hotel_facts.txt          # Static hotel information
+├── 📁 tools/
 │   ├── __init__.py
-│   ├── booking_tool.py       # Booking form activation
-│   ├── chat_tool.py          # General conversation handler
-│   ├── followup_tool.py      # Post-booking engagement
-│   ├── sql_tool.py           # Database query processor
-│   └── vector_tool.py        # Semantic search engine
-├── 📁 utils/                 # Utility modules
+│   ├── booking_tool.py          # Booking form activation tool
+│   ├── chat_tool.py             # General conversation tool
+│   ├── followup_tool.py         # Post-booking engagement tool
+│   ├── sql_tool.py              # Database query tool
+│   └── vector_tool.py           # Knowledge base search tool
+├── 📁 utils/
 │   ├── __init__.py
-│   └── config.py             # Configuration management
-├── 📄 .env                   # Environment variables
-├── 📄 .gitattributes         # Git configuration
-├── 📄 .gitignore             # Git ignore rules
-├── 📄 chat_ui.py             # Chat interface components
-├── 📄 hotel_descriptions.txt # Additional hotel content
-├── 📄 logger.py              # Logging system
-├── 📄 main.py                # Main application entry point
-├── 📄 Pipfile                # Pipenv configuration
-├── 📄 Pipfile.lock           # Pipenv lock file
-├── 📄 requirements.txt       # Python dependencies
-├── 📄 timestamping_files.py  # File management utility
-└── 📄 updates                # Update notes
+│   ├── config.py                # LLM & vectorstore configuration
+├── 📄 .env                      # Environment variables
+├── 📄 .gitattributes            # Git line ending configuration
+├── 📄 .gitignore                # Git ignore patterns
+├── 📄 chat_ui.py                # Streamlit UI components
+├── 📄 logger.py                 # Centralized logging system
+├── 📄 main.py                   # Main application entry point
+├── 📄 Pipfile                   # Pipenv dependency management
+├── 📄 Pipfile.lock              # Locked dependency versions
+├── 📄 README.md                 # Project documentation
+├── 📄 requirements.txt          # Pip dependency list
 ```
 
 ## Quick Start
@@ -241,3 +240,4 @@ This project is designed for hotel booking and customer service applications.
 
 **🏨 Designed for Chez Govinda Hotel**
 
+-

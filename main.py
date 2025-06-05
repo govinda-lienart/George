@@ -345,13 +345,20 @@ with st.sidebar:
     # │  DEVELOPER TOOLS SECTION                │
     # └─────────────────────────────────────────┘
     st.markdown("### 🛠️ Developer Tools")
+
+    st.session_state.show_log_panel = st.checkbox(
+        "📋 Show General Log Panel",
+        value=st.session_state.get("show_log_panel", False)
+    )
+
     st.session_state.show_sql_panel = st.checkbox(
         "🧠 Enable SQL Query Panel",
         value=st.session_state.get("show_sql_panel", False)
     )
-    st.session_state.show_log_panel = st.checkbox(
-        "📋 Show General Log Panel",
-        value=st.session_state.get("show_log_panel", False)
+
+    st.session_state.show_pipeline = st.checkbox(
+        "🔄 Show Pipeline",
+        value=st.session_state.get("show_pipeline", False)
     )
 
     # ┌─────────────────────────────────────────┐
@@ -363,11 +370,7 @@ with st.sidebar:
     st.markdown(
         f'<a href="{link1_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link1_text}</button></a>',
         unsafe_allow_html=True)
-    link3_text = "System Architecture Diagram"
-    link3_url = "https://bejewelled-nougat-9ce61a.netlify.app"
-    st.markdown(
-        f'<a href="{link3_url}" target="_blank"><button style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; color: #333; text-align: center;">{link3_text}</button></a>',
-        unsafe_allow_html=True)
+
     link2_text = "Chez Govinda Website"
     link2_url = "https://sites.google.com/view/chez-govinda/home"
     st.markdown(

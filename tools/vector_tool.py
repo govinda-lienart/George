@@ -122,15 +122,7 @@ def vector_tool_func(user_input: str) -> str:
         # ────────────────────────────────────────────────
         # 🚀 Boost relevant terms based on query intent
         # ────────────────────────────────────────────────
-        boost_terms = ["eco", "green", "environment", "sustainab", "organic"]
-        if any(term in user_input.lower() for term in boost_terms):
-            logger.info("⚡ Boost terms detected — reordering results for eco-relevance")
-            unique_docs = sorted(
-                unique_docs,
-                key=lambda pair: any(term in pair[0].page_content.lower() for term in boost_terms),
-                reverse=True
-            )
-
+        
         location_query_terms = ["where", "address", "location", "find", "street", "map", "directions"]
         if any(term in user_input.lower() for term in location_query_terms):
             logger.info("⚡ Location query detected — reordering results for location relevance")

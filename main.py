@@ -19,7 +19,6 @@ Main script for the George AI Hotel Receptionist app.
 # 📚 STANDARD LIBRARY IMPORTS
 # ────────────────────────────────────────────────
 import os  # Operating system interfaces, environment variables
-import re  # Regular expressions for pattern matching
 
 # ────────────────────────────────────────────────
 # 🔧 THIRD-PARTY LIBRARY IMPORTS
@@ -91,10 +90,6 @@ if "george_memory" not in st.session_state:
 if "awaiting_activity_consent" not in st.session_state:
     st.session_state.awaiting_activity_consent = False
 
-if "latest_booking_number" not in st.session_state:
-    st.session_state.latest_booking_number = None
-
-
 # ========================================
 # 🔧 UTILITY FUNCTIONS
 # ========================================
@@ -113,41 +108,6 @@ def get_secret(key: str, default: str = "") -> str:
         return st.secrets[key]
     except Exception:
         return os.getenv(key, default)
-
-
-# ────────────────────────────────────────────────
-# 📋 BOOKING NUMBER EXTRACTION UTILITY
-# ────────────────────────────────────────────────
-def extract_booking_number_from_result(booking_result: str) -> str:
-    """
-    Extract booking reference number from a booking confirmation string.
-    The extracted booking number is stored in st.session_state.latest_booking_number to remember it throughout the user's session.
-    """
-    try:
-        # Common patterns for booking references
-        patterns = [
-            r"[Bb]ooking\s+(?:confirmed|reference|ref|number)[\s:]+([A-Z0-9]+)",
-            r"[Rr]eference[\s:]+([A-Z0-9]+)",
-            r"[Bb]ooking[\s#:]+([A-Z0-9]+)",
-            r"[Cc]onfirmation[\s#:]+([A-Z0-9]+)",
-            r"REF[\s:]*([A-Z0-9]+)",
-            r"#([A-Z0-9]+)"
-        ]
-
-        for pattern in patterns:
-            match = re.search(pattern, booking_result)
-            if match:
-                booking_number = match.group(1)
-                logger.info(f"📋 Extracted booking number: {booking_number}")
-                return booking_number
-
-        logger.warning("No booking number found in booking result")
-        return None
-
-    except Exception as e:
-        logger.error(f"Error extracting booking number: {e}")
-        return None
-
 
 # ========================================
 # 🧠 AI ROUTING SYSTEM CONFIGURATION
@@ -190,9 +150,10 @@ ROUTING RULES:
 13. ANY questions about breakfast, dining, food options → vector_tool
 14. Pets → vector_tool
 15. **IF conversation mentions room prices and user asks "what about [room]?" → sql_tool**
-16. **IF conversation mentions room features and user asks "what about [room]?" → vector_tool**17. **Direct price questions: "price", "cost", "how much" → sql_tool**
-17. Room recommendations: "which room", "recommend", "best room" → vector_tool
-18. Room descriptions and amenities → vector_tool
+16. **IF conversation mentions room features and user asks "what about [room]?" → vector_tool**
+17. **Direct price questions: "price", "cost", "how much" → sql_tool**
+18. Room recommendations: "which room", "recommend", "best room" → vector_tool
+19. Room descriptions and amenities → vector_tool
 
 EXAMPLES:
 - Previous: "price for economy room" Current: "what about family room?" → sql_tool (price follow-up)
@@ -208,7 +169,6 @@ Tool:
 # 🔗 ROUTER CHAIN CREATION
 # ────────────────────────────────────────────────
 router_chain = LLMChain(llm=router_llm, prompt=router_prompt, output_key="tool_choice")
-
 
 # ========================================
 # ⚡ CORE INTELLIGENCE ENGINE
@@ -273,7 +233,6 @@ def process_user_query(input_text: str) -> str:
         logger.error(f"Query processing failed: {e}", exc_info=True)
         return "I'm sorry, I encountered an error processing your request. Please try again or rephrase your question."
 
-
 # ────────────────────────────────────────────────
 # 🛠️ TOOL EXECUTION DISPATCHER
 # ────────────────────────────────────────────────
@@ -310,7 +269,6 @@ def execute_tool(tool_name: str, query: str):
             return result
     elif tool_name == "chat_tool":
         return chat_tool.func(query)
-
 
 # ========================================
 # 🖥️ STREAMLIT APPLICATION SETUP
@@ -569,13 +527,12 @@ if st.session_state.get("show_log_panel"):
         st.info("No logs yet.")
 
     st.download_button("⬇️ Download Log File", "\n".join(filtered_lines), "general_log.log")
-    # ========================================
-    # 🧭 Auto-Scroll to Latest Message
-    # ========================================
-    import streamlit as st
 
-    st.markdown("""
-        <script>
-        window.scrollTo(0, document.body.scrollHeight);
-        </script>
-    """, unsafe_allow_html=True)
+# ========================================
+# 🧭 Auto-Scroll to Latest Message
+# ========================================
+st.markdown("""
+    <script>
+    window.scrollTo(0, document.body.scrollHeight);
+    </script>
+""", unsafe_allow_html=True)

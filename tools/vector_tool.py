@@ -4,7 +4,7 @@
 
 """
 Vector tool module for the George AI Hotel Receptionist app.
-- Performs semantic search on hotael knowledge base using vector embeddings
+- Performs semantic search on hotel knowledge base using vector embeddings
 - Retrieves relevant information about rooms, policies, amenities, and services
 - Processes user queries through similarity search and document filtering
 - Provides intelligent content boosting for specific query types (eco, location)
@@ -122,7 +122,7 @@ def vector_tool_func(user_input: str) -> str:
         # ────────────────────────────────────────────────
         # 🚀 Boost relevant terms based on query intent
         # ────────────────────────────────────────────────
-        
+
         location_query_terms = ["where", "address", "location", "find", "street", "map", "directions"]
         if any(term in user_input.lower() for term in location_query_terms):
             logger.info("⚡ Location query detected — reordering results for location relevance")
@@ -136,8 +136,8 @@ def vector_tool_func(user_input: str) -> str:
         # ────────────────────────────────────────────────
         # 🧠 Generate response from top documents
         # ────────────────────────────────────────────────
-        top_docs = [doc for doc, _ in unique_docs[:10]]
-        context = "\n\n".join(doc.page_content for doc in top_docs)
+        top_docs = [doc for doc, _ in unique_docs[:10]
+        context = "\n\n".join(doc.page_content for doc in top_docs) # main var
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
         logger.debug("📥 Prompt inputs for LLM:")
@@ -146,7 +146,7 @@ def vector_tool_func(user_input: str) -> str:
         logger.debug(f"→ FULL CONTEXT PASSED TO LLM for question '{user_input}':\n{context}")
         logger.debug(f"→ Question: {user_input}")
 
-        # Generate answer using prompt + context
+        # Generate answer using prompt + context from the vector
         response = (vector_prompt | llm).invoke(
             {"summary": summary, "context": context, "question": user_input},
             config={"callbacks": [LangChainTracer()]}

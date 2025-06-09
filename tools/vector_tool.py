@@ -62,6 +62,8 @@ User: {question}
 ---
 **Key factual rules:**
 - If asked about room types, always list all 7 standard room types : Single (€100/night), Double (€150/night), Suite (€250/night), Economy (€90/night), Romantic (€220/night), Family (€300/night), Kids Friendly (€200/night).
+- - ONLY provide a full list of room types if the user asks about rooms, room types, availability, or prices.
+- If the user asks about pets, specific amenities, or other topics, do NOT include the full list of room types unless it's directly relevant.
 - If asked about the address/location, extract it **exactly** from the context or say it's not available, and include the location link.
 
 Please answer the user's question using the facts above. Do not include any additional remarks or ask if the user needs anything else.

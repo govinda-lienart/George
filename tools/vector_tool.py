@@ -61,7 +61,7 @@ User: {question}
 
 ---
 **Key factual rules:**
-- If asked about room types, always list all 7 standard room types : Single, Double, Suite, Economy, Romantic, Family, Kids Friendly.
+- If asked about room types, always list all 7 standard room types : Single (€100/night), Double (€150/night), Suite (€250/night), Economy (€90/night), Romantic (€220/night), Family (€300/night), Kids Friendly (€200/night).
 - If asked about the address/location, extract it **exactly** from the context or say it's not available, and include the location link.
 
 Please answer the user's question using the facts above. Do not include any additional remarks or ask if the user needs anything else.
@@ -136,7 +136,7 @@ def vector_tool_func(user_input: str) -> str:
         # ────────────────────────────────────────────────
         # 🧠 Generate response from top documents
         # ────────────────────────────────────────────────
-        top_docs = [doc for doc, _ in unique_docs[:10]
+        top_docs = [doc for doc, _ in unique_docs[:10]]
         context = "\n\n".join(doc.page_content for doc in top_docs) # main var
         summary = st.session_state.george_memory.load_memory_variables({}).get("summary", "")
 
